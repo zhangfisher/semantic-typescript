@@ -36,6 +36,44 @@ export const isIterable: <T>(t: unknown) => t is Iterable<unknown> = <T>(t: unkn
     return false;
 }
 
+export interface Runnable {
+    (): void;
+};
+export interface Supplier<R> {
+    (): R;
+}
+export interface Functional<T, R> {
+    (t: T): R;
+};
+export interface Predicate<T> {
+    (t: T): boolean;
+};
+export interface BiFunctional<T, U, R> {
+    (t: T, u: U): R;
+};
+export interface BiPredicate<T, U> {
+    (t: T, u: U): boolean;
+};
+export interface Comparator<T> {
+    (t1: T, t2: T): number;
+}
+export interface TriFunctional<T, U, V, R> {
+    (t: T, u: U, v: V): R;
+};
+export interface Consumer<T> {
+    (t: T): void;
+};
+export interface BiConsumer<T, U> {
+    (t: T, u: U): void;
+};
+export interface TriConsumer<T, U, V> {
+    (t: T, u: U, v: V): void;
+};
+
+export interface Generator<T> {
+    (accept: BiConsumer<T, bigint>, interrupt: Predicate<T>): void;
+}
+
 class Optional<T>{
 
     protected value: MaybeInvalid<T>;
@@ -90,44 +128,6 @@ class Optional<T>{
         }
         throw new TypeError("Value is not valid");
     }
-}
-
-export interface Runnable {
-    (): void;
-};
-export interface Supplier<R> {
-    (): R;
-}
-export interface Functional<T, R> {
-    (t: T): R;
-};
-export interface Predicate<T> {
-    (t: T): boolean;
-};
-export interface BiFunctional<T, U, R> {
-    (t: T, u: U): R;
-};
-export interface BiPredicate<T, U> {
-    (t: T, u: U): boolean;
-};
-export interface Comparator<T> {
-    (t1: T, t2: T): number;
-}
-export interface TriFunctional<T, U, V, R> {
-    (t: T, u: U, v: V): R;
-};
-export interface Consumer<T> {
-    (t: T): void;
-};
-export interface BiConsumer<T, U> {
-    (t: T, u: U): void;
-};
-export interface TriConsumer<T, U, V> {
-    (t: T, u: U, v: V): void;
-};
-
-export interface Generator<T> {
-    (accept: BiConsumer<T, bigint>, interrupt: Predicate<T>): void;
 }
 
 export const empty = <E>(): Semantic<E> => {
