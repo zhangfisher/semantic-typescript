@@ -410,39 +410,107 @@ export class Semantic<E>{
     sorted(): OrderedCollectable<E>;
     sorted(comparator: Comparator<E>): OrderedCollectable<E>;
     sorted(...args: any[]): OrderedCollectable<E> {
-
+        let array: Array<{index: bigint, element: E}> = [];
+        this.generator((element: E, index: bigint): void => {
+            array.push({
+                index: index,
+                element: element
+            })
+        }, (element: E): boolean => false);
+        array = array.sort((a, b) => {
+            return Number(a.index - b.index);
+        });
+        return new OrderedCollectable<E>((accept, interrupt): void => {
+            for (let i = 0n; i < array.length; i++) {
+                let item: { index: bigint, element: E } = array[Number(i)];
+                accept(item.element, item.index);
+                if (interrupt(item.element)) {
+                    break;
+                }
+            }
+        });
     }
 
     sub(start: bigint, end: bigint): Semantic<E> {
+        return new Semantic<E>((accept, interrupt): void => {
+            let count: bigint = 0n;
+            this.generator((element: E, index: bigint): void => {
+                if (count < end) {
+                    count++;
+                    if (count >= start) {
+                        accept(element, index);
+                    }
+                }
 
+            }, interrupt);
+        });
     }
 
     takeWhile(predicate: Predicate<E>): Semantic<E> {
-
+        return new Semantic<E>((accept, interrupt) => {
+            this.generator((element: E, index: bigint) => {
+                if (!predicate(element)) {
+                    interrupt(element);
+                    return;
+                }
+                accept(element, index);
+            }, interrupt);
+        });
     }
 
     toOrdered(): OrderedCollectable<E> {
-
+        return new OrderedCollectable(this.generator);
     }
 
     toStatistics(): Statistics<E, number>;
-    toStatistics<D>(): Statistics<E, D>;
+    toStatistics<D>(mapper?: Functional<E, D>): Statistics<E, D>;
     toStatistics(...args: any[]): Statistics<E, any> {
-
+        let map: Map<number, Supplier<Statistics<E, any>>> = new Map<number, Supplier<Statistics<E, any>>>();
+        map.set(0, (): Statistics<E, number> => {
+            return new Statistics<E, number>(this.generator);
+        });
+        map.set(1, (): Statistics<E, number> => {
+            return new Statistics<E, number>((accept, interrupt): void => {
+                this.generator((element: E, index: bigint): void => {
+                    accept(element, index);
+                }, interrupt);
+            });
+        });
+        let handler:MaybeInvalid<Supplier<Statistics<E, any>>> = map.get(args.length);
+        if (handler){
+            return handler();
+        }
+        throw new TypeError("Invalid arguments.");
     }
 
     toUnoredered(): UnorderedCollectable<E> {
-
+        return new UnorderedCollectable(this.generator);
     }
 
     toWindow(): WindowCollectable<E> {
-
+        return new WindowCollectable(this.generator);
     }
 
     translate(offset: bigint): Semantic<E>;
     translate(translator: BiFunctional<E, bigint, bigint>): Semantic<E>;
     translate(...args: any[]): Semantic<E> {
-
+        let parameter: bigint | BiFunctional<E, bigint, bigint> = args[0];
+        if (isBigint(parameter)) {
+            let offset: bigint = parameter;
+            return new Semantic<E>((accept, interrupt): void => {
+                this.generator((element: E, index: bigint): void => {
+                    accept(element, index + offset);
+                }, interrupt);
+            });
+        } else if (isFunction(parameter)) {
+            let translator: BiFunctional<E, bigint, bigint> = parameter;
+            return new Semantic<E>((accept, interrupt): void => {
+                this.generator((element: E, index: bigint): void => {
+                    accept(element, index + translator(element, index));
+                }, interrupt);
+            });
+        }
+        throw new TypeError("Invalid arguments.");
     }
 }
 export class Collector<E, A, R>{
@@ -861,7 +929,9 @@ export class OrderedCollectable<E> extends Collectable<E>{
 export class WindowCollectable<E> extends OrderedCollectable<E>{ }
 
 class Statistics<E, D> extends OrderedCollectable<E> {
+
     private frequencyCache: Map<D, bigint> = new Map();
+
     constructor(generator: Generator<E>) {
         super(generator);
     }
