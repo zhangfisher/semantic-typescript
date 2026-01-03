@@ -1,0 +1,17 @@
+{
+  "name": "semantic-typescript",
+  "version": "0.0.3",
+  "type": "module",
+  "main": "dist/index.js",       
+  "types": "dist/index.d.ts",    
+  "files": ["dist"],             
+  "scripts": {
+    "build": "tsc",
+    "prepublishOnly": "npm run build"
+  },
+  "devDependencies": {
+    "typescript": "~5.9.3"       
+},
+  "peerDependencies": {},         
+  "dependencies": {}              
+}
