@@ -897,15 +897,17 @@ export abstract class Collectable<E> {
         throw new TypeError("Invalid arguments.");
     }
 
-    public groupBy<K, V>(keyExtractor: Functional<E, K>, valueExtractor: Functional<E, V>): Map<K, V> {
-        return this.collect<Map<K, V>, Map<K, V>>((): Map<K, V> => {
-            return new Map<K, V>();
-        }, (map: Map<K, V>, element: E): Map<K, V> => {
+    public groupBy<K, V>(keyExtractor: Functional<E, K>, valueExtractor: Functional<E, V>): Map<K, Array<V>> {
+        return this.collect<Map<K, Array<V>>, Map<K, Array<V>>>((): Map<K, Array<V>> => {
+            return new Map<K, Array<V>>();
+        }, (map: Map<K, Array<V>>, element: E): Map<K, Array<V>> => {
             let key: K = keyExtractor(element);
             let value: V = valueExtractor(element);
-            map.set(key, value);
+            let group: Array<V> = (validate(map.get(key)) ? map.get(key) : []) as Array<V>;
+            group.push(value);
+            map.set(key, group);
             return map;
-        }, (map: Map<K, V>): Map<K, V> => {
+        }, (map: Map<K, Array<V>>): Map<K, Array<V>> => {
             return map;
         });
     }
