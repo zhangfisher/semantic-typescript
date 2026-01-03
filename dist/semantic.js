@@ -776,7 +776,9 @@ export class Collectable {
         }, (map, element) => {
             let key = keyExtractor(element);
             let value = valueExtractor(element);
-            map.set(key, value);
+            let group = (validate(map.get(key)) ? map.get(key) : []);
+            group.push(value);
+            map.set(key, group);
             return map;
         }, (map) => {
             return map;
