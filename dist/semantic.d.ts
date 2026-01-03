@@ -148,7 +148,7 @@ export declare abstract class Collectable<E> {
     findLast(): Optional<E>;
     forEach(action: BiConsumer<E, bigint>): void;
     group<K>(classifier: Functional<E, K>): Map<K, Array<E>>;
-    groupBy<K, V>(keyExtractor: Functional<E, K>, valueExtractor: Functional<E, V>): Map<K, V>;
+    groupBy<K, V>(keyExtractor: Functional<E, K>, valueExtractor: Functional<E, V>): Map<K, Array<V>>;
     join(): string;
     join(delimiter: string): string;
     join(prefix: string, delimiter: string, suffix: string): string;
