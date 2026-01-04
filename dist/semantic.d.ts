@@ -114,6 +114,7 @@ export declare class Semantic<E> {
     toBigintStatistics(): Statistics<E, bigint>;
     toUnoredered(): UnorderedCollectable<E>;
     toWindow(): WindowCollectable<E>;
+    translate(offset: number): Semantic<E>;
     translate(offset: bigint): Semantic<E>;
     translate(translator: BiFunctional<E, bigint, bigint>): Semantic<E>;
 }
