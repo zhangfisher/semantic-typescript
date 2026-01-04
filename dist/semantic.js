@@ -177,7 +177,7 @@ class Optional {
         this.value = value;
     }
     filter(predicate) {
-        if (this.isPresent() && predicate(this.value)) {
+        if (this.isPresent() && isFunction(predicate) && predicate(this.value)) {
             return new Optional(this.value);
         }
         return new Optional((void 0));
@@ -198,7 +198,7 @@ class Optional {
         throw new TypeError("Default value is not valid");
     }
     ifPresent(action) {
-        if (this.isPresent()) {
+        if (this.isPresent() && isFunction(action)) {
             action(this.value);
         }
     }
@@ -209,7 +209,7 @@ class Optional {
         return validate(this.value);
     }
     map(mapper) {
-        if (this.isPresent()) {
+        if (this.isPresent() && isFunction(mapper)) {
             return new Optional(mapper(this.value));
         }
         return new Optional(null);
@@ -293,7 +293,10 @@ export let range = (start, end, step = (typeof start === 'bigint' ? 1n : 1)) => 
     throw new TypeError("Invalid arguments.");
 };
 export function iterate(generator) {
-    return new Semantic(generator);
+    if (isFunction(generator)) {
+        return new Semantic(generator);
+    }
+    throw new TypeError("Invalid arguments.");
 }
 export class Semantic {
     generator;
@@ -591,18 +594,25 @@ export class Semantic {
     toWindow() {
         return new WindowCollectable(this.generator);
     }
-    translate(...args) {
-        let parameter = args[0];
-        if (isBigint(parameter)) {
-            let offset = parameter;
+    translate(argument1) {
+        if (isNumber(argument1)) {
+            let offset = argument1;
+            return new Semantic((accept, interrupt) => {
+                this.generator((element, index) => {
+                    accept(element, index + BigInt(offset));
+                }, interrupt);
+            });
+        }
+        else if (isBigint(argument1)) {
+            let offset = argument1;
             return new Semantic((accept, interrupt) => {
                 this.generator((element, index) => {
                     accept(element, index + offset);
                 }, interrupt);
             });
         }
-        else if (isFunction(parameter)) {
-            let translator = parameter;
+        else if (isFunction(argument1)) {
+            let translator = argument1;
             return new Semantic((accept, interrupt) => {
                 this.generator((element, index) => {
                     accept(element, index + translator(element, index));
