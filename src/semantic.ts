@@ -220,7 +220,7 @@ class Optional<T> {
     }
 
     filter(predicate: Predicate<T>): Optional<T> {
-        if (this.isPresent() && predicate(this.value as T)) {
+        if (this.isPresent() && isFunction(predicate) && predicate(this.value as T)) {
             return new Optional<T>(this.value as T);
         }
         return new Optional<T>((void 0));
@@ -244,7 +244,7 @@ class Optional<T> {
     }
 
     ifPresent(action: Consumer<T>): void {
-        if (this.isPresent()) {
+        if (this.isPresent() && isFunction(action)) {
             action(this.value as T);
         }
     }
@@ -258,7 +258,7 @@ class Optional<T> {
     }
 
     map<R>(mapper: Functional<T, R>): Optional<R> {
-        if (this.isPresent()) {
+        if (this.isPresent() && isFunction(mapper)) {
             return new Optional<R>(mapper(this.value as T));
         }
         return new Optional<R>(null);
@@ -348,7 +348,10 @@ export let range: <N extends number | bigint>(start: N, end: N, step: N) => Sema
 };
 
 export function iterate<E>(generator: Generator<E>): Semantic<E> {
-    return new Semantic(generator);
+    if(isFunction(generator)){
+        return new Semantic(generator);
+    }
+    throw new TypeError("Invalid arguments.");
 }
 
 export class Semantic<E> {
@@ -680,19 +683,26 @@ export class Semantic<E> {
         return new WindowCollectable(this.generator);
     }
 
+    public translate(offset: number): Semantic<E>;
     public translate(offset: bigint): Semantic<E>;
     public translate(translator: BiFunctional<E, bigint, bigint>): Semantic<E>;
-    public translate(...args: any[]): Semantic<E> {
-        let parameter: bigint | BiFunctional<E, bigint, bigint> = args[0];
-        if (isBigint(parameter)) {
-            let offset: bigint = parameter;
+    public translate(argument1: number | bigint | BiFunctional<E, bigint, bigint>): Semantic<E> {
+        if(isNumber(argument1)){
+            let offset: number = argument1;
+            return new Semantic<E>((accept, interrupt): void => {
+                this.generator((element: E, index: bigint): void => {
+                    accept(element, index + BigInt(offset));
+                }, interrupt);
+            });
+        }else if(isBigint(argument1)){
+            let offset: bigint = argument1;
             return new Semantic<E>((accept, interrupt): void => {
                 this.generator((element: E, index: bigint): void => {
                     accept(element, index + offset);
                 }, interrupt);
             });
-        } else if (isFunction(parameter)) {
-            let translator: BiFunctional<E, bigint, bigint> = parameter;
+        }else if(isFunction(argument1)){
+            let translator: BiFunctional<E, bigint, bigint> = argument1;
             return new Semantic<E>((accept, interrupt): void => {
                 this.generator((element: E, index: bigint): void => {
                     accept(element, index + translator(element, index));
