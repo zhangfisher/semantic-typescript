@@ -1,6 +1,6 @@
 {
   "name": "semantic-typescript",
-  "version": "0.0.3",
+  "version": "0.0.7",
   "type": "module",
   "main": "dist/index.js",       
   "types": "dist/index.d.ts",    
