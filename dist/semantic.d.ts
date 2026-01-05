@@ -3,6 +3,8 @@ export type Valid<T> = T extends null | undefined ? never : T;
 export type MaybeInvalid<T> = T | null | undefined;
 export declare let validate: <T>(t: MaybeInvalid<T>) => t is T;
 export declare let invalidate: <T>(t: MaybeInvalid<T>) => t is (null | undefined);
+export type Primitive = string | number | boolean | symbol | bigint | Function | ((...args: any[]) => any);
+export type MaybePrimitive<T> = T | Primitive;
 export declare let isBoolean: (t: unknown) => t is boolean;
 export declare let isString: (t: unknown) => t is string;
 export declare let isNumber: (t: unknown) => t is number;
@@ -10,6 +12,7 @@ export declare let isFunction: (t: unknown) => t is Function;
 export declare let isObject: (t: unknown) => t is object;
 export declare let isSymbol: (t: unknown) => t is symbol;
 export declare let isBigint: (t: unknown) => t is bigint;
+export declare let isPrimitive: (t: MaybePrimitive<unknown>) => t is Primitive;
 export declare let isIterable: (t: unknown) => t is Iterable<unknown>;
 export declare let useCompare: <T>(t1: T, t2: T) => number;
 export declare let useRandom: <T = number | bigint>(index: T) => T;
@@ -78,11 +81,13 @@ declare class Optional<T> {
     static ofNullable<T>(value?: MaybeInvalid<T>): Optional<T>;
     static ofNonNull<T>(value: T): Optional<T>;
 }
+export declare let blob: BiFunctional<Blob, bigint, Semantic<Uint8Array>>;
 export declare let empty: <E>() => Semantic<E>;
 export declare let fill: <E>(element: E | Supplier<E>, count: bigint) => Semantic<E>;
 export declare let from: <E>(iterable: Iterable<E>) => Semantic<E>;
 export declare let range: <N extends number | bigint>(start: N, end: N, step: N) => Semantic<N>;
-export declare function iterate<E>(generator: Generator<E>): Semantic<E>;
+export declare let iterate: <E>(generator: Generator<E>) => Semantic<E>;
+export declare let websocket: Functional<WebSocket, Semantic<MessageEvent | CloseEvent | Event>>;
 export declare class Semantic<E> {
     protected generator: Generator<E>;
     protected readonly Semantic: Symbol;
@@ -174,6 +179,8 @@ export declare abstract class Collectable<E> {
     toArray(): Array<E>;
     toMap<K, V>(keyExtractor: Functional<E, K>, valueExtractor: Functional<E, V>): Map<K, V>;
     toSet(): Set<E>;
+    write(stream: WritableStream<string>): Promise<void>;
+    write(stream: WritableStream<Uint8Array>, accumulator: Functional<E, Uint8Array>): Promise<void>;
 }
 export declare class UnorderedCollectable<E> extends Collectable<E> {
     protected generator: Generator<E>;

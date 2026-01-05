@@ -25,6 +25,9 @@ export let isSymbol = (t) => {
 export let isBigint = (t) => {
     return typeof t === "bigint";
 };
+export let isPrimitive = (t) => {
+    return isBoolean(t) || isString(t) || isNumber(t) || isSymbol(t) || isBigint(t) || isFunction(t);
+};
 export let isIterable = (t) => {
     if (isObject(t)) {
         return isFunction(Reflect.get(t, Symbol.iterator));
@@ -41,7 +44,7 @@ export let useCompare = (t1, t2) => {
             case "bigint":
                 return Number(t1 - t2);
             case "boolean":
-                return t1 ? 1 : -1;
+                return t1 === t2 ? 0 : (t1 ? 1 : -1);
             case "symbol":
                 return t1.toString().localeCompare(t2.toString());
             case "function":
@@ -49,15 +52,19 @@ export let useCompare = (t1, t2) => {
             case "undefined":
                 return 0;
             case "object":
+                if (isFunction(Reflect.get(t1, Symbol.toPrimitive)) && isFunction(Reflect.get(t2, Symbol.toPrimitive))) {
+                    let a = Reflect.apply(Reflect.get(t1, Symbol.toPrimitive), t1, ["default"]);
+                    let b = Reflect.apply(Reflect.get(t2, Symbol.toPrimitive), t2, ["default"]);
+                    if (isPrimitive(a) && isPrimitive(b)) {
+                        return useCompare(a, b);
+                    }
+                }
                 let a = Object.prototype.valueOf.call(t1);
                 let b = Object.prototype.valueOf.call(t2);
-                if (a === b) {
-                    return 0;
+                if (isPrimitive(a) && isPrimitive(b)) {
+                    return useCompare(a, b);
                 }
-                if (a < b) {
-                    return -1;
-                }
-                return 1;
+                return useCompare(Object.prototype.toString.call(t1), Object.prototype.toString.call(t2));
             default:
                 throw new TypeError("Invalid type.");
         }
@@ -228,6 +235,64 @@ class Optional {
     }
 }
 ;
+export let blob = (blob, chunk = 64n * 1024n) => {
+    let size = Number(chunk);
+    if (size <= 0) {
+        throw new RangeError("Chunk size must be positive.");
+    }
+    if (invalidate(blob)) {
+        throw new TypeError("Blob is invalid.");
+    }
+    return new Semantic((accept, interrupt) => {
+        let stream = blob.stream();
+        let reader = stream.getReader();
+        let shouldStop = false;
+        let currentIndex = 0n;
+        let currentBuffer = new Uint8Array(size);
+        let bufferPosition = 0;
+        let readNext = () => {
+            if (shouldStop) {
+                return;
+            }
+            reader.read().then((readResult) => {
+                if (readResult.done) {
+                    if (bufferPosition > 0) {
+                        let finalChunk = currentBuffer.slice(0, bufferPosition);
+                        if (!interrupt(finalChunk)) {
+                            accept(finalChunk, currentIndex);
+                        }
+                    }
+                    shouldStop = true;
+                    return;
+                }
+                let chunkData = readResult.value;
+                let dataPosition = 0;
+                while (dataPosition < chunkData.length && !shouldStop) {
+                    let remainingSpace = size - bufferPosition;
+                    let bytesToCopy = Math.min(remainingSpace, chunkData.length - dataPosition);
+                    currentBuffer.set(chunkData.subarray(dataPosition, dataPosition + bytesToCopy), bufferPosition);
+                    bufferPosition += bytesToCopy;
+                    dataPosition += bytesToCopy;
+                    if (bufferPosition === size) {
+                        let completeChunk = currentBuffer.slice();
+                        if (!interrupt(completeChunk)) {
+                            accept(completeChunk, currentIndex);
+                        }
+                        currentIndex++;
+                        bufferPosition = 0;
+                    }
+                }
+                if (!shouldStop && !interrupt(chunkData)) {
+                    readNext();
+                }
+                else {
+                    shouldStop = true;
+                }
+            });
+        };
+        readNext();
+    });
+};
 export let empty = () => {
     return new Semantic(() => { });
 };
@@ -292,12 +357,48 @@ export let range = (start, end, step = (typeof start === 'bigint' ? 1n : 1)) => 
     }
     throw new TypeError("Invalid arguments.");
 };
-export function iterate(generator) {
+export let iterate = (generator) => {
     if (isFunction(generator)) {
         return new Semantic(generator);
     }
     throw new TypeError("Invalid arguments.");
-}
+};
+export let websocket = (websocket) => {
+    if (invalidate(websocket)) {
+        throw new TypeError("WebSocket is invalid.");
+    }
+    return new Semantic((accept, interrupt) => {
+        let index = 0n;
+        let stop = false;
+        websocket.addEventListener("message", (event) => {
+            if (stop || interrupt(event)) {
+                stop = true;
+            }
+            else {
+                accept(event, index);
+                index++;
+            }
+        });
+        websocket.addEventListener("error", (event) => {
+            if (stop || interrupt(event)) {
+                stop = true;
+            }
+            else {
+                accept(event, index);
+                index++;
+            }
+        });
+        websocket.addEventListener("close", (event) => {
+            if (stop || interrupt(event)) {
+                stop = true;
+            }
+            else {
+                accept(event, index);
+                index++;
+            }
+        });
+    });
+};
 export class Semantic {
     generator;
     Semantic = SemanticSymbol;
@@ -969,6 +1070,57 @@ export class Collectable {
         }, (result) => {
             return result;
         });
+    }
+    write(stream, accumulator) {
+        if (isObject(stream) && invalidate(accumulator)) {
+            return this.collect(() => {
+                return Promise.resolve(stream);
+            }, (promise, element) => {
+                return new Promise((resolve1, reject1) => {
+                    promise.then(async (stream) => {
+                        let writer = stream.getWriter();
+                        await writer.write(String(element));
+                        resolve1(stream);
+                        return stream;
+                    }, reject1);
+                });
+            }, (promise) => {
+                return new Promise((resolve, reject) => {
+                    promise.then(async (stream) => {
+                        await stream.getWriter().close();
+                        resolve();
+                    }, (reason) => {
+                        reject(reason);
+                    });
+                });
+            });
+        }
+        else if (isObject(stream) && isFunction(accumulator)) {
+            return this.collect(() => {
+                return Promise.resolve(stream);
+            }, (promise, element) => {
+                return new Promise((resolve1, reject1) => {
+                    promise.then(async (stream) => {
+                        let writer = stream.getWriter();
+                        await writer.write(accumulator(element));
+                        resolve1(stream);
+                        return stream;
+                    }, reject1);
+                });
+            }, (promise) => {
+                return new Promise((resolve, reject) => {
+                    promise.then(async (stream) => {
+                        await stream.getWriter().close();
+                        resolve();
+                    }, (reason) => {
+                        reject(reason);
+                    });
+                });
+            });
+        }
+        else {
+            throw new TypeError("Invalid arguments.");
+        }
     }
 }
 export class UnorderedCollectable extends Collectable {
