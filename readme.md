@@ -1,335 +1,529 @@
-# 📘 semantic-typescript
+# Semantic-TypeScript Stream Processing Framework
 
-A powerful, type-safe utility library for **semantic data processing** in TypeScript.  
-Provides composable, functional-style constructs for working with collections, streams, and sequences — with support for sorting, filtering, grouping, statistics, and more.
+## Introduction
 
-Whether you're processing **ordered or unordered data**, performing **statistical analysis**, or simply **chaining operations fluently**, this library has you covered.
+Semantic-TypeScript is a modern stream processing library inspired by JavaScript GeneratorFunction, Java Stream, and MySQL Index. The core design philosophy is based on constructing efficient data processing pipelines through data indexing, providing a type-safe, functional-style streaming operation experience for frontend development.
 
----
+Unlike traditional synchronous processing, Semantic employs an asynchronous processing model. When creating data streams, the timing of terminal data reception depends entirely on when upstream calls the `accept` and `interrupt` callback functions. This design enables the library to elegantly handle real-time data streams, large datasets, and asynchronous data sources.
 
-## 🧩 Features
+## Core Features
 
-- ✅ **Type-safe generics** throughout
-- ✅ **Functional programming** style (map, filter, reduce, etc.)
-- ✅ **Semantic data streams** (`Semantic<E>`) for lazy evaluation
-- ✅ **Collectors** for transforming streams into concrete structures
-- ✅ **Ordered & Unordered Collectables** — with `toUnordered()` being the **fastest** (no sorting)
-- ✅ **Sorting support** via `sorted()`, `toOrdered()`, comparators
-- ✅ **Statistical analysis** (`Statistics`, `NumericStatistics`, `BigIntStatistics`)
-- ✅ **Optional<T>** monad for safe nullable handling
-- ✅ **Iterators & Generators** based design — suitable for large or asynchronous data
+| Feature | Description | Advantage |
+|------|------|------|
+| **Type-Safe Generics** | Complete TypeScript type support | Compile-time error detection, better development experience |
+| **Functional Programming** | Immutable data structures and pure functions | More predictable code, easier testing and maintenance |
+| **Lazy Evaluation** | On-demand computation, performance optimisation | High memory efficiency when processing large datasets |
+| **Asynchronous Stream Processing** | Generator-based asynchronous data streams | Suitable for real-time data and event-driven scenarios |
+| **Multi-Paradigm Collectors** | Ordered, unordered, statistical collection strategies | Optimal strategy selection based on different scenarios |
+| **Statistical Analysis** | Built-in complete statistical calculation functions | Integrated data analysis and reporting generation |
 
----
+## Performance Considerations
 
-## 📦 Installation
+**Important Note**: The following methods sacrifice performance to collect and sort data, resulting in ordered data collections:
+- `toOrdered()`
+- `toWindow()`
+- `toNumericStatistics()`
+- `toBigIntStatistics()`
+- `sorted()`
+- `sorted(comparator)`
 
-```bash
-npm install semantic-typescript
+Particularly important to note: `sorted()` and `sorted(comparator)` will override the results of the following methods:
+- `redirect(redirector)`
+- `translate(translator)` 
+- `shuffle(mapper)`
+
+## Factory Methods
+
+### Stream Creation Factories
+
+| Method | Signature | Description | Example |
+|------|------|------|------|
+| `blob` | `(blob: Blob, chunk?: bigint) => Semantic<Uint8Array>` | Convert Blob to byte stream | `blob(fileBlob, 1024n)` |
+| `empty` | `<E>() => Semantic<E>` | Create empty stream | `empty<number>()` |
+| `fill` | `<E>(element: E, count: bigint) => Semantic<E>` | Fill with specified number of elements | `fill("hello", 5n)` |
+| `from` | `<E>(iterable: Iterable<E>) => Semantic<E>` | Create stream from iterable object | `from([1, 2, 3])` |
+| `range` | `<N extends number\|bigint>(start: N, end: N, step?: N) => Semantic<N>` | Create numerical range stream | `range(1, 10, 2)` |
+| `iterate` | `<E>(generator: Generator<E>) => Semantic<E>` | Create stream from generator function | `iterate(myGenerator)` |
+| `websocket` | `(websocket: WebSocket) => Semantic<MessageEvent>` | Create event stream from WebSocket | `websocket(socket)` |
+
+**Code Example Supplement:**
+```typescript
+import { from, range, fill, empty } from 'semantic-typescript';
+
+// Create stream from array
+const numberStream = from([1, 2, 3, 4, 5]);
+
+// Create numerical range stream
+const rangeStream = range(1, 10, 2); // 1, 3, 5, 7, 9
+
+// Fill with repeated elements
+const filledStream = fill("hello", 3n); // "hello", "hello", "hello"
+
+// Create empty stream
+const emptyStream = empty<number>();
 ```
 
----
+### Utility Function Factories
 
-## 🧠 Core Concepts
+| Method | Signature | Description | Example |
+|------|------|------|------|
+| `validate` | `<T>(t: MaybeInvalid<T>) => t is T` | Validate if value is valid | `validate(null)` → `false` |
+| `invalidate` | `<T>(t: MaybeInvalid<T>) => t is null\|undefined` | Validate if value is invalid | `invalidate(0)` → `false` |
+| `useCompare` | `<T>(t1: T, t2: T) => number` | Generic comparison function | `useCompare("a", "b")` → `-1` |
+| `useRandom` | `<T = number\|bigint>(index: T) => T` | Pseudorandom number generator | `useRandom(5)` → random number |
 
-### 1. `Optional<T>` – Safe Nullable Handling
+**Code Example Supplement:**
+```typescript
+import { validate, invalidate, useCompare, useRandom } from 'semantic-typescript';
 
-A monadic container for values that may be `null` or `undefined`.
+// Validate data validity
+const data: string | null = "hello";
+if (validate(data)) {
+    console.log(data.toUpperCase()); // Safe call because validate ensures data is not null
+}
 
-#### Methods:
+const nullData: string | null = null;
+if (invalidate(nullData)) {
+    console.log("Data invalid"); // Will execute because invalidate detected null
+}
 
-| Method         | Description                                      | Example |
-|----------------|--------------------------------------------------|---------|
-| `of(value)`    | Wrap a value (may be nullish)                    | `Optional.of(null)` |
-| `ofNullable(v)`| Wrap, allowing nullish values                    | `Optional.ofNullable(someVar)` |
-| `ofNonNull(v)` | Wrap, throws if null/undefined                   | `Optional.ofNonNull(5)` |
-| `get()`        | Retrieve value or throw if empty                 | `opt.get()` |
-| `getOrDefault(d)`| Retrieve value or default                       | `opt.getOrDefault(0)` |
-| `ifPresent(fn)`| Execute side-effect if present                    | `opt.ifPresent(x => console.log(x))` |
-| `map(fn)`      | Transform value if present                       | `opt.map(x => x + 1)` |
-| `filter(fn)`   | Retain value only if predicate passes            | `opt.filter(x => x > 0)` |
-| `isEmpty()`    | Check if empty                                   | `opt.isEmpty()` |
-| `isPresent()`  | Check if contains a value                        | `opt.isPresent()` |
+// Compare values
+const comparison = useCompare("apple", "banana"); // -1
 
-#### Example:
+// Generate random number
+const randomNum = useRandom(42); // Random number based on seed 42
+```
 
+## Core Class Details
+
+### Optional<T> - Safe Null Value Handling
+
+The Optional class provides a functional approach to safely handle values that may be null or undefined.
+
+| Method | Return Type | Description | Time Complexity |
+|------|----------|------|------------|
+| `filter(predicate: Predicate<T>)` | `Optional<T>` | Filter values satisfying condition | O(1) |
+| `get()` | `T` | Get value, throw error if empty | O(1) |
+| `getOrDefault(defaultValue: T)` | `T` | Get value or default value | O(1) |
+| `ifPresent(action: Consumer<T>)` | `void` | Execute action if value exists | O(1) |
+| `isEmpty()` | `boolean` | Check if empty | O(1) |
+| `isPresent()` | `boolean` | Check if value exists | O(1) |
+| `map<R>(mapper: Functional<T, R>)` | `Optional<R>` | Map and transform value | O(1) |
+| `static of<T>(value: MaybeInvalid<T>)` | `Optional<T>` | Create Optional instance | O(1) |
+| `static ofNullable<T>(value?)` | `Optional<T>` | Create nullable Optional | O(1) |
+| `static ofNonNull<T>(value: T)` | `Optional<T>` | Create non-null Optional | O(1) |
+
+**Code Example Supplement:**
 ```typescript
 import { Optional } from 'semantic-typescript';
 
-const value: number | null = Math.random() > 0.5 ? 10 : null;
+// Create Optional instance
+const optionalValue = Optional.ofNullable<string>(Math.random() > 0.5 ? "hello" : null);
 
-const opt = Optional.ofNullable(value);
+// Chain operations
+const result = optionalValue
+    .filter(val => val.length > 3) // Filter values longer than 3
+    .map(val => val.toUpperCase()) // Convert to uppercase
+    .getOrDefault("default"); // Get value or default
 
-const result = opt
-  .filter(v => v > 5)
-  .map(v => v * 2)
-  .getOrDefault(0);
+console.log(result); // "HELLO" or "default"
 
-console.log(result); // 20 or 0
+// Safe operations
+optionalValue.ifPresent(val => {
+    console.log(`Value exists: ${val}`);
+});
+
+// Check status
+if (optionalValue.isPresent()) {
+    console.log("Has value");
+} else if (optionalValue.isEmpty()) {
+    console.log("Is empty");
+}
 ```
 
----
+### Semantic<E> - Lazy Data Stream
 
-### 2. `Semantic<E>` – Lazy Data Stream
+Semantic is the core stream processing class, providing rich stream operators.
 
-A **lazy, composable sequence** of elements. Resembles functional streams such as Java Streams or Kotlin Sequences.
+#### Stream Transformation Operations
 
-Create a `Semantic` using helpers like `from()`, `range()`, `iterate()`, or `fill()`.
+| Method | Return Type | Description | Performance Impact |
+|------|----------|------|----------|
+| `concat(other: Semantic<E>)` | `Semantic<E>` | Concatenate two streams | O(n+m) |
+| `distinct()` | `Semantic<E>` | Remove duplicates (using Set) | O(n) |
+| `distinct(comparator)` | `Semantic<E>` | Custom comparator deduplication | O(n²) |
+| `dropWhile(predicate)` | `Semantic<E>` | Discard starting elements satisfying condition | O(n) |
+| `filter(predicate)` | `Semantic<E>` | Filter elements | O(n) |
+| `flat(mapper)` | `Semantic<E>` | Flatten nested streams | O(n×m) |
+| `flatMap(mapper)` | `Semantic<R>` | Map and flatten | O(n×m) |
+| `limit(n)` | `Semantic<E>` | Limit number of elements | O(n) |
+| `map(mapper)` | `Semantic<R>` | Map and transform elements | O(n) |
+| `peek(consumer)` | `Semantic<E>` | View elements without modification | O(n) |
+| `redirect(redirector)` | `Semantic<E>` | Redirect indices | O(n) |
+| `reverse()` | `Semantic<E>` | Reverse stream order | O(n) |
+| `shuffle()` | `Semantic<E>` | Randomly shuffle order | O(n) |
+| `shuffle(mapper)` | `Semantic<E>` | Custom shuffle logic | O(n) |
+| `skip(n)` | `Semantic<E>` | Skip first n elements | O(n) |
+| `sub(start, end)` | `Semantic<E>` | Get substream | O(n) |
+| `takeWhile(predicate)` | `Semantic<E>` | Get starting elements satisfying condition | O(n) |
+| `translate(offset)` | `Semantic<E>` | Translate indices | O(n) |
+| `translate(translator)` | `Semantic<E>` | Custom index transformation | O(n) |
 
-#### Creators:
+**Code Example Supplement:**
+```typescript
+import { from } from 'semantic-typescript';
 
-| Function       | Description                                  | Example |
-|----------------|----------------------------------------------|---------|
-| `from(iterable)` | Create from Array/Set/Iterable               | `from([1, 2, 3])` |
-| `range(start, end, step?)` | Generate number range                | `range(0, 5)` → 0,1,2,3,4 |
-| `fill(element, count)` | Repeat an element N times                 | `fill('a', 3n)` |
-| `iterate(gen)`   | Use a custom generator function              | `iterate(genFn)` |
+const stream = from([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
 
-#### Common Operators:
+// Stream transformation operation examples
+const processedStream = stream
+    .filter(x => x % 2 === 0) // Filter even numbers
+    .map(x => x * 2) // Multiply each element by 2
+    .distinct() // Remove duplicates
+    .limit(3) // Limit to first 3 elements
+    .peek((val, index) => console.log(`Element ${val} at index ${index}`)); // View elements
 
-| Method             | Description                                       | Example |
-|--------------------|---------------------------------------------------|---------|
-| `map(fn)`          | Transform each element                            | `.map(x => x * 2)` |
-| `filter(fn)`       | Retain elements passing predicate                 | `.filter(x => x > 10)` |
-| `limit(n)`         | Limit to first N elements                         | `.limit(5)` |
-| `skip(n)`          | Skip first N elements                             | `.skip(2)` |
-| `distinct()`       | Remove duplicates (uses Set by default)           | `.distinct()` |
-| `sorted()`         | Sort elements (natural ordering)                  | `.sorted()` |
-| `sorted(comparator)`| Custom sorting                                   | `.sorted((a, b) => a - b)` |
-| `toOrdered()`      | Sort and return `OrderedCollectable`              | `.toOrdered()` |
-| `toUnordered()`    | **No sorting** – fastest possible collectable     | `.toUnordered()` ✅ |
-| `collect(collector)`| Aggregate using a `Collector`                     | `.collect(Collector.full(...))` |
-| `toArray()`        | Convert to Array                                  | `.toArray()` |
-| `toSet()`          | Convert to Set                                    | `.toSet()` |
-| `toMap(keyFn, valFn)`| Convert to Map                                 | `.toMap(x => x.id, x => x)` |
+// Note: The stream hasn't executed yet, needs conversion to Collectable for terminal operations
+```
 
----
+#### Stream Terminal Operations
 
-### 3. `toUnordered()` – 🚀 Fastest, No Sorting
+| Method | Return Type | Description | Performance Characteristics |
+|------|----------|------|----------|
+| `toOrdered()` | `OrderedCollectable<E>` | Convert to ordered collection | Sorting operation, lower performance |
+| `toUnordered()` | `UnorderedCollectable<E>` | Convert to unordered collection | Fastest, no sorting |
+| `toWindow()` | `WindowCollectable<E>` | Convert to window collection | Sorting operation, lower performance |
+| `toNumericStatistics()` | `Statistics<E, number>` | Numerical statistical analysis | Sorting operation, lower performance |
+| `toBigintStatistics()` | `Statistics<E, bigint>` | Big integer statistical analysis | Sorting operation, lower performance |
+| `sorted()` | `OrderedCollectable<E>` | Natural sorting | Overrides redirection results |
+| `sorted(comparator)` | `OrderedCollectable<E>` | Custom sorting | Overrides redirection results |
 
-If you **do not require ordering** and seek the **fastest possible performance**, use:
+**Code Example Supplement:**
+```typescript
+import { from } from 'semantic-typescript';
+
+const semanticStream = from([5, 2, 8, 1, 9, 3, 7, 4, 6]);
+
+// Convert to ordered collection (lower performance)
+const ordered = semanticStream.toOrdered();
+
+// Convert to unordered collection (fastest)
+const unordered = semanticStream.toUnordered();
+
+// Natural sorting
+const sortedNatural = semanticStream.sorted();
+
+// Custom sorting
+const sortedCustom = semanticStream.sorted((a, b) => b - a); // Descending sort
+
+// Convert to statistical object
+const stats = semanticStream.toNumericStatistics();
+
+// Note: Must call above methods through Semantic instance to get Collectable before using terminal methods
+```
+
+### Collector<E, A, R> - Data Collector
+
+Collectors are used to aggregate stream data into specific structures.
+
+| Method | Description | Usage Scenario |
+|------|------|----------|
+| `collect(generator)` | Execute data collection | Stream terminal operation |
+| `static full(identity, accumulator, finisher)` | Create complete collector | Requires complete processing |
+| `static shortable(identity, interruptor, accumulator, finisher)` | Create interruptible collector | May terminate early |
+
+**Code Example Supplement:**
+```typescript
+import { Collector } from 'semantic-typescript';
+
+// Create custom collector
+const sumCollector = Collector.full(
+    () => 0, // Initial value
+    (acc, value) => acc + value, // Accumulator
+    result => result // Finisher function
+);
+
+// Use collector (requires conversion from Semantic to Collectable first)
+const numbers = from([1, 2, 3, 4, 5]);
+const sum = numbers.toUnordered().collect(sumCollector); // 15
+```
+
+### Collectable<E> - Collectable Data Abstract Class
+
+Provides rich data aggregation and transformation methods. **Note: Must first obtain Collectable instance by calling sorted(), toOrdered() etc. through Semantic instance before using the following methods.**
+
+#### Data Query Operations
+
+| Method | Return Type | Description | Example |
+|------|----------|------|------|
+| `anyMatch(predicate)` | `boolean` | Whether any element matches | `anyMatch(x => x > 0)` |
+| `allMatch(predicate)` | `boolean` | Whether all elements match | `allMatch(x => x > 0)` |
+| `count()` | `bigint` | Element count statistics | `count()` → `5n` |
+| `isEmpty()` | `boolean` | Whether stream is empty | `isEmpty()` |
+| `findAny()` | `Optional<E>` | Find any element | `findAny()` |
+| `findFirst()` | `Optional<E>` | Find first element | `findFirst()` |
+| `findLast()` | `Optional<E>` | Find last element | `findLast()` |
+
+**Code Example Supplement:**
+```typescript
+import { from } from 'semantic-typescript';
+
+const numbers = from([1, 2, 3, 4, 5]);
+
+// Must convert to Collectable before using terminal methods
+const collectable = numbers.toUnordered();
+
+// Data query operations
+const hasEven = collectable.anyMatch(x => x % 2 === 0); // true
+const allPositive = collectable.allMatch(x => x > 0); // true
+const count = collectable.count(); // 5n
+const isEmpty = collectable.isEmpty(); // false
+const firstElement = collectable.findFirst(); // Optional.of(1)
+const anyElement = collectable.findAny(); // Any element
+```
+
+#### Data Aggregation Operations
+
+| Method | Return Type | Description | Complexity |
+|------|----------|------|--------|
+| `group(classifier)` | `Map<K, E[]>` | Group by classifier | O(n) |
+| `groupBy(keyExtractor, valueExtractor)` | `Map<K, V[]>` | Group by key-value extractors | O(n) |
+| `join()` | `string` | Join as string | O(n) |
+| `join(delimiter)` | `string` | Join with delimiter | O(n) |
+| `partition(count)` | `E[][]` | Partition by count | O(n) |
+| `partitionBy(classifier)` | `E[][]` | Partition by classifier | O(n) |
+| `reduce(accumulator)` | `Optional<E>` | Reduction operation | O(n) |
+| `reduce(identity, accumulator)` | `E` | Reduction with identity | O(n) |
+| `toArray()` | `E[]` | Convert to array | O(n) |
+| `toMap(keyExtractor, valueExtractor)` | `Map<K, V>` | Convert to Map | O(n) |
+| `toSet()` | `Set<E>` | Convert to Set | O(n) |
+
+**Code Example Supplement:**
+```typescript
+import { from } from 'semantic-typescript';
+
+const people = from([
+    { name: "Alice", age: 25, city: "New York" },
+    { name: "Bob", age: 30, city: "London" },
+    { name: "Charlie", age: 25, city: "New York" }
+]);
+
+// Must convert to Collectable before using aggregation operations
+const collectable = people.toUnordered();
+
+// Grouping operations
+const byCity = collectable.group(person => person.city);
+// Map { "New York" => [{name: "Alice", ...}, {name: "Charlie", ...}], "London" => [{name: "Bob", ...}] }
+
+const byAge = collectable.groupBy(
+    person => person.age,
+    person => person.name
+);
+// Map { 25 => ["Alice", "Charlie"], 30 => ["Bob"] }
+
+// Convert to collections
+const array = collectable.toArray(); // Original array
+const set = collectable.toSet(); // Set collection
+const map = collectable.toMap(
+    person => person.name,
+    person => person.age
+); // Map { "Alice" => 25, "Bob" => 30, "Charlie" => 25 }
+
+// Reduction operations
+const totalAge = collectable.reduce(0, (acc, person) => acc + person.age); // 80
+const oldest = collectable.reduce((a, b) => a.age > b.age ? a : b); // Optional.of({name: "Bob", age: 30, ...})
+```
+
+### Specific Collector Implementations
+
+#### UnorderedCollectable<E>
+- **Characteristics**: Fastest collector, no sorting
+- **Usage Scenarios**: Order unimportant, maximum performance desired
+- **Methods**: Inherits all Collectable methods
+
+#### OrderedCollectable<E> 
+- **Characteristics**: Guarantees element order, lower performance
+- **Usage Scenarios**: Require sorted results
+- **Special Methods**: Inherits all methods, maintains internal sort state
+
+#### WindowCollectable<E>
+- **Characteristics**: Supports sliding window operations
+- **Usage Scenarios**: Time series data analysis
+- **Special Methods**:
+  - `slide(size, step)` - Sliding window
+  - `tumble(size)` - Tumbling window
+
+**Code Example Supplement:**
+```typescript
+import { from } from 'semantic-typescript';
+
+const data = from([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+
+// Unordered collector (fastest)
+const unordered = data.toUnordered();
+const unorderedArray = unordered.toArray(); // May maintain original order [1, 2, 3, ...]
+
+// Ordered collector
+const ordered = data.toOrdered();
+const orderedArray = ordered.toArray(); // Guaranteed sorted [1, 2, 3, ...]
+
+// Window collector
+const windowed = data.toWindow();
+const slidingWindows = windowed.slide(3n, 2n); // Window size 3, step 2
+// Window 1: [1, 2, 3], Window 2: [3, 4, 5], Window 3: [5, 6, 7], ...
+
+const tumblingWindows = windowed.tumble(4n); // Tumbling window size 4
+// Window 1: [1, 2, 3, 4], Window 2: [5, 6, 7, 8], ...
+```
+
+### Statistics<E, D> - Statistical Analysis
+
+Statistical analysis base class providing rich statistical calculation methods. **Note: Must first obtain Statistics instance by calling toNumericStatistics() or toBigIntStatistics() through Semantic instance before using the following methods.**
+
+#### Statistical Calculation Operations
+
+| Method | Return Type | Description | Algorithm Complexity |
+|------|----------|------|------------|
+| `maximum()` | `Optional<E>` | Maximum value | O(n) |
+| `minimum()` | `Optional<E>` | Minimum value | O(n) |
+| `range()` | `D` | Range (max-min) | O(n) |
+| `variance()` | `D` | Variance | O(n) |
+| `standardDeviation()` | `D` | Standard deviation | O(n) |
+| `mean()` | `D` | Mean value | O(n) |
+| `median()` | `D` | Median value | O(n log n) |
+| `mode()` | `D` | Mode value | O(n) |
+| `frequency()` | `Map<D, bigint>` | Frequency distribution | O(n) |
+| `summate()` | `D` | Summation | O(n) |
+| `quantile(quantile)` | `D` | Quantile | O(n log n) |
+| `interquartileRange()` | `D` | Interquartile range | O(n log n) |
+| `skewness()` | `D` | Skewness | O(n) |
+| `kurtosis()` | `D` | Kurtosis | O(n) |
+
+**Code Example Supplement:**
+```typescript
+import { from } from 'semantic-typescript';
+
+const numbers = from([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+
+// Must convert to statistical object before using statistical methods
+const stats = numbers.toNumericStatistics();
+
+// Basic statistics
+const count = stats.count(); // 10n
+const max = stats.maximum(); // Optional.of(10)
+const min = stats.minimum(); // Optional.of(1)
+const range = stats.range(); // 9
+const mean = stats.mean(); // 5.5
+const median = stats.median(); // 5.5
+const sum = stats.summate(); // 55
+
+// Advanced statistics
+const variance = stats.variance(); // 8.25
+const stdDev = stats.standardDeviation(); // 2.872
+const mode = stats.mode(); // Any value (since all appear once)
+const q1 = stats.quantile(0.25); // 3.25
+const q3 = stats.quantile(0.75); // 7.75
+const iqr = stats.interquartileRange(); // 4.5
+
+// Frequency distribution
+const freq = stats.frequency(); // Map {1 => 1n, 2 => 1n, ...}
+```
+
+#### Specific Statistical Implementation Classes
+
+**NumericStatistics<E>**
+- Handles number type statistical analysis
+- All statistical calculations return number type
+
+**BigIntStatistics<E>**  
+- Handles bigint type statistical analysis
+- All statistical calculations return bigint type
+
+**Code Example Supplement:**
+```typescript
+import { from } from 'semantic-typescript';
+
+// Numerical statistics
+const numberData = from([10, 20, 30, 40, 50]);
+const numericStats = numberData.toNumericStatistics();
+
+console.log(numericStats.mean()); // 30
+console.log(numericStats.summate()); // 150
+
+// Big integer statistics
+const bigintData = from([100n, 200n, 300n, 400n, 500n]);
+const bigintStats = bigintData.toBigIntStatistics();
+
+console.log(bigintStats.mean()); // 300n
+console.log(bigintStats.summate()); // 1500n
+
+// Statistics using mapper functions
+const objectData = from([
+    { value: 15 },
+    { value: 25 }, 
+    { value: 35 },
+    { value: 45 }
+]);
+
+const objectStats = objectData.toNumericStatistics();
+const meanWithMapper = objectStats.mean(obj => obj.value); // 30
+const sumWithMapper = objectStats.summate(obj => obj.value); // 120
+```
+
+## Complete Usage Example
 
 ```typescript
-const fastest = semanticStream.toUnordered();
+import { from, validate, invalidate } from 'semantic-typescript';
+
+// 1. Create data stream
+const rawData = [5, 2, 8, 1, null, 9, 3, undefined, 7, 4, 6];
+const semanticStream = from(rawData);
+
+// 2. Stream processing pipeline
+const processedStream = semanticStream
+    .filter(val => validate(val)) // Filter out null and undefined
+    .map(val => val! * 2) // Multiply each value by 2 (using ! because validate ensures not empty)
+    .distinct(); // Remove duplicates
+
+// 3. Convert to Collectable and use terminal operations
+const collectable = processedStream.toUnordered();
+
+// 4. Data validation and usage
+if (!collectable.isEmpty()) {
+    const results = collectable
+        .filter(x => x > 5) // Filter again
+        .toArray(); // Convert to array
+    
+    console.log("Processing results:", results); // [16, 18, 14, 8, 12]
+    
+    // Statistical information
+    const stats = processedStream.toNumericStatistics();
+    console.log("Mean value:", stats.mean()); // 11.2
+    console.log("Total sum:", stats.summate()); // 56
+}
+
+// 5. Handle potentially invalid data
+const potentiallyInvalidData: Array<number | null> = [1, null, 3, 4, null];
+const validData = potentiallyInvalidData.filter(validate);
+const invalidData = potentiallyInvalidData.filter(invalidate);
+
+console.log("Valid data:", validData); // [1, 3, 4]
+console.log("Invalid data:", invalidData); // [null, null]
 ```
 
-🔥 **No sorting algorithm is applied.**  
-Ideal when order is irrelevant and maximum speed is desired.
-
----
-
-### 4. `toOrdered()` and `sorted()` – Sorted Output
-
-If you need **sorted output**, use:
-
-```typescript
-const ordered = semanticStream.sorted(); // Natural ordering
-const customSorted = semanticStream.sorted((a, b) => a - b); // Custom comparator
-const orderedCollectable = semanticStream.toOrdered(); // Also sorted
-```
-
-⚠️ These methods **will sort** the elements using either natural or provided comparator.
-
----
-
-### 5. `Collector<E, A, R>` – Aggregate Data
-
-Collectors enable you to **reduce streams into single or complex structures**.
-
-Built-in static factories:
-
-```typescript
-Collector.full(identity, accumulator, finisher)
-Collector.shortable(identity, interruptor, accumulator, finisher)
-```
-
-Typically used via higher-level helpers on `Collectable` classes.
-
----
-
-### 6. `Collectable<E>` (Abstract)
-
-Base class for:
-
-- `OrderedCollectable<E>` – Sorted output
-- `UnorderedCollectable<E>` – No sorting, fastest
-- `WindowCollectable<E>` – Sliding windows
-- `Statistics<E, D>` – Statistical aggregations
-
-#### Common Methods (via inheritance):
-
-| Method         | Description                              | Example |
-|----------------|------------------------------------------|---------|
-| `count()`      | Count elements                           | `.count()` |
-| `toArray()`    | Convert to Array                         | `.toArray()` |
-| `toSet()`      | Convert to Set                           | `.toSet()` |
-| `toMap(k, v)`  | Convert to Map                           | `.toMap(x => x.id, x => x)` |
-| `group(k)`     | Group by key                             | `.group(x => x.category)` |
-| `findAny()`    | Any matching element (Optional)          | `.findAny()` |
-| `findFirst()`  | First element (Optional)                 | `.findFirst()` |
-| `reduce(...)`  | Custom reduction                         | `.reduce((a,b) => a + b, 0)` |
-
----
-
-### 7. `OrderedCollectable<E>` – Sorted Data
-
-If you require elements to be **automatically sorted**, use this.
-
-Accepts a **custom comparator** or uses natural order.
-
-```typescript
-const sorted = new OrderedCollectable(stream);
-const customSorted = new OrderedCollectable(stream, (a, b) => b - a);
-```
-
-🔒 **Sorted output is guaranteed.**
-
----
-
-### 8. `UnorderedCollectable<E>` – No Sorting (🚀 Fastest)
-
-If you **do not require ordering** and seek the **fastest performance**, use:
-
-```typescript
-const unordered = new UnorderedCollectable(stream);
-// OR
-const fastest = semanticStream.toUnordered();
-```
-
-✅ **No sorting algorithm executed**  
-✅ **Best performance** when order is irrelevant
-
----
-
-### 9. `Statistics<E, D>` – Statistical Analysis
-
-Abstract base for analysing numeric data.
-
-#### Subclasses:
-
-- `NumericStatistics<E>` – For `number` values
-- `BigIntStatistics<E>` – For `bigint` values
-
-##### Common statistical methods:
-
-| Method            | Description                          | Example |
-|-------------------|--------------------------------------|---------|
-| `mean()`          | Arithmetic mean                      | `.mean()` |
-| `median()`        | Median value                         | `.median()` |
-| `mode()`          | Most frequent value                  | `.mode()` |
-| `minimum()`       | Smallest element                     | `.minimum()` |
-| `maximum()`       | Largest element                      | `.maximum()` |
-| `range()`         | Maximum − Minimum                    | `.range()` |
-| `variance()`      | Variance                             | `.variance()` |
-| `standardDeviation()` | Standard deviation               | `.standardDeviation()` |
-| `summate()`       | Sum of elements                      | `.summate()` |
-| `quantile(q)`     | Value at q-th percentile (0–1)       | `.quantile(0.5)` → median |
-| `frequency()`     | Frequency map                        | `.frequency()` |
-
----
-
-## 🧪 Full Example
-
-```typescript
-import { from, toUnordered, toOrdered, sorted, NumericStatistics } from 'semantic-typescript';
-
-// Sample data
-const numbers = from([10, 2, 8, 4, 5, 6]);
-
-// 🚀 Fastest: no sorting
-const fastest = numbers.toUnordered();
-console.log(fastest.toArray()); // e.g. [10, 2, 8, 4, 5, 6] (original order)
-
-// 🔢 Naturally sorted
-const ordered = numbers.sorted();
-console.log(ordered.toArray()); // [2, 4, 5, 6, 8, 10]
-
-// 📊 Perform statistical analysis
-const stats = new NumericStatistics(numbers);
-console.log('Mean:', stats.mean());
-console.log('Median:', stats.median());
-console.log('Mode:', stats.mode());
-console.log('Range:', stats.range());
-console.log('Standard Deviation:', stats.standardDeviation());
-```
-
----
-
-## 🛠️ Utility Functions
-
-The library also exports numerous **type guards** and **comparison utilities**:
-
-| Function         | Purpose                          |
-|------------------|----------------------------------|
-| `isString(x)`    | Type guard for `string`          |
-| `isNumber(x)`    | Type guard for `number`          |
-| `isBoolean(x)`   | Type guard for `boolean`         |
-| `isIterable(x)`  | Checks if object is iterable     |
-| `useCompare(a, b)`| Universal comparison function     |
-| `useRandom(x)`   | Pseudo-random generator (fun)    |
-
----
-
-## 🧩 Advanced: Custom Generators & Windows
-
-You may create custom **generators** for infinite or controlled data streams:
-
-```typescript
-const gen = (accept: BiConsumer<number, bigint>, interrupt: Predicate<number>) => {
-  for (let i = 0; i < 10; i++) {
-    accept(i, BigInt(i));
-    if (i === 5) interrupt(i);
-  }
-};
-
-const s = new Semantic(gen);
-```
-
-Or employ **sliding windows**:
-
-```typescript
-const windowed = ordered.slide(3n, 2n); // windows of 3, stepping by 2
-```
-
----
-
-## 📄 License
-
-This project is licensed under the **MIT License** – free for commercial and personal use.
-
----
-
-## 🙌 Contributing
-
-Pull requests, issues, and suggestions are most welcome!
-
----
-
-## 🚀 Quick Start Summary
-
-| Task | Method |
-|------|--------|
-| Safely handle nulls | `Optional<T>` |
-| Create a stream | `from([...])`, `range()`, `fill()` |
-| Transform data | `map()`, `filter()` |
-| Sort data | `sorted()`, `toOrdered()` |
-| No sort (fastest) | `toUnordered()` ✅ |
-| Group / aggregate | `toMap()`, `group()`, `Collector` |
-| Statistics | `NumericStatistics`, `mean()`, `median()`, etc. |
-
----
-
-## 🔗 Links
-
-- 📦 npm: https://www.npmjs.com/package/semantic-typescript
-- 🐙 GitHub: https://github.com/eloyhere/semantic-typescript
-- 📘 Documentation: See source code / type definitions
-
----
-
-**Enjoy composable, type-safe, functional data processing in TypeScript.** 🚀
-
---- 
-
-✅ **Remember:**  
-- `toUnordered()` → **No sort, fastest**  
-- All others (e.g. `sorted()`, `toOrdered()`) → **Sort data**
+## Important Usage Rules Summary
+
+1. **Create Stream**: Use `from()`, `range()`, `fill()` etc. factory methods to create Semantic instances
+2. **Stream Transformation**: Call `map()`, `filter()`, `distinct()` etc. methods on Semantic instances
+3. **Convert to Collectable**: Must call one of the following methods through Semantic instance:
+   - `toOrdered()` - Ordered collector
+   - `toUnordered()` - Unordered collector (fastest)
+   - `toWindow()` - Window collector  
+   - `toNumericStatistics()` - Numerical statistics
+   - `toBigIntStatistics()` - Big integer statistics
+   - `sorted()` - Natural sorting
+   - `sorted(comparator)` - Custom sorting
+4. **Terminal Operations**: Call `toArray()`, `count()`, `summate()` etc. terminal methods on Collectable instances
+5. **Data Validation**: Use `validate()` to ensure data is not null/undefined, use `invalidate()` to check invalid data
+
+This design ensures type safety and performance optimisation while providing rich stream processing functionality.

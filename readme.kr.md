@@ -1,335 +1,529 @@
-# 📘 semantic-typescript
+# Semantic-TypeScript 스트림 처리 프레임워크
 
-TypeScript에서 **의미론적 데이터 처리(Semantic Data Processing)** 를 위한 강력하고 타입 안전한 유틸리티 라이브러리입니다.  
-컬렉션, 스트림, 시퀀스를 함수형 스타일로 다룰 수 있는 구성 요소들을 제공하며, 정렬, 필터링, 그룹화, 통계 분석 등을 지원합니다.
+## 소개
 
-**정렬된 데이터든 정렬되지 않은 데이터든**, **통계 분석을 하든**, 혹은 단순히 **연산을 유창하게 연결(chain)하고 싶든**, 이 라이브러리가 도와드립니다.
+Semantic-TypeScript는 JavaScript GeneratorFunction, Java Stream 및 MySQL Index에서 영감을 받은 현대적인 스트림 처리 라이브러리입니다. 핵심 설계 철학은 데이터 인덱싱을 통해 효율적인 데이터 처리 파이프라인을 구축하는 데 있으며, 프론트엔드 개발을 위해 타입 안전적이고 함수형 스타일의 스트리밍 작업 경험을 제공합니다.
 
----
+기존의 동기식 처리와 달리 Semantic은 비동기 처리 모델을 채택합니다. 데이터 스트림을 생성할 때 최종 데이터 수신 시점은 전적으로 업스트림이 `accept` 및 `interrupt` 콜백 함수를 호출하는 시점에 따라 결정됩니다. 이 설계는 라이브러리가 실시간 데이터 스트림, 대용량 데이터 세트 및 비동기 데이터 소스를 우아하게 처리할 수 있게 합니다.
 
-## 🧩 주요 기능
+## 핵심 기능
 
-- ✅ 전체적으로 **타입 안전한 제네릭(Type-safe Generics)**
-- ✅ **함수형 프로그래밍 스타일** (map, filter, reduce 등)
-- ✅ **의미론적 데이터 스트림(Semantic<E>)** - 지연 평가(Lazy Evaluation) 지원
-- ✅ 스트림을 구조화된 데이터로 변환하는 **컬렉터(Collectors)**
-- ✅ **정렬된(Sorted) 및 비정렬된(Unordered) 컬렉터** — `toUnordered()`는 **가장 빠르며 정렬하지 않음**
-- ✅ `sorted()`, `toOrdered()`, 비교자(Comparator)를 통한 **정렬 기능**
-- ✅ **통계 분석(Statistics)** (`NumericStatistics`, `BigIntStatistics` 등)
-- ✅ **Optional<T>** — null 또는 undefined 값을 안전하게 다루는 모나드(Monad)
-- ✅ **반복자(Iterator) & 생성기(Generator)** 기반 설계 — 대규모 또는 비동기 데이터에도 적합
+| 기능 | 설명 | 장점 |
+|------|------|------|
+| **타입 안전 제네릭** | 완전한 TypeScript 타입 지원 | 컴파일 타임 오류 감지, 더 나은 개발 경험 |
+| **함수형 프로그래밍** | 불변 데이터 구조 및 순수 함수 | 예측 가능한 코드, 쉬운 테스트 및 유지보수 |
+| **지연 평가** | 주문형 계산, 성능 최적화 | 대용량 데이터 처리 시 높은 메모리 효율 |
+| **비동기 스트림 처리** | 제너레이터 기반 비동기 데이터 스트림 | 실시간 데이터 및 이벤트 기반 시나리오에 적합 |
+| **다중 패러다임 수집기** | 정렬, 비정렬, 통계적 수집 전략 | 다양한 시나리오에 따른 최적 전략 선택 |
+| **통계 분석** | 내장된 완전한 통계 계산 함수 | 통합 데이터 분석 및 보고서 생성 |
 
----
+## 성능 고려 사항
 
-## 📦 설치
+**중요 참고**: 다음 메서드들은 데이터를 수집하고 정렬하기 위해 성능을 희생합니다:
+- `toOrdered()`
+- `toWindow()`
+- `toNumericStatistics()`
+- `toBigIntStatistics()`
+- `sorted()`
+- `sorted(comparator)`
 
-```bash
-npm install semantic-typescript
+특히 중요: `sorted()` 및 `sorted(comparator)`는 다음 메서드들의 결과를 재정의합니다:
+- `redirect(redirector)`
+- `translate(translator)`
+- `shuffle(mapper)`
+
+## 팩토리 메서드
+
+### 스트림 생성 팩토리
+
+| 메서드 | 시그니처 | 설명 | 예시 |
+|------|------|------|------|
+| `blob` | `(blob: Blob, chunk?: bigint) => Semantic<Uint8Array>` | Blob을 바이트 스트림으로 변환 | `blob(fileBlob, 1024n)` |
+| `empty` | `<E>() => Semantic<E>` | 빈 스트림 생성 | `empty<number>()` |
+| `fill` | `<E>(element: E, count: bigint) => Semantic<E>` | 지정된 수의 요소로 채움 | `fill("hello", 5n)` |
+| `from` | `<E>(iterable: Iterable<E>) => Semantic<E>` | 반복 가능 객체로부터 스트림 생성 | `from([1, 2, 3])` |
+| `range` | `<N extends number\|bigint>(start: N, end: N, step?: N) => Semantic<N>` | 숫자 범위 스트림 생성 | `range(1, 10, 2)` |
+| `iterate` | `<E>(generator: Generator<E>) => Semantic<E>` | 제너레이터 함수로부터 스트림 생성 | `iterate(myGenerator)` |
+| `websocket` | `(websocket: WebSocket) => Semantic<MessageEvent>` | WebSocket으로부터 이벤트 스트림 생성 | `websocket(socket)` |
+
+**코드 예시 보충:**
+```typescript
+import { from, range, fill, empty } from 'semantic-typescript';
+
+// 배열로부터 스트림 생성
+const numberStream = from([1, 2, 3, 4, 5]);
+
+// 숫자 범위 스트림 생성
+const rangeStream = range(1, 10, 2); // 1, 3, 5, 7, 9
+
+// 반복 요소로 채움
+const filledStream = fill("hello", 3n); // "hello", "hello", "hello"
+
+// 빈 스트림 생성
+const emptyStream = empty<number>();
 ```
 
----
+### 유틸리티 함수 팩토리
 
-## 🧠 핵심 개념
+| 메서드 | 시그니처 | 설명 | 예시 |
+|------|------|------|------|
+| `validate` | `<T>(t: MaybeInvalid<T>) => t is T` | 값이 유효한지 검증 | `validate(null)` → `false` |
+| `invalidate` | `<T>(t: MaybeInvalid<T>) => t is null\|undefined` | 값이 무효한지 검증 | `invalidate(0)` → `false` |
+| `useCompare` | `<T>(t1: T, t2: T) => number` | 일반 비교 함수 | `useCompare("a", "b")` → `-1` |
+| `useRandom` | `<T = number\|bigint>(index: T) => T` | 의사 난수 생성기 | `useRandom(5)` → 난수 |
 
-### 1. `Optional<T>` — null/undefined 값 안전하게 처리
+**코드 예시 보충:**
+```typescript
+import { validate, invalidate, useCompare, useRandom } from 'semantic-typescript';
 
-값이 null 또는 undefined 일 수 있는 경우를 안전하게 처리할 수 있는 모나딕(Monadic) 컨테이너입니다.
+// 데이터 유효성 검증
+const data: string | null = "hello";
+if (validate(data)) {
+    console.log(data.toUpperCase()); // validate가 데이터가 null이 아님을 보장하므로 안전한 호출
+}
 
-#### 메서드:
+const nullData: string | null = null;
+if (invalidate(nullData)) {
+    console.log("데이터 무효"); // invalidate가 null을 감지했으므로 실행됨
+}
 
-| 메서드 | 설명 | 예제 |
-|--------|------|------|
-| `of(value)` | 값 감싸기 (null 가능) | `Optional.of(null)` |
-| `ofNullable(v)` | null 허용하여 감싸기 | `Optional.ofNullable(someVar)` |
-| `ofNonNull(v)` | null이면 예외 발생 | `Optional.ofNonNull(5)` |
-| `get()` | 값 가져오기 (없으면 예외) | `opt.get()` |
-| `getOrDefault(d)` | 값 가져오기 또는 기본값 | `opt.getOrDefault(0)` |
-| `ifPresent(fn)` | 값이 있으면 부작용 실행 | `opt.ifPresent(x => console.log(x))` |
-| `map(fn)` | 값이 있으면 변환 | `opt.map(x => x + 1)` |
-| `filter(fn)` | 조건을 만족하는 값만 유지 | `opt.filter(x => x > 0)` |
-| `isEmpty()` | 비어있는지 확인 | `opt.isEmpty()` |
-| `isPresent()` | 값이 있는지 확인 | `opt.isPresent()` |
+// 값 비교
+const comparison = useCompare("apple", "banana"); // -1
 
-#### 예제:
+// 난수 생성
+const randomNum = useRandom(42); // 시드 42 기반 난수
+```
 
+## 핵심 클래스 상세
+
+### Optional<T> - 안전한 Null 값 처리
+
+Optional 클래스는 null 또는 undefined일 수 있는 값을 안전하게 처리하기 위한 함수형 접근 방식을 제공합니다.
+
+| 메서드 | 반환 타입 | 설명 | 시간 복잡도 |
+|------|----------|------|------------|
+| `filter(predicate: Predicate<T>)` | `Optional<T>` | 조건을 만족하는 값 필터링 | O(1) |
+| `get()` | `T` | 값 가져오기, 비어있으면 오류 발생 | O(1) |
+| `getOrDefault(defaultValue: T)` | `T` | 값 또는 기본값 가져오기 | O(1) |
+| `ifPresent(action: Consumer<T>)` | `void` | 값이 존재하면 액션 실행 | O(1) |
+| `isEmpty()` | `boolean` | 비어있는지 확인 | O(1) |
+| `isPresent()` | `boolean` | 값이 존재하는지 확인 | O(1) |
+| `map<R>(mapper: Functional<T, R>)` | `Optional<R>` | 값 매핑 및 변환 | O(1) |
+| `static of<T>(value: MaybeInvalid<T>)` | `Optional<T>` | Optional 인스턴스 생성 | O(1) |
+| `static ofNullable<T>(value?)` | `Optional<T>` | nullable Optional 생성 | O(1) |
+| `static ofNonNull<T>(value: T)` | `Optional<T>` | non-null Optional 생성 | O(1) |
+
+**코드 예시 보충:**
 ```typescript
 import { Optional } from 'semantic-typescript';
 
-const value: number | null = Math.random() > 0.5 ? 10 : null;
+// Optional 인스턴스 생성
+const optionalValue = Optional.ofNullable<string>(Math.random() > 0.5 ? "hello" : null);
 
-const opt = Optional.ofNullable(value);
+// 연쇄 연산
+const result = optionalValue
+    .filter(val => val.length > 3) // 길이가 3보다 큰 값 필터링
+    .map(val => val.toUpperCase()) // 대문자로 변환
+    .getOrDefault("default"); // 값 또는 기본값 가져오기
 
-const result = opt
-  .filter(v => v > 5)
-  .map(v => v * 2)
-  .getOrDefault(0);
+console.log(result); // "HELLO" 또는 "default"
 
-console.log(result); // 20 또는 0
+// 안전한 연산
+optionalValue.ifPresent(val => {
+    console.log(`값 존재: ${val}`);
+});
+
+// 상태 확인
+if (optionalValue.isPresent()) {
+    console.log("값 있음");
+} else if (optionalValue.isEmpty()) {
+    console.log("비어 있음");
+}
 ```
 
----
+### Semantic<E> - 지연 데이터 스트림
 
-### 2. `Semantic<E>` — 지연 평가 데이터 스트림
+Semantic은 풍부한 스트림 연산자를 제공하는 핵심 스트림 처리 클래스입니다.
 
-요소들의 **지연 평가(Lazy), 구성 가능한 시퀀스**입니다. Java의 Streams나 Kotlin의 Sequences와 유사합니다.
+#### 스트림 변환 연산
 
-`from()`, `range()`, `iterate()`, `fill()` 같은 헬퍼 함수로 `Semantic` 스트림을 생성할 수 있습니다.
+| 메서드 | 반환 타입 | 설명 | 성능 영향 |
+|------|----------|------|----------|
+| `concat(other: Semantic<E>)` | `Semantic<E>` | 두 스트림 연결 | O(n+m) |
+| `distinct()` | `Semantic<E>` | 중복 제거 (Set 사용) | O(n) |
+| `distinct(comparator)` | `Semantic<E>` | 사용자 정의 비교자 중복 제거 | O(n²) |
+| `dropWhile(predicate)` | `Semantic<E>` | 조건을 만족하는 시작 요소 버림 | O(n) |
+| `filter(predicate)` | `Semantic<E>` | 요소 필터링 | O(n) |
+| `flat(mapper)` | `Semantic<E>` | 중첩 스트림 평탄화 | O(n×m) |
+| `flatMap(mapper)` | `Semantic<R>` | 매핑 및 평탄화 | O(n×m) |
+| `limit(n)` | `Semantic<E>` | 요소 수 제한 | O(n) |
+| `map(mapper)` | `Semantic<R>` | 요소 매핑 및 변환 | O(n) |
+| `peek(consumer)` | `Semantic<E>` | 요소 확인 (수정 없음) | O(n) |
+| `redirect(redirector)` | `Semantic<E>` | 인덱스 재지정 | O(n) |
+| `reverse()` | `Semantic<E>` | 스트림 순서 반전 | O(n) |
+| `shuffle()` | `Semantic<E>` | 무작위 셔플 | O(n) |
+| `shuffle(mapper)` | `Semantic<E>` | 사용자 정의 셔플 로직 | O(n) |
+| `skip(n)` | `Semantic<E>` | 처음 n개 요소 건너뜀 | O(n) |
+| `sub(start, end)` | `Semantic<E>` | 부분 스트림 가져오기 | O(n) |
+| `takeWhile(predicate)` | `Semantic<E>` | 조건을 만족하는 시작 요소 가져오기 | O(n) |
+| `translate(offset)` | `Semantic<E>` | 인덱스 변환 | O(n) |
+| `translate(translator)` | `Semantic<E>` | 사용자 정의 인덱스 변환 | O(n) |
 
-#### 생성 방법:
+**코드 예시 보충:**
+```typescript
+import { from } from 'semantic-typescript';
 
-| 함수 | 설명 | 예제 |
-|------|------|------|
-| `from(iterable)` | 배열, Set, 반복 가능한 객체로부터 생성 | `from([1, 2, 3])` |
-| `range(start, end, step?)` | 숫자 범위 생성 | `range(0, 5)` → 0,1,2,3,4 |
-| `fill(element, count)` | 요소를 N번 반복 | `fill('a', 3n)` |
-| `iterate(gen)` | 사용자 정의 생성기 함수 사용 | `iterate(genFn)` |
+const stream = from([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
 
-#### 주요 연산자:
+// 스트림 변환 연산 예시
+const processedStream = stream
+    .filter(x => x % 2 === 0) // 짝수 필터링
+    .map(x => x * 2) // 각 요소에 2 곱하기
+    .distinct() // 중복 제거
+    .limit(3) // 처음 3개 요소로 제한
+    .peek((val, index) => console.log(`인덱스 ${index}의 요소 ${val}`)); // 요소 확인
 
-| 메서드 | 설명 | 예제 |
-|--------|------|------|
-| `map(fn)` | 각 요소 변환 | `.map(x => x * 2)` |
-| `filter(fn)` | 조건을 만족하는 요소만 유지 | `.filter(x => x > 10)` |
-| `limit(n)` | 처음 N개 요소로 제한 | `.limit(5)` |
-| `skip(n)` | 처음 N개 요소 건너뛰기 | `.skip(2)` |
-| `distinct()` | 중복 제거 (기본적으로 Set 사용) | `.distinct()` |
-| `sorted()` | 요소 정렬 (자연 순서) | `.sorted()` |
-| `sorted(comparator)` | 커스텀 정렬 | `.sorted((a, b) => a - b)` |
-| `toOrdered()` | 정렬 후 `OrderedCollectable` 반환 | `.toOrdered()` |
-| `toUnordered()` | **정렬 없음 – 가장 빠름** | `.toUnordered()` ✅ |
-| `collect(collector)` | 컬렉터로 집계 | `.collect(Collector.full(...))` |
-| `toArray()` | 배열로 변환 | `.toArray()` |
-| `toSet()` | Set으로 변환 | `.toSet()` |
-| `toMap(keyFn, valFn)` | Map으로 변환 | `.toMap(x => x.id, x => x)` |
+// 참고: 스트림은 아직 실행되지 않음, 터미널 연산을 위해 Collectable로 변환 필요
+```
 
----
+#### 스트림 터미널 연산
 
-### 3. `toUnordered()` — 🚀 가장 빠름, 정렬 없음
+| 메서드 | 반환 타입 | 설명 | 성능 특성 |
+|------|----------|------|----------|
+| `toOrdered()` | `OrderedCollectable<E>` | 정렬된 컬렉션으로 변환 | 정렬 연산, 낮은 성능 |
+| `toUnordered()` | `UnorderedCollectable<E>` | 비정렬 컬렉션으로 변환 | 가장 빠름, 정렬 없음 |
+| `toWindow()` | `WindowCollectable<E>` | 윈도우 컬렉션으로 변환 | 정렬 연산, 낮은 성능 |
+| `toNumericStatistics()` | `Statistics<E, number>` | 숫자 통계 분석 | 정렬 연산, 낮은 성능 |
+| `toBigintStatistics()` | `Statistics<E, bigint>` | Big integer 통계 분석 | 정렬 연산, 낮은 성능 |
+| `sorted()` | `OrderedCollectable<E>` | 자연 정렬 | 재지정 결과 재정의 |
+| `sorted(comparator)` | `OrderedCollectable<E>` | 사용자 정의 정렬 | 재지정 결과 재정의 |
 
-**정렬이 필요 없고 최고의 성능을 원한다면** 아래와 같이 사용하세요:
+**코드 예시 보충:**
+```typescript
+import { from } from 'semantic-typescript';
+
+const semanticStream = from([5, 2, 8, 1, 9, 3, 7, 4, 6]);
+
+// 정렬된 컬렉션으로 변환 (낮은 성능)
+const ordered = semanticStream.toOrdered();
+
+// 비정렬 컬렉션으로 변환 (가장 빠름)
+const unordered = semanticStream.toUnordered();
+
+// 자연 정렬
+const sortedNatural = semanticStream.sorted();
+
+// 사용자 정의 정렬
+const sortedCustom = semanticStream.sorted((a, b) => b - a); // 내림차순 정렬
+
+// 통계 객체로 변환
+const stats = semanticStream.toNumericStatistics();
+
+// 참고: 위 메서드들은 Semantic 인스턴스를 통해 호출하여 Collectable을 얻은 후 터미널 메서드 사용 필요
+```
+
+### Collector<E, A, R> - 데이터 수집기
+
+수집기는 스트림 데이터를 특정 구조로 집계하는 데 사용됩니다.
+
+| 메서드 | 설명 | 사용 시나리오 |
+|------|------|----------|
+| `collect(generator)` | 데이터 수집 실행 | 스트림 터미널 연산 |
+| `static full(identity, accumulator, finisher)` | 완전한 수집기 생성 | 완전한 처리 필요 |
+| `static shortable(identity, interruptor, accumulator, finisher)` | 중단 가능 수집기 생성 | 조기 종료 가능 |
+
+**코드 예시 보충:**
+```typescript
+import { Collector } from 'semantic-typescript';
+
+// 사용자 정의 수집기 생성
+const sumCollector = Collector.full(
+    () => 0, // 초기 값
+    (acc, value) => acc + value, // 누산기
+    result => result // 완료 함수
+);
+
+// 수집기 사용 (Semantic에서 Collectable로 변환 필요)
+const numbers = from([1, 2, 3, 4, 5]);
+const sum = numbers.toUnordered().collect(sumCollector); // 15
+```
+
+### Collectable<E> - 수집 가능 데이터 추상 클래스
+
+풍부한 데이터 집계 및 변환 메서드를 제공합니다. **참고: 반드시 Semantic 인스턴스를 통해 sorted(), toOrdered() 등을 먼저 호출하여 Collectable 인스턴스를 얻은 후 다음 메서드들을 사용해야 합니다.**
+
+#### 데이터 쿼리 연산
+
+| 메서드 | 반환 타입 | 설명 | 예시 |
+|------|----------|------|------|
+| `anyMatch(predicate)` | `boolean` | 어떤 요소라도 일치하는지 여부 | `anyMatch(x => x > 0)` |
+| `allMatch(predicate)` | `boolean` | 모든 요소가 일치하는지 여부 | `allMatch(x => x > 0)` |
+| `count()` | `bigint` | 요소 수 통계 | `count()` → `5n` |
+| `isEmpty()` | `boolean` | 스트림이 비어 있는지 여부 | `isEmpty()` |
+| `findAny()` | `Optional<E>` | 아무 요소 찾기 | `findAny()` |
+| `findFirst()` | `Optional<E>` | 첫 번째 요소 찾기 | `findFirst>` |
+| `findLast()` | `Optional<E>` | 마지막 요소 찾기 | `findLast>` |
+
+**코드 예시 보충:**
+```typescript
+import { from } from 'semantic-typescript';
+
+const numbers = from([1, 2, 3, 4, 5]);
+
+// 터미널 메서드 사용 전 반드시 Collectable로 변환
+const collectable = numbers.toUnordered();
+
+// 데이터 쿼리 연산
+const hasEven = collectable.anyMatch(x => x % 2 === 0); // true
+const allPositive = collectable.allMatch(x => x > 0); // true
+const count = collectable.count(); // 5n
+const isEmpty = collectable.isEmpty(); // false
+const firstElement = collectable.findFirst(); // Optional.of(1)
+const anyElement = collectable.findAny(); // 아무 요소
+```
+
+#### 데이터 집계 연산
+
+| 메서드 | 반환 타입 | 설명 | 복잡도 |
+|------|----------|------|--------|
+| `group(classifier)` | `Map<K, E[]>` | 분류자에 따른 그룹화 | O(n) |
+| `groupBy(keyExtractor, valueExtractor)` | `Map<K, V[]>` | 키-값 추출기에 따른 그룹화 | O(n) |
+| `join()` | `string` | 문자열로 결합 | O(n) |
+| `join(delimiter)` | `string` | 구분자로 결합 | O(n) |
+| `partition(count)` | `E[][]` | 개수에 따른 분할 | O(n) |
+| `partitionBy(classifier)` | `E[][]` | 분류자에 따른 분할 | O(n) |
+| `reduce(accumulator)` | `Optional<E>` | 축소 연산 | O(n) |
+| `reduce(identity, accumulator)` | `E` | 식별자를 사용한 축소 | O(n) |
+| `toArray()` | `E[]` | 배열로 변환 | O(n) |
+| `toMap(keyExtractor, valueExtractor)` | `Map<K, V>` | Map으로 변환 | O(n) |
+| `toSet()` | `Set<E>` | Set으로 변환 | O(n) |
+
+**코드 예시 보충:**
+```typescript
+import { from } from 'semantic-typescript';
+
+const people = from([
+    { name: "Alice", age: 25, city: "New York" },
+    { name: "Bob", age: 30, city: "London" },
+    { name: "Charlie", age: 25, city: "New York" }
+]);
+
+// 집계 연산 사용 전 반드시 Collectable로 변환
+const collectable = people.toUnordered();
+
+// 그룹화 연산
+const byCity = collectable.group(person => person.city);
+// Map { "New York" => [{name: "Alice", ...}, {name: "Charlie", ...}], "London" => [{name: "Bob", ...}] }
+
+const byAge = collectable.groupBy(
+    person => person.age,
+    person => person.name
+);
+// Map { 25 => ["Alice", "Charlie"], 30 => ["Bob"] }
+
+// 컬렉션으로 변환
+const array = collectable.toArray(); // 원본 배열
+const set = collectable.toSet(); // Set 컬렉션
+const map = collectable.toMap(
+    person => person.name,
+    person => person.age
+); // Map { "Alice" => 25, "Bob" => 30, "Charlie" => 25 }
+
+// 축소 연산
+const totalAge = collectable.reduce(0, (acc, person) => acc + person.age); // 80
+const oldest = collectable.reduce((a, b) => a.age > b.age ? a : b); // Optional.of({name: "Bob", age: 30, ...})
+```
+
+### 특정 수집기 구현
+
+#### UnorderedCollectable<E>
+- **특징**: 가장 빠른 수집기, 정렬 없음
+- **사용 시나리오**: 순서 중요하지 않음, 최대 성능 원할 때
+- **메서드**: 모든 Collectable 메서드 상속
+
+#### OrderedCollectable<E>
+- **특징**: 요소 순서 보장, 낮은 성능
+- **사용 시나리오**: 정렬된 결과 필요
+- **특별 메서드**: 모든 메서드 상속, 내부 정렬 상태 유지
+
+#### WindowCollectable<E>
+- **특징**: 슬라이딩 윈도우 연산 지원
+- **사용 시나리오**: 시계열 데이터 분석
+- **특별 메서드**:
+  - `slide(size, step)` - 슬라이딩 윈도우
+  - `tumble(size)` - 텀블링 윈도우
+
+**코드 예시 보충:**
+```typescript
+import { from } from 'semantic-typescript';
+
+const data = from([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+
+// 비정렬 수집기 (가장 빠름)
+const unordered = data.toUnordered();
+const unorderedArray = unordered.toArray(); // 원본 순서 유지 가능 [1, 2, 3, ...]
+
+// 정렬 수집기
+const ordered = data.toOrdered();
+const orderedArray = ordered.toArray(); // 정렬 보장 [1, 2, 3, ...]
+
+// 윈도우 수집기
+const windowed = data.toWindow();
+const slidingWindows = windowed.slide(3n, 2n); // 윈도우 크기 3, 단계 2
+// 윈도우 1: [1, 2, 3], 윈도우 2: [3, 4, 5], 윈도우 3: [5, 6, 7], ...
+
+const tumblingWindows = windowed.tumble(4n); // 텀블링 윈도우 크기 4
+// 윈도우 1: [1, 2, 3, 4], 윈도우 2: [5, 6, 7, 8], ...
+```
+
+### Statistics<E, D> - 통계 분석
+
+통계 분석 기본 클래스로 풍부한 통계 계산 메서드를 제공합니다. **참고: 반드시 Semantic 인스턴스를 통해 toNumericStatistics() 또는 toBigIntStatistics()를 호출하여 Statistics 인스턴스를 얻은 후 다음 메서드들을 사용해야 합니다.**
+
+#### 통계 계산 연산
+
+| 메서드 | 반환 타입 | 설명 | 알고리즘 복잡도 |
+|------|----------|------|------------|
+| `maximum()` | `Optional<E>` | 최대값 | O(n) |
+| `minimum()` | `Optional<E>` | 최소값 | O(n) |
+| `range()` | `D` | 범위 (최대-최소) | O(n) |
+| `variance()` | `D` | 분산 | O(n) |
+| `standardDeviation()` | `D` | 표준 편차 | O(n) |
+| `mean()` | `D` | 평균값 | O(n) |
+| `median()` | `D` | 중앙값 | O(n log n) |
+| `mode()` | `D` | 최빈값 | O(n) |
+| `frequency()` | `Map<D, bigint>` | 빈도 분포 | O(n) |
+| `summate()` | `D` | 합계 | O(n) |
+| `quantile(quantile)` | `D` | 분위수 | O(n log n) |
+| `interquartileRange()` | `D` | 사분위 범위 | O(n log n) |
+| `skewness()` | `D` | 왜도 | O(n) |
+| `kurtosis()` | `D` | 첨도 | O(n) |
+
+**코드 예시 보충:**
+```typescript
+import { from } from 'semantic-typescript';
+
+const numbers = from([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+
+// 통계 메서드 사용 전 반드시 통계 객체로 변환
+const stats = numbers.toNumericStatistics();
+
+// 기본 통계
+const count = stats.count(); // 10n
+const max = stats.maximum(); // Optional.of(10)
+const min = stats.minimum(); // Optional.of(1)
+const range = stats.range(); // 9
+const mean = stats.mean(); // 5.5
+const median = stats.median(); // 5.5
+const sum = stats.summate(); // 55
+
+// 고급 통계
+const variance = stats.variance(); // 8.25
+const stdDev = stats.standardDeviation(); // 2.872
+const mode = stats.mode(); // 어떤 값 (모두 한 번씩 나타나므로)
+const q1 = stats.quantile(0.25); // 3.25
+const q3 = stats.quantile(0.75); // 7.75
+const iqr = stats.interquartileRange(); // 4.5
+
+// 빈도 분포
+const freq = stats.frequency(); // Map {1 => 1n, 2 => 1n, ...}
+```
+
+#### 특정 통계 구현 클래스
+
+**NumericStatistics<E>**
+- number 타입 통계 분석 처리
+- 모든 통계 계산이 number 타입 반환
+
+**BigIntStatistics<E>**
+- bigint 타입 통계 분석 처리
+- 모든 통계 계산이 bigint 타입 반환
+
+**코드 예시 보충:**
+```typescript
+import { from } from 'semantic-typescript';
+
+// 숫자 통계
+const numberData = from([10, 20, 30, 40, 50]);
+const numericStats = numberData.toNumericStatistics();
+
+console.log(numericStats.mean()); // 30
+console.log(numericStats.summate()); // 150
+
+// Big integer 통계
+const bigintData = from([100n, 200n, 300n, 400n, 500n]);
+const bigintStats = bigintData.toBigIntStatistics();
+
+console.log(bigintStats.mean()); // 300n
+console.log(bigintStats.summate()); // 1500n
+
+// 매퍼 함수를 사용한 통계
+const objectData = from([
+    { value: 15 },
+    { value: 25 },
+    { value: 35 },
+    { value: 45 }
+]);
+
+const objectStats = objectData.toNumericStatistics();
+const meanWithMapper = objectStats.mean(obj => obj.value); // 30
+const sumWithMapper = objectStats.summate(obj => obj.value); // 120
+```
+
+## 완전한 사용 예시
 
 ```typescript
-const fastest = semanticStream.toUnordered();
+import { from, validate, invalidate } from 'semantic-typescript';
+
+// 1. 데이터 스트림 생성
+const rawData = [5, 2, 8, 1, null, 9, 3, undefined, 7, 4, 6];
+const semanticStream = from(rawData);
+
+// 2. 스트림 처리 파이프라인
+const processedStream = semanticStream
+    .filter(val => validate(val)) // null 및 undefined 필터링
+    .map(val => val! * 2) // 각 값에 2 곱하기 (validate가 비어있지 않음을 보장하므로 ! 사용)
+    .distinct(); // 중복 제거
+
+// 3. Collectable로 변환 및 터미널 연산 사용
+const collectable = processedStream.toUnordered();
+
+// 4. 데이터 검증 및 사용
+if (!collectable.isEmpty()) {
+    const results = collectable
+        .filter(x => x > 5) // 다시 필터링
+        .toArray(); // 배열로 변환
+    
+    console.log("처리 결과:", results); // [16, 18, 14, 8, 12]
+    
+    // 통계 정보
+    const stats = processedStream.toNumericStatistics();
+    console.log("평균값:", stats.mean()); // 11.2
+    console.log("총합:", stats.summate()); // 56
+}
+
+// 5. 잠재적으로 무효한 데이터 처리
+const potentiallyInvalidData: Array<number | null> = [1, null, 3, 4, null];
+const validData = potentiallyInvalidData.filter(validate);
+const invalidData = potentiallyInvalidData.filter(invalidate);
+
+console.log("유효한 데이터:", validData); // [1, 3, 4]
+console.log("무효한 데이터:", invalidData); // [null, null]
 ```
 
-🔥 **어떠한 정렬 알고리즘도 적용되지 않습니다.**  
-순서가 중요하지 않고 속도가 최우선일 때 이 방법을 사용하세요.
-
----
-
-### 4. `toOrdered()` 및 `sorted()` — 정렬된 출력
-
-**정렬된 결과가 필요한 경우** 다음을 사용할 수 있습니다:
-
-```typescript
-const ordered = semanticStream.sorted(); // 자연 정렬
-const customSorted = semanticStream.sorted((a, b) => a - b); // 커스텀 비교자
-const orderedCollectable = semanticStream.toOrdered(); // 정렬됨
-```
-
-⚠️ 이 메서드들은 **요소를 정렬**하며, 자연 정렬 또는 제공된 비교자를 사용합니다.
-
----
-
-### 5. `Collector<E, A, R>` — 데이터 집계
-
-컬렉터를 사용하면 스트림을 **단일 값 또는 복잡한 구조로 축약**할 수 있습니다.
-
-내장된 정적 팩토리:
-
-```typescript
-Collector.full(identity, accumulator, finisher)
-Collector.shortable(identity, interruptor, accumulator, finisher)
-```
-
-하지만 보통은 `Collectable` 클래스의 고수준 메서드를 통해 사용하게 됩니다.
-
----
-
-### 6. `Collectable<E>` (추상 클래스)
-
-다음 클래스들의 기반 클래스입니다:
-
-- `OrderedCollectable<E>` — 정렬된 출력
-- `UnorderedCollectable<E>` — 정렬 없음, 가장 빠름
-- `WindowCollectable<E>` — 슬라이딩 윈도우
-- `Statistics<E, D>` — 통계 집계
-
-#### 공통 메서드 (상속을 통해):
-
-| 메서드 | 설명 | 예제 |
-|--------|------|------|
-| `count()` | 요소 개수 | `.count()` |
-| `toArray()` | 배열로 변환 | `.toArray()` |
-| `toSet()` | Set으로 변환 | `.toSet()` |
-| `toMap(k, v)` | Map으로 변환 | `.toMap(x => x.id, x => x)` |
-| `group(k)` | 키로 그룹화 | `.group(x => x.category)` |
-| `findAny()` | 임의의 요소 (Optional) | `.findAny()` |
-| `findFirst()` | 첫 번째 요소 (Optional) | `.findFirst()` |
-| `reduce(...)` | 커스텀 축약 | `.reduce((a,b) => a + b, 0)` |
-
----
-
-### 7. `OrderedCollectable<E>` — 정렬된 데이터
-
-요소들을 **자동으로 정렬**하고 싶다면 이 클래스를 사용하세요.
-
-**커스텀 비교자**를 받거나 자연 정렬을 사용할 수 있습니다.
-
-```typescript
-const sorted = new OrderedCollectable(stream);
-const customSorted = new OrderedCollectable(stream, (a, b) => b - a);
-```
-
-🔒 **정렬된 출력이 보장됩니다.**
-
----
-
-### 8. `UnorderedCollectable<E>` — 정렬 없음 (🚀 가장 빠름)
-
-**순서가 중요하지 않고 최고의 성능이 필요한 경우** 다음을 사용하세요:
-
-```typescript
-const unordered = new UnorderedCollectable(stream);
-// 또는
-const fastest = semanticStream.toUnordered();
-```
-
-✅ **정렬 알고리즘이 실행되지 않음**  
-✅ **순서가 중요하지 않을 때 최고의 성능**
-
----
-
-### 9. `Statistics<E, D>` — 통계 분석
-
-숫자 데이터를 분석하기 위한 추상 기반 클래스입니다.
-
-#### 서브 클래스:
-
-- `NumericStatistics<E>` — `number` 값용
-- `BigIntStatistics<E>` — `bigint` 값용
-
-##### 주요 통계 메서드:
-
-| 메서드 | 설명 | 예제 |
-|--------|------|------|
-| `mean()` | 평균 | `.mean()` |
-| `median()` | 중앙값 | `.median()` |
-| `mode()` | 최빈값 | `.mode()` |
-| `minimum()` | 최솟값 | `.minimum()` |
-| `maximum()` | 최댓값 | `.maximum()` |
-| `range()` | 최댓값 - 최솟값 | `.range()` |
-| `variance()` | 분산 | `.variance()` |
-| `standardDeviation()` | 표준 편차 | `.standardDeviation()` |
-| `summate()` | 합계 | `.summate()` |
-| `quantile(q)` | q분위수 (0~1) | `.quantile(0.5)` → 중앙값 |
-| `frequency()` | 빈도 맵 | `.frequency()` |
-
----
-
-## 🧪 전체 예제
-
-```typescript
-import { from, toUnordered, toOrdered, sorted, NumericStatistics } from 'semantic-typescript';
-
-// 샘플 데이터
-const numbers = from([10, 2, 8, 4, 5, 6]);
-
-// 🚀 가장 빠름: 정렬 없음
-const fastest = numbers.toUnordered();
-console.log(fastest.toArray()); // 예: [10, 2, 8, 4, 5, 6] (원래 순서)
-
-// 🔢 자연 정렬
-const ordered = numbers.sorted();
-console.log(ordered.toArray()); // [2, 4, 5, 6, 8, 10]
-
-// 📊 통계 분석
-const stats = new NumericStatistics(numbers);
-console.log('평균:', stats.mean());
-console.log('중앙값:', stats.median());
-console.log('최빈값:', stats.mode());
-console.log('범위:', stats.range());
-console.log('표준 편차:', stats.standardDeviation());
-```
-
----
-
-## 🛠️ 유틸리티 함수
-
-다양한 **타입 가드(Type Guards)** 와 **비교 도구**도 제공됩니다:
-
-| 함수 | 용도 |
-|------|------|
-| `isString(x)` | `string` 타입 가드 |
-| `isNumber(x)` | `number` 타입 가드 |
-| `isBoolean(x)` | `boolean` 타입 가드 |
-| `isIterable(x)` | 객체가 반복 가능한지 확인 |
-| `useCompare(a, b)` | 범용 비교 함수 |
-| `useRandom(x)` | 의사 난수 생성기 (재미삼아) |
-
----
-
-## 🧩 고급: 커스텀 생성기 & 윈도우
-
-무한 또는 제어된 데이터 스트림을 위한 **커스텀 생성기**를 만들 수 있습니다:
-
-```typescript
-const gen = (accept: BiConsumer<number, bigint>, interrupt: Predicate<number>) => {
-  for (let i = 0; i < 10; i++) {
-    accept(i, BigInt(i));
-    if (i === 5) interrupt(i);
-  }
-};
-
-const s = new Semantic(gen);
-```
-
-또는 **슬라이딩 윈도우**를 사용할 수도 있습니다:
-
-```typescript
-const windowed = ordered.slide(3n, 2n); // 크기 3, 스텝 2
-```
-
----
-
-## 📄 라이선스
-
-이 프로젝트는 **MIT 라이선스** 로 제공되며, 상업적·개인적 용도로 자유롭게 사용할 수 있습니다.
-
----
-
-## 🙌 기여
-
-Pull Request, 이슈(Issue), 아이디어 제안 등 모두 환영합니다!
-
----
-
-## 🚀 빠른 시작 요약
-
-| 작업 | 메서드 |
-|------|--------|
-| null/undefined 안전하게 처리 | `Optional<T>` |
-| 스트림 생성 | `from([...])`, `range()`, `fill()` |
-| 데이터 변환 | `map()`, `filter()` |
-| 데이터 정렬 | `sorted()`, `toOrdered()` |
-| 정렬 없음 (가장 빠름) | `toUnordered()` ✅ |
-| 그룹화 / 집계 | `toMap()`, `group()`, `Collector` |
-| 통계 | `NumericStatistics`, `mean()`, `median()` 등 |
-
----
-
-## 🔗 링크
-
-- 📦 npm: https://www.npmjs.com/package/semantic-typescript
-- 🐙 GitHub: https://github.com/eloyhere/semantic-typescript
-- 📘 문서: 소스 코드 / 타입 정의 참조
-
----
-
-**TypeScript에서 함수형, 타입 안전하고 구성 가능한 데이터 처리를 즐겨보세요.** 🚀
-
---- 
-
-✅ **참고:**  
-- `toUnordered()` → **정렬 없음, 가장 빠름**  
-- 그 외 (`sorted()`, `toOrdered()` 등) → **데이터를 정렬함**
+## 중요한 사용 규칙 요약
+
+1. **스트림 생성**: `from()`, `range()`, `fill()` 등 팩토리 메서드를 사용하여 Semantic 인스턴스 생성
+2. **스트림 변환**: Semantic 인스턴스에서 `map()`, `filter()`, `distinct()` 등 메서드 호출
+3. **Collectable로 변환**: 반드시 Semantic 인스턴스를 통해 다음 메서드 중 하나 호출:
+   - `toOrdered()` - 정렬 수집기
+   - `toUnordered()` - 비정렬 수집기 (가장 빠름)
+   - `toWindow()` - 윈도우 수집기
+   - `toNumericStatistics()` - 숫자 통계
+   - `toBigIntStatistics()` - Big integer 통계
+   - `sorted()` - 자연 정렬
+   - `sorted(comparator)` - 사용자 정의 정렬
+4. **터미널 연산**: Collectable 인스턴스에서 `toArray()`, `count()`, `summate()` 등 터미널 메서드 호출
+5. **데이터 검증**: `validate()`를 사용하여 데이터가 null/undefined가 아님을 보장, `invalidate()`를 사용하여 무효한 데이터 확인
+
+이 설계는 타입 안전성과 성능 최적화를 보장하면서 풍부한 스트림 처리 기능을 제공합니다.
