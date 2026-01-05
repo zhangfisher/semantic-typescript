@@ -10,6 +10,9 @@ export let invalidate: <T>(t: MaybeInvalid<T>) => t is (null | undefined) = <T>(
     return t === null || t === undefined;
 };
 
+export type Primitive = string | number | boolean | symbol | bigint | Function | ((...args: any[]) => any);
+export type MaybePrimitive<T> = T | Primitive;
+
 export let isBoolean: (t: unknown) => t is boolean = (t: unknown): t is boolean => {
     return typeof t === "boolean";
 };
@@ -31,6 +34,9 @@ export let isSymbol: (t: unknown) => t is symbol = (t: unknown): t is symbol => 
 export let isBigint: (t: unknown) => t is bigint = (t: unknown): t is bigint => {
     return typeof t === "bigint";
 };
+export let isPrimitive: (t: MaybePrimitive<unknown>) => t is Primitive = (t: MaybePrimitive<unknown>): t is Primitive => {
+    return isBoolean(t) || isString(t) || isNumber(t) || isSymbol(t) || isBigint(t) || isFunction(t);
+};
 export let isIterable: (t: unknown) => t is Iterable<unknown> = (t: unknown): t is Iterable<unknown> => {
     if (isObject(t)) {
         return isFunction(Reflect.get(t, Symbol.iterator));
@@ -48,7 +54,7 @@ export let useCompare: <T>(t1: T, t2: T) => number = <T>(t1: T, t2: T): number =
             case "bigint":
                 return Number(t1 - (t2 as bigint));
             case "boolean":
-                return t1 ? 1 : -1;
+                return t1 === t2 ? 0 : (t1 ? 1 : -1);
             case "symbol":
                 return t1.toString().localeCompare((t2 as symbol).toString());
             case "function":
@@ -56,15 +62,19 @@ export let useCompare: <T>(t1: T, t2: T) => number = <T>(t1: T, t2: T): number =
             case "undefined":
                 return 0;
             case "object":
-                let a = Object.prototype.valueOf.call(t1);
-                let b = Object.prototype.valueOf.call(t2);
-                if (a === b) {
-                    return 0;
+                if (isFunction(Reflect.get(t1 as object, Symbol.toPrimitive)) && isFunction(Reflect.get(t2 as object, Symbol.toPrimitive))) {
+                    let a: MaybePrimitive<object> = Reflect.apply(Reflect.get(t1 as object, Symbol.toPrimitive), t1, ["default"]);
+                    let b: MaybePrimitive<object> = Reflect.apply(Reflect.get(t2 as object, Symbol.toPrimitive), t2, ["default"]);
+                    if (isPrimitive(a) && isPrimitive(b)) {
+                        return useCompare(a, b);
+                    }
                 }
-                if (a < b) {
-                    return -1;
+                let a: MaybePrimitive<object> = Object.prototype.valueOf.call(t1);
+                let b: MaybePrimitive<object> = Object.prototype.valueOf.call(t2);
+                if (isPrimitive(a) && isPrimitive(b)) {
+                    return useCompare(a, b);
                 }
-                return 1;
+                return useCompare(Object.prototype.toString.call(t1), Object.prototype.toString.call(t2));
             default:
                 throw new TypeError("Invalid type.");
         }
@@ -208,7 +218,6 @@ export interface Generator<T> {
     (accept: BiConsumer<T, bigint>, interrupt: Predicate<T>): void;
 };
 
-
 class Optional<T> {
 
     protected value: MaybeInvalid<T>;
@@ -280,11 +289,76 @@ class Optional<T> {
     }
 };
 
-export let empty = <E>(): Semantic<E> => {
+export let blob: BiFunctional<Blob, bigint, Semantic<Uint8Array>> = (blob: Blob, chunk: bigint = 64n * 1024n): Semantic<Uint8Array> => {
+    let size: number = Number(chunk);
+    if (size <= 0) {
+        throw new RangeError("Chunk size must be positive.");
+    }
+    if (invalidate(blob)) {
+        throw new TypeError("Blob is invalid.");
+    }
+    return new Semantic<Uint8Array>((accept, interrupt) => {
+        let stream: ReadableStream<Uint8Array<ArrayBuffer>> = blob.stream();
+        let reader: ReadableStreamDefaultReader<Uint8Array<ArrayBuffer>> = stream.getReader();
+        let shouldStop: boolean = false;
+        let currentIndex: bigint = 0n;
+        let currentBuffer: Uint8Array = new Uint8Array(size);
+        let bufferPosition: number = 0;
+
+        let readNext: Functional<void, void> = (): void => {
+            if (shouldStop) {
+                return;
+            }
+            reader.read().then((readResult) => {
+                if (readResult.done) {
+                    if (bufferPosition > 0) {
+                        let finalChunk: Uint8Array = currentBuffer.slice(0, bufferPosition);
+                        if (!interrupt(finalChunk)) {
+                            accept(finalChunk, currentIndex);
+                        }
+                    }
+                    shouldStop = true;
+                    return;
+                }
+
+                let chunkData: Uint8Array = readResult.value;
+                let dataPosition: number = 0;
+
+                while (dataPosition < chunkData.length && !shouldStop) {
+                    let remainingSpace: number = size - bufferPosition;
+                    let bytesToCopy: number = Math.min(remainingSpace, chunkData.length - dataPosition);
+
+                    currentBuffer.set(chunkData.subarray(dataPosition, dataPosition + bytesToCopy), bufferPosition);
+                    bufferPosition += bytesToCopy;
+                    dataPosition += bytesToCopy;
+
+                    if (bufferPosition === size) {
+                        let completeChunk: Uint8Array = currentBuffer.slice();
+                        if (!interrupt(completeChunk)) {
+                            accept(completeChunk, currentIndex);
+                        }
+                        currentIndex++;
+                        bufferPosition = 0;
+                    }
+                }
+
+                if (!shouldStop && !interrupt(chunkData)) {
+                    readNext();
+                } else {
+                    shouldStop = true;
+                }
+            });
+        };
+
+        readNext();
+    });
+};
+
+export let empty: <E>() => Semantic<E> = <E>(): Semantic<E> => {
     return new Semantic<E>(() => { });
 }
 
-export let fill = <E>(element: E | Supplier<E>, count: bigint): Semantic<E> => {
+export let fill: <E>(element: E | Supplier<E>, count: bigint) => Semantic<E> = <E>(element: E | Supplier<E>, count: bigint): Semantic<E> => {
     if (validate(element) && count > 0n) {
         return new Semantic<E>((accept, interrupt) => {
             for (let i = 0n; i < count; i++) {
@@ -299,7 +373,7 @@ export let fill = <E>(element: E | Supplier<E>, count: bigint): Semantic<E> => {
     throw new TypeError("Invalid arguments.");
 }
 
-export let from = <E>(iterable: Iterable<E>): Semantic<E> => {
+export let from: <E>(iterable: Iterable<E>) => Semantic<E> = <E>(iterable: Iterable<E>): Semantic<E> => {
     if (isIterable(iterable)) {
         return new Semantic<E>((accept, interrupt) => {
             let index: bigint = 0n;
@@ -347,12 +421,46 @@ export let range: <N extends number | bigint>(start: N, end: N, step: N) => Sema
     throw new TypeError("Invalid arguments.");
 };
 
-export function iterate<E>(generator: Generator<E>): Semantic<E> {
-    if(isFunction(generator)){
+export let iterate: <E>(generator: Generator<E>) => Semantic<E> = <E>(generator: Generator<E>): Semantic<E> => {
+    if (isFunction(generator)) {
         return new Semantic(generator);
     }
     throw new TypeError("Invalid arguments.");
 }
+
+export let websocket: Functional<WebSocket, Semantic<MessageEvent | CloseEvent | Event>> = (websocket: WebSocket): Semantic<MessageEvent | CloseEvent | Event> => {
+    if (invalidate(websocket)) {
+        throw new TypeError("WebSocket is invalid.");
+    }
+    return new Semantic<MessageEvent | CloseEvent | Event>((accept, interrupt) => {
+        let index: bigint = 0n;
+        let stop: boolean = false;
+        websocket.addEventListener("message", (event: MessageEvent): void => {
+            if (stop || interrupt(event)) {
+                stop = true;
+            } else {
+                accept(event, index);
+                index++;
+            }
+        });
+        websocket.addEventListener("error", (event: Event): void => {
+            if (stop || interrupt(event)) {
+                stop = true;
+            } else {
+                accept(event, index);
+                index++;
+            }
+        });
+        websocket.addEventListener("close", (event: CloseEvent): void => {
+            if (stop || interrupt(event)) {
+                stop = true;
+            } else {
+                accept(event, index);
+                index++;
+            }
+        });
+    });
+};
 
 export class Semantic<E> {
 
@@ -668,10 +776,10 @@ export class Semantic<E> {
         return new OrderedCollectable(this.generator);
     }
 
-    public toNumericStatistics(): Statistics<E, number>{
+    public toNumericStatistics(): Statistics<E, number> {
         return new NumericStatistics(this.generator);
     }
-    public toBigintStatistics(): Statistics<E, bigint>{
+    public toBigintStatistics(): Statistics<E, bigint> {
         return new BigIntStatistics(this.generator);
     }
 
@@ -687,21 +795,21 @@ export class Semantic<E> {
     public translate(offset: bigint): Semantic<E>;
     public translate(translator: BiFunctional<E, bigint, bigint>): Semantic<E>;
     public translate(argument1: number | bigint | BiFunctional<E, bigint, bigint>): Semantic<E> {
-        if(isNumber(argument1)){
+        if (isNumber(argument1)) {
             let offset: number = argument1;
             return new Semantic<E>((accept, interrupt): void => {
                 this.generator((element: E, index: bigint): void => {
                     accept(element, index + BigInt(offset));
                 }, interrupt);
             });
-        }else if(isBigint(argument1)){
+        } else if (isBigint(argument1)) {
             let offset: bigint = argument1;
             return new Semantic<E>((accept, interrupt): void => {
                 this.generator((element: E, index: bigint): void => {
                     accept(element, index + offset);
                 }, interrupt);
             });
-        }else if(isFunction(argument1)){
+        } else if (isFunction(argument1)) {
             let translator: BiFunctional<E, bigint, bigint> = argument1;
             return new Semantic<E>((accept, interrupt): void => {
                 this.generator((element: E, index: bigint): void => {
@@ -1125,6 +1233,58 @@ export abstract class Collectable<E> {
         }, (result: Set<E>): Set<E> => {
             return result;
         });
+    }
+
+    public write(stream: WritableStream<string>): Promise<void>;
+    public write(stream: WritableStream<Uint8Array>, accumulator: Functional<E, Uint8Array>): Promise<void>;
+    public write(stream: WritableStream<string | Uint8Array>, accumulator?: Functional<E, Uint8Array>): Promise<void> {
+        if (isObject(stream) && invalidate(accumulator)) {
+            return this.collect<Promise<WritableStream<string>>, Promise<void>>((): Promise<WritableStream<string>> => {
+                return Promise.resolve(stream);
+            }, (promise: Promise<WritableStream<string>>, element: E): Promise<WritableStream<string>> => {
+                return new Promise<WritableStream<string>>((resolve1, reject1) => {
+                    promise.then(async (stream: WritableStream<string>): Promise<WritableStream<string>> => {
+                        let writer: WritableStreamDefaultWriter<string> = stream.getWriter();
+                        await writer.write(String(element));
+                        resolve1(stream);
+                        return stream;
+                    }, reject1);
+                });
+            }, (promise: Promise<WritableStream<string>>): Promise<void> => {
+                return new Promise<void>((resolve, reject) => {
+                    promise.then(async (stream: WritableStream<string>): Promise<void> => {
+                        await stream.getWriter().close();
+                        resolve();
+                    }, (reason): void => {
+                        reject(reason);
+                    });
+                });
+            });
+        } else if (isObject(stream) && isFunction(accumulator)) {
+            return this.collect<Promise<WritableStream<Uint8Array>>, Promise<void>>((): Promise<WritableStream<Uint8Array>> => {
+                return Promise.resolve(stream);
+            }, (promise: Promise<WritableStream<Uint8Array>>, element: E): Promise<WritableStream<Uint8Array>> => {
+                return new Promise<WritableStream<Uint8Array>>((resolve1, reject1) => {
+                    promise.then(async (stream: WritableStream<Uint8Array>): Promise<WritableStream<Uint8Array>> => {
+                        let writer: WritableStreamDefaultWriter<Uint8Array> = stream.getWriter();
+                        await writer.write(accumulator(element));
+                        resolve1(stream);
+                        return stream;
+                    }, reject1);
+                });
+            }, (promise: Promise<WritableStream<Uint8Array>>): Promise<void> => {
+                return new Promise<void>((resolve, reject) => {
+                    promise.then(async (stream: WritableStream<Uint8Array>): Promise<void> => {
+                        await stream.getWriter().close();
+                        resolve();
+                    }, (reason): void => {
+                        reject(reason);
+                    });
+                });
+            })
+        } else {
+            throw new TypeError("Invalid arguments.");
+        }
     }
 }
 
