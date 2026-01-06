@@ -45,6 +45,9 @@ export let isIterable: (t: unknown) => t is Iterable<unknown> = (t: unknown): t 
 };
 
 export let useCompare: <T>(t1: T, t2: T) => number = <T>(t1: T, t2: T): number => {
+    if(t1 === t2 || Object.is(t1, t2)){
+        return 0;
+    }
     if (typeof t1 === typeof t2) {
         switch (typeof t1) {
             case "string":
@@ -56,7 +59,7 @@ export let useCompare: <T>(t1: T, t2: T) => number = <T>(t1: T, t2: T): number =
             case "boolean":
                 return t1 === t2 ? 0 : (t1 ? 1 : -1);
             case "symbol":
-                return t1.toString().localeCompare((t2 as symbol).toString());
+                return t1.toString().localCompare(t2.toString());
             case "function":
                 throw new TypeError("Cannot compare functions.");
             case "undefined":
@@ -440,34 +443,34 @@ export let iterate: <E>(generator: Generator<E>) => Semantic<E> = <E>(generator:
     throw new TypeError("Invalid arguments.");
 };
 
-export let range: BiFunctional<number, number, Semantic<number>> & TriFunctional<number, number, number, Semantic<number>> & BiFunctional<bigint, bigint, Semantic<bigint>> TriFunctional<bigint, bigint, bigint, Semantic<bigint>> = (start: number | bigint, end: number | bigint, step: number = 1): Semantic<number | bigint> => {
-    if ((!isNumber(step) && !isBigint(step)) || (isNumber(step) && step === 0) || (isBigint(step) && step === 0n)) {
-        throw new TypeError("Step cannot be zero.");
+export let range: BiFunctional<number, number, Semantic<number>> & TriFunctional<number, number, number, Semantic<number>> & BiFunctional<bigint, bigint, Semantic<bigint>> & TriFunctional<bigint, bigint, bigint, Semantic<bigint>> = (start: number | bigint, end: number | bigint, step: number = 1): Semantic<number | bigint> => {
+    if ((!isNumber(step) && !isBigint(step)) || (isNumber(step) && useCompare(step as number, 0) === 0) || (isBigint(step) && useCompare(step as bigint, 0n) === 0)){
+        throw new TypeError("Step must be numeric and cannot be zero.");
     }
-    if (isNumber(start) && isNumber(end) && isNumber(step)) {
-        let minimum: number = start, maximum: number = end, limit: number = step;
+    if (isNumber(start) && isNumber(end)) {
+        let minimum: number = start, maximum: number = end, limit: number = Number(step);
         let condition: Predicate<number> = limit > 0 ? (i: number) => i < maximum : (i: number) => i > maximum;
-        return new Semantic<N>((accept, interrupt) => {
+        return new Semantic<number>((accept, interrupt) => {
             for (let i = minimum; condition(i); i += limit) {
-                let value: N = i as N;
+                let value: number = i;
                 if (interrupt(value)) {
                     break;
                 }
                 accept(value, BigInt(i));
             }
-        }) as Semantic<N>;
-    } else if (isBigint(start) && isBigint(end) && isBigint(step)) {
-        let minimum: bigint = start, maximum: bigint = end, limit: bigint = step;
+        }) as Semantic<number>;
+    } else if (isBigint(start) && isBigint(end)) {
+        let minimum: bigint = start, maximum: bigint = end, limit: bigint = BigInt(step)
         let condition: Predicate<bigint> = limit > 0n ? (i: bigint) => i < maximum : (i: bigint) => i > maximum;
-        return new Semantic<N>((accept, interrupt) => {
+        return new Semantic<bigint>((accept, interrupt) => {
             for (let i = minimum; condition(i); i += limit) {
-                let value: N = i as N;
+                let value: bigint = i;
                 if (interrupt(value)) {
                     break;
                 }
                 accept(value, i);
             }
-        }) as Semantic<N>;
+        }) as Semantic<bigint>;
     }
     throw new TypeError("Invalid arguments.");
 };
@@ -2306,4 +2309,5 @@ export class BigIntStatistics<E> extends Statistics<E, bigint> {
         throw new TypeError("Invalid arguments.");
     }
 };
+
 
