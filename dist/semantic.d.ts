@@ -21,15 +21,21 @@ export declare let SemanticSymbol: symbol;
 export declare let CollectorsSymbol: symbol;
 export declare let CollectableSymbol: symbol;
 export declare let OrderedCollectableSymbol: symbol;
-export declare let UnorderedCollectableSymbol: symbol;
+export declare let WindowCollectableSymbol: symbol;
 export declare let StatisticsSymbol: symbol;
+export declare let NumericStatisticsSymbol: symbol;
+export declare let BigIntStatisticsSymbol: symbol;
+export declare let UnorderedCollectableSymbol: symbol;
 export declare let isOptional: (t: unknown) => t is Optional<unknown>;
 export declare let isSemantic: (t: unknown) => t is Semantic<unknown>;
 export declare let isCollector: (t: unknown) => t is Collector<unknown, unknown, unknown>;
 export declare let isCollectable: (t: unknown) => t is Collectable<unknown>;
 export declare let isOrderedCollectable: (t: unknown) => t is OrderedCollectable<unknown>;
+export declare let isWindowCollectable: (t: unknown) => t is OrderedCollectable<unknown>;
 export declare let isUnorderedCollectable: (t: unknown) => t is UnorderedCollectable<unknown>;
 export declare let isStatistics: (t: unknown) => t is Statistics<unknown, number | bigint>;
+export declare let isNumericStatistics: (t: unknown) => t is Statistics<unknown, number | bigint>;
+export declare let isBigIntStatistics: (t: unknown) => t is Statistics<unknown, number | bigint>;
 export interface Runnable {
     (): void;
 }
@@ -72,11 +78,13 @@ declare class Optional<T> {
     protected constructor(value: MaybeInvalid<T>);
     filter(predicate: Predicate<T>): Optional<T>;
     get(): T;
-    getOrDefault(defaultValue: T): T;
+    get(defaultValue: T): T;
     ifPresent(action: Consumer<T>): void;
+    ifPresent(action: Consumer<T>, elseAction: Runnable): void;
     isEmpty(): boolean;
     isPresent(): boolean;
     map<R>(mapper: Functional<T, R>): Optional<R>;
+    static empty<T>(): Optional<T>;
     static of<T>(value: MaybeInvalid<T>): Optional<T>;
     static ofNullable<T>(value?: MaybeInvalid<T>): Optional<T>;
     static ofNonNull<T>(value: T): Optional<T>;
@@ -85,8 +93,9 @@ export declare let blob: BiFunctional<Blob, bigint, Semantic<Uint8Array>>;
 export declare let empty: <E>() => Semantic<E>;
 export declare let fill: <E>(element: E | Supplier<E>, count: bigint) => Semantic<E>;
 export declare let from: <E>(iterable: Iterable<E>) => Semantic<E>;
-export declare let range: <N extends number | bigint>(start: N, end: N, step: N) => Semantic<N>;
+export declare let interval: Functional<number, Semantic<number>> & BiFunctional<number, number, Semantic<number>>;
 export declare let iterate: <E>(generator: Generator<E>) => Semantic<E>;
+export declare let range: <N extends number | bigint>(start: N, end: N, step: N) => Semantic<N>;
 export declare let websocket: Functional<WebSocket, Semantic<MessageEvent | CloseEvent | Event>>;
 export declare class Semantic<E> {
     protected generator: Generator<E>;
@@ -139,6 +148,7 @@ export declare class Collector<E, A, R> {
     static shortable<E, A, R>(identity: Supplier<A>, interruptor: Predicate<E>, accumulator: TriFunctional<A, E, bigint, A>, finisher: Functional<A, R>): Collector<E, A, R>;
 }
 export declare abstract class Collectable<E> {
+    protected readonly Collectable: symbol;
     constructor();
     anyMatch(predicate: Predicate<E>): boolean;
     allMatch(predicate: Predicate<E>): boolean;
@@ -179,10 +189,12 @@ export declare abstract class Collectable<E> {
     toArray(): Array<E>;
     toMap<K, V>(keyExtractor: Functional<E, K>, valueExtractor: Functional<E, V>): Map<K, V>;
     toSet(): Set<E>;
-    write(stream: WritableStream<string>): Promise<void>;
-    write(stream: WritableStream<Uint8Array>, accumulator: Functional<E, Uint8Array>): Promise<void>;
+    write(stream: WritableStream<string>): Promise<WritableStream<string>>;
+    write(stream: WritableStream<string>, accumulator: BiFunctional<E, bigint, string>): Promise<WritableStream<string>>;
+    write(stream: WritableStream<Uint8Array>, accumulator: BiFunctional<E, bigint, Uint8Array>): Promise<WritableStream<Uint8Array>>;
 }
 export declare class UnorderedCollectable<E> extends Collectable<E> {
+    protected readonly UnorderedCollectable: symbol;
     protected generator: Generator<E>;
     constructor(generator: Generator<E>);
     source(): Generator<E>;
@@ -192,6 +204,7 @@ type Indexed<K, V> = {
     value: V;
 };
 export declare class OrderedCollectable<E> extends Collectable<E> {
+    protected readonly OrderedCollectable: symbol;
     protected ordered: Array<Indexed<bigint, E>>;
     constructor(iterable: Iterable<E>);
     constructor(iterable: Iterable<E>, comparator: Comparator<E>);
@@ -200,6 +213,7 @@ export declare class OrderedCollectable<E> extends Collectable<E> {
     source(): Generator<E> | Iterable<E>;
 }
 export declare class WindowCollectable<E> extends OrderedCollectable<E> {
+    protected readonly WindowCollectable: symbol;
     constructor(iterable: Iterable<E>);
     constructor(iterable: Iterable<E>, comparator: Comparator<E>);
     constructor(generator: Generator<E>);
@@ -208,6 +222,7 @@ export declare class WindowCollectable<E> extends OrderedCollectable<E> {
     tumble(size: bigint): Semantic<Semantic<E>>;
 }
 export declare abstract class Statistics<E, D extends number | bigint> extends OrderedCollectable<E> {
+    protected readonly Statistics: symbol;
     constructor(iterable: Iterable<E>);
     constructor(iterable: Iterable<E>, comparator: Comparator<E>);
     constructor(generator: Generator<E>);
@@ -243,6 +258,7 @@ export declare abstract class Statistics<E, D extends number | bigint> extends O
     abstract kurtosis(mapper: Functional<E, D>): D;
 }
 export declare class NumericStatistics<E> extends Statistics<E, number> {
+    protected readonly NumericStatistics: symbol;
     constructor(iterable: Iterable<E>);
     constructor(iterable: Iterable<E>, comparator: Comparator<E>);
     constructor(generator: Generator<E>);
@@ -273,6 +289,7 @@ export declare class NumericStatistics<E> extends Statistics<E, number> {
     kurtosis(mapper: Functional<E, number>): number;
 }
 export declare class BigIntStatistics<E> extends Statistics<E, bigint> {
+    protected readonly BigIntStatistics: symbol;
     constructor(iterable: Iterable<E>);
     constructor(iterable: Iterable<E>, comparator: Comparator<E>);
     constructor(generator: Generator<E>);

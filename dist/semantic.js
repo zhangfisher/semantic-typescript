@@ -123,8 +123,11 @@ export let SemanticSymbol = Symbol.for("Semantic");
 export let CollectorsSymbol = Symbol.for("Collector");
 export let CollectableSymbol = Symbol.for("Collectable");
 export let OrderedCollectableSymbol = Symbol.for("OrderedCollectable");
-export let UnorderedCollectableSymbol = Symbol.for("UnorderedCollectable");
+export let WindowCollectableSymbol = Symbol.for("WindowCollectable");
 export let StatisticsSymbol = Symbol.for("Statistics");
+export let NumericStatisticsSymbol = Symbol.for("NumericStatistics");
+export let BigIntStatisticsSymbol = Symbol.for("BigIntStatistics");
+export let UnorderedCollectableSymbol = Symbol.for("UnorderedCollectable");
 export let isOptional = (t) => {
     if (isObject(t)) {
         return Reflect.get(t, "Optional") === OptionalSymbol;
@@ -155,6 +158,12 @@ export let isOrderedCollectable = (t) => {
     }
     return false;
 };
+export let isWindowCollectable = (t) => {
+    if (isObject(t)) {
+        return Reflect.get(t, "WindowCollectable") === OrderedCollectableSymbol;
+    }
+    return false;
+};
 export let isUnorderedCollectable = (t) => {
     if (isObject(t)) {
         return Reflect.get(t, "UnorderedCollectable") === UnorderedCollectableSymbol;
@@ -164,6 +173,18 @@ export let isUnorderedCollectable = (t) => {
 export let isStatistics = (t) => {
     if (isObject(t)) {
         return Reflect.get(t, "Statistics") === StatisticsSymbol;
+    }
+    return false;
+};
+export let isNumericStatistics = (t) => {
+    if (isObject(t)) {
+        return Reflect.get(t, "NumericStatistics") === NumericStatisticsSymbol;
+    }
+    return false;
+};
+export let isBigIntStatistics = (t) => {
+    if (isObject(t)) {
+        return Reflect.get(t, "BigIntStatistics") === BigIntStatisticsSymbol;
     }
     return false;
 };
@@ -189,24 +210,25 @@ class Optional {
         }
         return new Optional((void 0));
     }
-    get() {
+    get(defaultValue) {
         if (this.isPresent()) {
             return this.value;
         }
-        throw new TypeError("Optional is empty");
-    }
-    getOrDefault(defaultValue) {
-        if (this.isPresent()) {
-            return this.value;
+        else {
+            if (validate(defaultValue)) {
+                return defaultValue;
+            }
+            else {
+                throw new TypeError("Invalid default value and optional is empty.");
+            }
         }
-        if (validate(defaultValue)) {
-            return defaultValue;
-        }
-        throw new TypeError("Default value is not valid");
     }
-    ifPresent(action) {
+    ifPresent(action, elseAction) {
         if (this.isPresent() && isFunction(action)) {
             action(this.value);
+        }
+        else if (isFunction(elseAction)) {
+            elseAction();
         }
     }
     isEmpty() {
@@ -219,6 +241,9 @@ class Optional {
         if (this.isPresent() && isFunction(mapper)) {
             return new Optional(mapper(this.value));
         }
+        return new Optional(null);
+    }
+    static empty() {
         return new Optional(null);
     }
     static of(value) {
@@ -325,6 +350,29 @@ export let from = (iterable) => {
     }
     throw new TypeError("Invalid arguments");
 };
+export let interval = (period, delay = 0) => {
+    if (period > 0 && delay >= 0) {
+        return new Semantic((accept, interrupt) => {
+            setTimeout(() => {
+                let index = 0;
+                let timer = setInterval(() => {
+                    if (interrupt(index)) {
+                        clearInterval(timer);
+                    }
+                    accept(period, BigInt(index));
+                    index++;
+                }, period);
+            }, delay);
+        });
+    }
+    throw new TypeError("Invalid arguments.");
+};
+export let iterate = (generator) => {
+    if (isFunction(generator)) {
+        return new Semantic(generator);
+    }
+    throw new TypeError("Invalid arguments.");
+};
 export let range = (start, end, step = (typeof start === 'bigint' ? 1n : 1)) => {
     if ((isNumber(step) && step === 0) || (isBigint(step) && step === 0n)) {
         throw new TypeError("Step cannot be zero.");
@@ -357,12 +405,6 @@ export let range = (start, end, step = (typeof start === 'bigint' ? 1n : 1)) => 
     }
     throw new TypeError("Invalid arguments.");
 };
-export let iterate = (generator) => {
-    if (isFunction(generator)) {
-        return new Semantic(generator);
-    }
-    throw new TypeError("Invalid arguments.");
-};
 export let websocket = (websocket) => {
     if (invalidate(websocket)) {
         throw new TypeError("WebSocket is invalid.");
@@ -370,6 +412,15 @@ export let websocket = (websocket) => {
     return new Semantic((accept, interrupt) => {
         let index = 0n;
         let stop = false;
+        websocket.addEventListener("open", (event) => {
+            if (stop || interrupt(event)) {
+                stop = true;
+            }
+            else {
+                accept(event, index);
+                index++;
+            }
+        });
         websocket.addEventListener("message", (event) => {
             if (stop || interrupt(event)) {
                 stop = true;
@@ -768,6 +819,7 @@ export class Collector {
 }
 ;
 export class Collectable {
+    Collectable = CollectableSymbol;
     constructor() {
     }
     anyMatch(predicate) {
@@ -1073,49 +1125,45 @@ export class Collectable {
     }
     write(stream, accumulator) {
         if (isObject(stream) && invalidate(accumulator)) {
-            return this.collect(() => {
-                return Promise.resolve(stream);
-            }, (promise, element) => {
-                return new Promise((resolve1, reject1) => {
-                    promise.then(async (stream) => {
+            let optional = this.collect(() => {
+                return Optional.ofNonNull(stream);
+            }, (result, element) => {
+                try {
+                    return result.map((stream) => {
                         let writer = stream.getWriter();
-                        await writer.write(String(element));
-                        resolve1(stream);
+                        writer.write(String(element));
                         return stream;
-                    }, reject1);
-                });
-            }, (promise) => {
-                return new Promise((resolve, reject) => {
-                    promise.then(async (stream) => {
-                        await stream.getWriter().close();
-                        resolve();
-                    }, (reason) => {
-                        reject(reason);
                     });
-                });
+                }
+                catch (reason) {
+                    return Optional.empty();
+                }
+            }, (a) => {
+                return a;
+            });
+            return new Promise((resolve, reject) => {
+                optional.ifPresent(resolve, reject);
             });
         }
         else if (isObject(stream) && isFunction(accumulator)) {
-            return this.collect(() => {
-                return Promise.resolve(stream);
-            }, (promise, element) => {
-                return new Promise((resolve1, reject1) => {
-                    promise.then(async (stream) => {
+            let optional = this.collect(() => {
+                return Optional.ofNonNull(stream);
+            }, (result, element, index) => {
+                try {
+                    return result.map((stream) => {
                         let writer = stream.getWriter();
-                        await writer.write(accumulator(element));
-                        resolve1(stream);
+                        writer.write(accumulator(element, index));
                         return stream;
-                    }, reject1);
-                });
-            }, (promise) => {
-                return new Promise((resolve, reject) => {
-                    promise.then(async (stream) => {
-                        await stream.getWriter().close();
-                        resolve();
-                    }, (reason) => {
-                        reject(reason);
                     });
-                });
+                }
+                catch (reason) {
+                    return Optional.empty();
+                }
+            }, (a) => {
+                return a;
+            });
+            return new Promise((resolve, reject) => {
+                optional.ifPresent(resolve, reject);
             });
         }
         else {
@@ -1124,6 +1172,7 @@ export class Collectable {
     }
 }
 export class UnorderedCollectable extends Collectable {
+    UnorderedCollectable = UnorderedCollectableSymbol;
     generator;
     constructor(generator) {
         super();
@@ -1134,6 +1183,7 @@ export class UnorderedCollectable extends Collectable {
     }
 }
 export class OrderedCollectable extends Collectable {
+    OrderedCollectable = OrderedCollectableSymbol;
     ordered = [];
     constructor(argument1, argument2) {
         super();
@@ -1182,6 +1232,7 @@ export class OrderedCollectable extends Collectable {
     }
 }
 export class WindowCollectable extends OrderedCollectable {
+    WindowCollectable = WindowCollectableSymbol;
     constructor(parameter, comparator) {
         if (isIterable(parameter)) {
             if (isFunction(comparator)) {
@@ -1223,6 +1274,7 @@ export class WindowCollectable extends OrderedCollectable {
 }
 ;
 export class Statistics extends OrderedCollectable {
+    Statistics = StatisticsSymbol;
     constructor(parameter, comparator) {
         if (isIterable(parameter)) {
             if (isFunction(comparator)) {
@@ -1341,6 +1393,7 @@ export class Statistics extends OrderedCollectable {
 }
 ;
 export class NumericStatistics extends Statistics {
+    NumericStatistics = NumericStatisticsSymbol;
     constructor(parameter, comparator) {
         if (isIterable(parameter)) {
             if (isFunction(comparator)) {
@@ -1659,6 +1712,7 @@ export class NumericStatistics extends Statistics {
 }
 ;
 export class BigIntStatistics extends Statistics {
+    BigIntStatistics = BigIntStatisticsSymbol;
     constructor(parameter, comparator) {
         if (isIterable(parameter)) {
             if (isFunction(comparator)) {
