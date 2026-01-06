@@ -387,7 +387,7 @@ export let empty: <E>() => Semantic<E> = <E>(): Semantic<E> => {
     return new Semantic<E>(() => { });
 }
 
-export let fill:  (<E>(element: E, count: bigint) => Semantic<E>) & (<E>(supplier: Supplier<E>, count: bigint) => Semantic<E> = <E>(element: E | Supplier<E>, count: bigint): Semantic<E> => {
+export let fill: (<E>(element: E, count: bigint) => Semantic<E>) & (<E>(supplier: Supplier<E>, count: bigint) => Semantic<E> = <E>(element: E | Supplier<E>, count: bigint): Semantic<E> => {
     if (validate(element) && count > 0n) {
         return new Semantic<E>((accept, interrupt) => {
             for (let i = 0n; i < count; i++) {
@@ -1041,7 +1041,9 @@ export abstract class Collectable<E> {
             });
     }
 
-    public forEach(action: BiConsumer<E, bigint>): void {
+    public forEach(action: Consumer<E>): void
+    public forEach(action: BiConsumer<E, bigint>): void
+    public forEach(action: Consumer<E> | BiConsumer<E>): void {
         if (isFunction(action)) {
             this.collect<bigint, bigint>((): bigint => {
                 return 0n;
@@ -2309,5 +2311,6 @@ export class BigIntStatistics<E> extends Statistics<E, bigint> {
         throw new TypeError("Invalid arguments.");
     }
 };
+
 
 
