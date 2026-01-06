@@ -1,529 +1,428 @@
-# Фреймворк для потоковой обработки Semantic-TypeScript
+# Библиотека потоковой обработки Semantic-TypeScript
 
 ## Введение
 
-Semantic-TypeScript — это современная библиотека для потоковой обработки данных, вдохновленная JavaScript GeneratorFunction, Java Stream и MySQL Index. Основная философия дизайна основана на построении эффективных конвейеров обработки данных через индексацию данных, предоставляя типобезопасный, функциональный опыт потоковых операций для фронтенд-разработки.
+Semantic-TypeScript — это современная библиотека для обработки потоков, вдохновленная JavaScript GeneratorFunction, Java Stream и MySQL Index. Основной дизайн библиотеки основан на построении эффективных конвейеров обработки данных с использованием индексов данных, предоставляя фронтенд-разработчикам типобезопасный, функциональный опыт работы с потоками.
 
-В отличие от традиционной синхронной обработки, Semantic использует асинхронную модель обработки. При создании потоков данных время получения терминальных данных полностью зависит от того, когда вышестоящий код вызовет функции обратного вызова `accept` и `interrupt`. Этот дизайн позволяет библиотеке изящно обрабатывать потоки данных в реальном времени, большие наборы данных и асинхронные источники данных.
+В отличие от традиционной синхронной обработки, Semantic использует асинхронный режим обработки. При создании потоков данных время получения данных терминалом полностью зависит от того, когда вышестоящий источник вызывает функции обратного вызова `accept` и `interrupt`. Этот дизайн позволяет библиотеке изящно обрабатывать потоки данных в реальном времени, большие наборы данных и асинхронные источники данных.
 
-## Основные возможности
+## Установка
 
-| Возможность | Описание | Преимущество |
-|------|------|------|
-| **Типобезопасные дженерики** | Полная поддержка типов TypeScript | Обнаружение ошибок на этапе компиляции, лучший опыт разработки |
-| **Функциональное программирование** | Неизменяемые структуры данных и чистые функции | Более предсказуемый код, легкое тестирование и сопровождение |
-| **Ленивые вычисления** | Вычисления по требованию, оптимизация производительности | Высокая эффективность использования памяти при обработке больших наборов данных |
-| **Асинхронная потоковая обработка** | Асинхронные потоки данных на основе генераторов | Подходит для сценариев с данными в реальном времени и событийно-ориентированных сценариев |
-| **Мультипарадигменные коллекторы** | Стратегии сбора с упорядочиванием, без упорядочивания, статистические | Выбор оптимальной стратегии на основе разных сценариев |
-| **Статистический анализ** | Встроенные полные функции статистических вычислений | Интегрированный анализ данных и генерация отчетов |
+```bash
+npm install semantic-typescript
+```
 
-## Соображения производительности
+## Базовые типы
 
-**Важное примечание**: Следующие методы жертвуют производительностью для сбора и сортировки данных, что приводит к упорядоченным коллекциям данных:
-- `toOrdered()`
-- `toWindow()`
-- `toNumericStatistics()`
-- `toBigIntStatistics()`
-- `sorted()`
-- `sorted(comparator)`
+| Тип | Описание |
+|-----|----------|
+| `Invalid<T>` | Тип, расширяющий null или undefined |
+| `Valid<T>` | Тип, исключающий null и undefined |
+| `MaybeInvalid<T>` | Тип, который может быть null или undefined |
+| `Primitive` | Коллекция примитивных типов |
+| `MaybePrimitive<T>` | Тип, который может быть примитивом |
+| `OptionalSymbol` | Символьный идентификатор для класса Optional |
+| `SemanticSymbol` | Символьный идентификатор для класса Semantic |
+| `CollectorsSymbol` | Символьный идентификатор для класса Collector |
+| `CollectableSymbol` | Символьный идентификатор для класса Collectable |
+| `OrderedCollectableSymbol` | Символьный идентификатор для класса OrderedCollectable |
+| `WindowCollectableSymbol` | Символьный идентификатор для класса WindowCollectable |
+| `StatisticsSymbol` | Символьный идентификатор для класса Statistics |
+| `NumericStatisticsSymbol` | Символьный идентификатор для класса NumericStatistics |
+| `BigIntStatisticsSymbol` | Символьный идентификатор для класса BigIntStatistics |
+| `UnorderedCollectableSymbol` | Символьный идентификатор для класса UnorderedCollectable |
+| `Runnable` | Функция без параметров и возвращаемого значения |
+| `Supplier<R>` | Функция без параметров, возвращающая R |
+| `Functional<T, R>` | Функция преобразования с одним параметром |
+| `Predicate<T>` | Предикатная функция с одним параметром |
+| `BiFunctional<T, U, R>` | Функция преобразования с двумя параметрами |
+| `BiPredicate<T, U>` | Предикатная функция с двумя параметрами |
+| `Comparator<T>` | Функция сравнения |
+| `TriFunctional<T, U, V, R>` | Функция преобразования с тремя параметрами |
+| `Consumer<T>` | Потребительская функция с одним параметром |
+| `BiConsumer<T, U>` | Потребительская функция с двумя параметрами |
+| `TriConsumer<T, U, V>` | Потребительская функция с тремя параметрами |
+| `Generator<T>` | Функция-генератор |
 
-Особенно важно отметить: `sorted()` и `sorted(comparator)` переопределяют результаты следующих методов:
-- `redirect(redirector)`
-- `translate(translator)`
-- `shuffle(mapper)`
+```typescript
+// Примеры использования типов
+const predicate: Predicate<number> = (n) => n > 0;
+const mapper: Functional<string, number> = (str) => str.length;
+const comparator: Comparator<number> = (a, b) => a - b;
+```
+
+## Защитники типов (Type Guards)
+
+| Функция | Описание | Временная сложность | Пространственная сложность |
+|---------|----------|-------------------|--------------------------|
+| `validate<T>(t: MaybeInvalid<T>): t is T` | Проверяет, что значение не null или undefined | O(1) | O(1) |
+| `invalidate<T>(t: MaybeInvalid<T>): t is null \| undefined` | Проверяет, что значение null или undefined | O(1) | O(1) |
+| `isBoolean(t: unknown): t is boolean` | Проверяет boolean | O(1) | O(1) |
+| `isString(t: unknown): t is string` | Проверяет string | O(1) | O(1) |
+| `isNumber(t: unknown): t is number` | Проверяет number | O(1) | O(1) |
+| `isFunction(t: unknown): t is Function` | Проверяет function | O(1) | O(1) |
+| `isObject(t: unknown): t is object` | Проверяет object | O(1) | O(1) |
+| `isSymbol(t: unknown): t is symbol` | Проверяет symbol | O(1) | O(1) |
+| `isBigint(t: unknown): t is bigint` | Проверяет BigInt | O(1) | O(1) |
+| `isPrimitive(t: unknown): t is Primitive` | Проверяет примитивный тип | O(1) | O(1) |
+| `isIterable(t: unknown): t is Iterable<unknown>` | Проверяет итерируемость | O(1) | O(1) |
+| `isOptional(t: unknown): t is Optional<unknown>` | Проверяет экземпляр Optional | O(1) | O(1) |
+| `isSemantic(t: unknown): t is Semantic<unknown>` | Проверяет экземпляр Semantic | O(1) | O(1) |
+| `isCollector(t: unknown): t is Collector<unknown, unknown, unknown>` | Проверяет экземпляр Collector | O(1) | O(1) |
+| `isCollectable(t: unknown): t is Collectable<unknown>` | Проверяет экземпляр Collectable | O(1) | O(1) |
+| `isOrderedCollectable(t: unknown): t is OrderedCollectable<unknown>` | Проверяет экземпляр OrderedCollectable | O(1) | O(1) |
+| `isWindowCollectable(t: unknown): t is WindowCollectable<unknown>` | Проверяет экземпляр WindowCollectable | O(1) | O(1) |
+| `isUnorderedCollectable(t: unknown): t is UnorderedCollectable<unknown>` | Проверяет экземпляр UnorderedCollectable | O(1) | O(1) |
+| `isStatistics(t: unknown): t is Statistics<unknown, number \| bigint>` | Проверяет экземпляр Statistics | O(1) | O(1) |
+| `isNumericStatistics(t: unknown): t is NumericStatistics<unknown>` | Проверяет экземпляр NumericStatistics | O(1) | O(1) |
+| `isBigIntStatistics(t: unknown): t is BigIntStatistics<unknown>` | Проверяет экземпляр BigIntStatistics | O(1) | O(1) |
+
+```typescript
+// Примеры использования защитников типов
+const value: unknown = "hello";
+
+if (isString(value)) {
+    console.log(value.length); // Типобезопасно, value выводится как string
+}
+
+if (isOptional(someValue)) {
+    someValue.ifPresent(val => console.log(val));
+}
+```
+
+## Утилитные функции
+
+| Функция | Описание | Временная сложность | Пространственная сложность |
+|---------|----------|-------------------|--------------------------|
+| `useCompare<T>(t1: T, t2: T): number` | Универсальная функция сравнения | O(1) | O(1) |
+| `useRandom<T = number \| bigint>(index: T): T` | Генератор псевдослучайных чисел | O(log n) | O(1) |
+
+```typescript
+// Примеры использования утилитных функций
+const numbers = [3, 1, 4, 1, 5];
+numbers.sort(useCompare); // [1, 1, 3, 4, 5]
+
+const randomNum = useRandom(42); // Случайное число на основе seed
+const randomBigInt = useRandom(1000n); // Случайное BigInt число
+```
 
 ## Фабричные методы
 
-### Фабрики создания потоков
+### Фабричные методы Optional
 
-| Метод | Сигнатура | Описание | Пример |
-|------|------|------|------|
-| `blob` | `(blob: Blob, chunk?: bigint) => Semantic<Uint8Array>` | Преобразовать Blob в поток байтов | `blob(fileBlob, 1024n)` |
-| `empty` | `<E>() => Semantic<E>` | Создать пустой поток | `empty<number>()` |
-| `fill` | `<E>(element: E, count: bigint) => Semantic<E>` | Заполнить указанным количеством элементов | `fill("hello", 5n)` |
-| `from` | `<E>(iterable: Iterable<E>) => Semantic<E>` | Создать поток из итерируемого объекта | `from([1, 2, 3])` |
-| `range` | `<N extends number\|bigint>(start: N, end: N, step?: N) => Semantic<N>` | Создать поток числового диапазона | `range(1, 10, 2)` |
-| `iterate` | `<E>(generator: Generator<E>) => Semantic<E>` | Создать поток из функции-генератора | `iterate(myGenerator)` |
-| `websocket` | `(websocket: WebSocket) => Semantic<MessageEvent>` | Создать поток событий из WebSocket | `websocket(socket)` |
+| Метод | Описание | Временная сложность | Пространственная сложность |
+|-------|----------|-------------------|--------------------------|
+| `Optional.empty<T>()` | Создает пустой Optional | O(1) | O(1) |
+| `Optional.of<T>(value)` | Создает Optional со значением | O(1) | O(1) |
+| `Optional.ofNullable<T>(value)` | Создает Optional, допускающий null | O(1) | O(1) |
+| `Optional.ofNonNull<T>(value)` | Создает не-null Optional | O(1) | O(1) |
 
-**Дополнение с примером кода:**
 ```typescript
-import { from, range, fill, empty } from 'semantic-typescript';
+// Примеры использования Optional
+const emptyOpt = Optional.empty<number>();
+const presentOpt = Optional.of(42);
+const nullableOpt = Optional.ofNullable<string>(null);
+const nonNullOpt = Optional.ofNonNull("hello");
 
-// Создать поток из массива
+presentOpt.ifPresent(val => console.log(val)); // Выводит 42
+console.log(emptyOpt.orElse(100)); // Выводит 100
+```
+
+### Фабричные методы Collector
+
+| Метод | Описание | Временная сложность | Пространственная сложность |
+|-------|----------|-------------------|--------------------------|
+| `Collector.full(identity, accumulator, finisher)` | Создает полный сборщик | O(1) | O(1) |
+| `Collector.shortable(identity, interruptor, accumulator, finisher)` | Создает прерываемый сборщик | O(1) | O(1) |
+
+```typescript
+// Примеры использования Collector
+const sumCollector = Collector.full(
+    () => 0,
+    (sum, num) => sum + num,
+    result => result
+);
+
+const numbers = from([1, 2, 3, 4, 5]);
+const total = numbers.toUnoredered().collect(sumCollector); // 15
+```
+
+### Фабричные методы Semantic
+
+| Метод | Описание | Временная сложность | Пространственная сложность |
+|-------|----------|---------------------|----------------------------|
+| `blob(blob, chunkSize)` | Создает поток из Blob | O(n) | O(chunkSize) |
+| `empty<E>()` | Создает пустой поток | O(1) | O(1) |
+| `fill<E>(element, count)` | Создает заполненный поток | O(n) | O(1) |
+| `from<E>(iterable)` | Создает поток из итерируемого объекта | O(1) | O(1) |
+| `interval(period, delay?)` | Создает регулярный интервальный поток | O(1)* | O(1) |
+| `iterate<E>(generator)` | Создает поток из генератора | O(1) | O(1) |
+| `range(start, end, step)` | Создает числовой диапазонный поток | O(n) | O(1) |
+| `websocket(websocket)` | Создает поток из WebSocket | O(1) | O(1) |
+
+```typescript
+// Пример использования фабричных методов Semantic
+
+// Создать поток из Blob (чтение частями)
+blob(someBlob, 1024n)
+  .toUnordered()
+  .write(WritableStream)
+  .then(callback) // Запись потока успешна
+  .catch(writeFi); // Запись потока не удалась
+
+// Создать пустой поток, который не будет выполняться до конкатенации с другими потоками
+empty<string>()
+  .toUnordered()
+  .join(); //[]
+
+// Создать заполненный поток
+const filledStream = fill("hello", 3); // "hello", "hello", "hello"
+
+// Создать временной поток с начальной задержкой 2 секунды и циклом выполнения 5 секунд,
+// реализованный через механизм таймера, возможны временные отклонения
+// из-за ограничений системного планирования.
+const intervalStream = interval(5000, 2000);
+
+// Создать поток из итерируемого объекта
 const numberStream = from([1, 2, 3, 4, 5]);
+const stringStream = from(new Set(["Alex", "Bob"]));
 
-// Создать поток числового диапазона
+// Создать поток диапазона
 const rangeStream = range(1, 10, 2); // 1, 3, 5, 7, 9
 
-// Заполнить повторяющимися элементами
-const filledStream = fill("hello", 3n); // "hello", "hello", "hello"
-
-// Создать пустой поток
-const emptyStream = empty<number>();
+// Поток событий WebSocket
+const ws = new WebSocket("ws://localhost:8080");
+websocket(ws)
+  .filter((event)=> event.type === "message") // Отслеживать только события сообщений
+  .toUnordered() // Для событий обычно без сортировки
+  .forEach((event)=> receive(event)); // Получать сообщения
 ```
 
-### Фабрики служебных функций
+## Методы класса Semantic
 
-| Метод | Сигнатура | Описание | Пример |
-|------|------|------|------|
-| `validate` | `<T>(t: MaybeInvalid<T>) => t is T` | Проверить, является ли значение валидным | `validate(null)` → `false` |
-| `invalidate` | `<T>(t: MaybeInvalid<T>) => t is null\|undefined` | Проверить, является ли значение невалидным | `invalidate(0)` → `false` |
-| `useCompare` | `<T>(t1: T, t2: T) => number` | Универсальная функция сравнения | `useCompare("a", "b")` → `-1` |
-| `useRandom` | `<T = number\|bigint>(index: T) => T` | Генератор псевдослучайных чисел | `useRandom(5)` → случайное число |
+| Метод | Описание | Временная сложность | Пространственная сложность |
+|-------|----------|-------------------|--------------------------|
+| `concat(other)` | Объединяет два потока | O(n) | O(1) |
+| `distinct()` | Удаляет дубликаты | O(n) | O(n) |
+| `distinct(comparator)` | Удаляет дубликаты с компаратором | O(n²) | O(n) |
+| `dropWhile(predicate)` | Отбрасывает элементы, удовлетворяющие предикату | O(n) | O(1) |
+| `filter(predicate)` | Фильтрует элементы | O(n) | O(1) |
+| `flat(mapper)` | Плоское отображение | O(n × m) | O(1) |
+| `flatMap(mapper)` | Плоское отображение в новый тип | O(n × m) | O(1) |
+| `limit(n)` | Ограничивает количество элементов | O(n) | O(1) |
+| `map(mapper)` | Преобразование отображения | O(n) | O(1) |
+| `peek(consumer)` | Просматривает элементы | O(n) | O(1) |
+| `redirect(redirector)` | Перенаправление индексов | O(n) | O(1) |
+| `reverse()` | Обращает поток | O(n) | O(1) |
+| `shuffle()` | Случайное перемешивание | O(n) | O(1) |
+| `shuffle(mapper)` | Перемешивание с маппером | O(n) | O(1) |
+| `skip(n)` | Пропускает первые n элементов | O(n) | O(1) |
+| `sorted()` | Сортирует | O(n log n) | O(n) |
+| `sorted(comparator)` | Сортирует с компаратором | O(n log n) | O(n) |
+| `sub(start, end)` | Получает подпоток | O(n) | O(1) |
+| `takeWhile(predicate)` | Берет элементы, удовлетворяющие предикату | O(n) | O(1) |
+| `translate(offset)` | Сдвиг индексов | O(n) | O(1) |
+| `translate(translator)` | Сдвиг с транслятором | O(n) | O(1) |
 
-**Дополнение с примером кода:**
 ```typescript
-import { validate, invalidate, useCompare, useRandom } from 'semantic-typescript';
+// Примеры операций Semantic
+const result = from([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
+    .filter(n => n % 2 === 0)        // Фильтрует четные числа
+    .map(n => n * 2)                 // Умножает на 2
+    .skip(1)                         // Пропускает первый
+    .limit(3)                        // Ограничивает 3 элементами
+    .toArray();                      // Преобразует в массив
+// Результат: [8, 12, 20]
 
-// Проверить валидность данных
-const data: string | null = "hello";
-if (validate(data)) {
-    console.log(data.toUpperCase()); // Безопасный вызов, так как validate гарантирует, что data не null
-}
-
-const nullData: string | null = null;
-if (invalidate(nullData)) {
-    console.log("Данные невалидны"); // Выполнится, потому что invalidate обнаружил null
-}
-
-// Сравнить значения
-const comparison = useCompare("apple", "banana"); // -1
-
-// Сгенерировать случайное число
-const randomNum = useRandom(42); // Случайное число на основе сида 42
+// Пример сложной операции
+const complexResult = range(1, 100, 1)
+    .flatMap(n => from([n, n * 2])) // Отображает каждый элемент в два элемента
+    .distinct()                      // Удаляет дубликаты
+    .shuffle()                       // Случайно перемешивает
+    .takeWhile(n => n < 50)         // Берет элементы < 50
+    .toOrdered()                     // Преобразует в упорядоченный сборщик
+    .toArray();                      // Преобразует в массив
 ```
 
-## Детали основного класса
+## Методы преобразования сборщиков
 
-### Optional<T> - Безопасная обработка нулевых значений
+| Метод | Описание | Временная сложность | Пространственная сложность |
+|-------|----------|-------------------|--------------------------|
+| `toUnoredered()` | Преобразует в неупорядоченный сборщик (приоритет производительности) | O(1) | O(1) |
+| `toOrdered()` | Преобразует в упорядоченный сборщик | O(1) | O(1) |
+| `sorted()` | Сортирует и преобразует в упорядоченный сборщик | O(n log n) | O(n) |
+| `toWindow()` | Преобразует в оконный сборщик | O(1) | O(1) |
+| `toNumericStatistics()` | Преобразует в числовую статистику | O(1) | O(1) |
+| `toBigintStatistics()` | Преобразует в BigInt статистику | O(1) | O(1) |
 
-Класс Optional предоставляет функциональный подход для безопасной обработки значений, которые могут быть null или undefined.
-
-| Метод | Тип возврата | Описание | Сложность по времени |
-|------|----------|------|------------|
-| `filter(predicate: Predicate<T>)` | `Optional<T>` | Отфильтровать значения, удовлетворяющие условию | O(1) |
-| `get()` | `T` | Получить значение, выбросить ошибку если пустое | O(1) |
-| `getOrDefault(defaultValue: T)` | `T` | Получить значение или значение по умолчанию | O(1) |
-| `ifPresent(action: Consumer<T>)` | `void` | Выполнить действие, если значение существует | O(1) |
-| `isEmpty()` | `boolean` | Проверить, пусто ли | O(1) |
-| `isPresent()` | `boolean` | Проверить, существует ли значение | O(1) |
-| `map<R>(mapper: Functional<T, R>)` | `Optional<R>` | Отобразить и преобразовать значение | O(1) |
-| `static of<T>(value: MaybeInvalid<T>)` | `Optional<T>` | Создать экземпляр Optional | O(1) |
-| `static ofNullable<T>(value?)` | `Optional<T>` | Создать nullable Optional | O(1) |
-| `static ofNonNull<T>(value: T)` | `Optional<T>` | Создать не-null Optional | O(1) |
-
-**Дополнение с примером кода:**
 ```typescript
-import { Optional } from 'semantic-typescript';
+// Примеры преобразования сборщиков
+const numbers = from([3, 1, 4, 1, 5, 9, 2, 6, 5]);
 
-// Создать экземпляр Optional
-const optionalValue = Optional.ofNullable<string>(Math.random() > 0.5 ? "hello" : null);
+// Приоритет производительности: Использовать неупорядоченный сборщик
+const unordered = numbers
+    .filter(n => n > 3)
+    .toUnoredered();
 
-// Цепочка операций
-const result = optionalValue
-    .filter(val => val.length > 3) // Отфильтровать значения длиннее 3
-    .map(val => val.toUpperCase()) // Преобразовать в верхний регистр
-    .getOrDefault("default"); // Получить значение или значение по умолчанию
+// Нужна сортировка: Использовать упорядоченный сборщик  
+const ordered = numbers
+    .sorted()
+    .toOrdered();
 
-console.log(result); // "HELLO" или "default"
+// Статистический анализ: Использовать статистический сборщик
+const stats = numbers
+    .toNumericStatistics();
 
-// Безопасные операции
-optionalValue.ifPresent(val => {
-    console.log(`Значение существует: ${val}`);
+console.log(stats.mean());        // Среднее значение
+console.log(stats.median());      // Медиана
+console.log(stats.standardDeviation()); // Стандартное отклонение
+
+// Оконные операции
+const windowed = numbers
+    .toWindow()
+    .tumble(3n); // Окно из 3 элементов
+
+windowed.forEach(window => {
+    console.log(window.toArray()); // Содержимое каждого окна
 });
-
-// Проверить статус
-if (optionalValue.isPresent()) {
-    console.log("Есть значение");
-} else if (optionalValue.isEmpty()) {
-    console.log("Пустое");
-}
 ```
 
-### Semantic<E> - Ленивый поток данных
+## Методы сбора Collectable
 
-Semantic - это основной класс потоковой обработки, предоставляющий богатый набор операторов потоков.
+| Метод | Описание | Временная сложность | Пространственная сложность |
+|-------|----------|-------------------|--------------------------|
+| `anyMatch(predicate)` | Проверяет наличие совпадающих элементов | O(n) | O(1) |
+| `allMatch(predicate)` | Проверяет совпадение всех элементов | O(n) | O(1) |
+| `count()` | Подсчитывает элементы | O(n) | O(1) |
+| `isEmpty()` | Проверяет пустоту | O(1) | O(1) |
+| `findAny()` | Находит любой элемент | O(n) | O(1) |
+| `findFirst()` | Находит первый элемент | O(n) | O(1) |
+| `findLast()` | Находит последний элемент | O(n) | O(1) |
+| `forEach(action)` | Перебирает все элементы | O(n) | O(1) |
+| `group(classifier)` | Группирует по классификатору | O(n) | O(n) |
+| `groupBy(keyExtractor, valueExtractor)` | Группирует по экстракторам ключ-значение | O(n) | O(n) |
+| `join()` | Объединяет в строку | O(n) | O(n) |
+| `join(delimiter)` | Объединяет с разделителем | O(n) | O(n) |
+| `nonMatch(predicate)` | Проверяет отсутствие совпадений | O(n) | O(1) |
+| `partition(count)` | Разделяет по количеству | O(n) | O(n) |
+| `partitionBy(classifier)` | Разделяет по классификатору | O(n) | O(n) |
+| `reduce(accumulator)` | Операция свертки | O(n) | O(1) |
+| `reduce(identity, accumulator)` | Свертка с начальным значением | O(n) | O(1) |
+| `toArray()` | Преобразует в массив | O(n) | O(n) |
+| `toMap(keyExtractor, valueExtractor)` | Преобразует в Map | O(n) | O(n) |
+| `toSet()` | Преобразует в Set | O(n) | O(n) |
+| `write(stream)` | Записывает в поток | O(n) | O(1) |
 
-#### Операции преобразования потоков
-
-| Метод | Тип возврата | Описание | Влияние на производительность |
-|------|----------|------|----------|
-| `concat(other: Semantic<E>)` | `Semantic<E>` | Объединить два потока | O(n+m) |
-| `distinct()` | `Semantic<E>` | Удалить дубликаты (используя Set) | O(n) |
-| `distinct(comparator)` | `Semantic<E>` | Дедубликация с пользовательским компаратором | O(n²) |
-| `dropWhile(predicate)` | `Semantic<E>` | Отбросить начальные элементы, удовлетворяющие условию | O(n) |
-| `filter(predicate)` | `Semantic<E>` | Отфильтровать элементы | O(n) |
-| `flat(mapper)` | `Semantic<E>` | Развернуть вложенные потоки | O(n×m) |
-| `flatMap(mapper)` | `Semantic<R>` | Отобразить и развернуть | O(n×m) |
-| `limit(n)` | `Semantic<E>` | Ограничить количество элементов | O(n) |
-| `map(mapper)` | `Semantic<R>` | Отобразить и преобразовать элементы | O(n) |
-| `peek(consumer)` | `Semantic<E>` | Просмотреть элементы без модификации | O(n) |
-| `redirect(redirector)` | `Semantic<E>` | Перенаправить индексы | O(n) |
-| `reverse()` | `Semantic<E>` | Обратить порядок потока | O(n) |
-| `shuffle()` | `Semantic<E>` | Случайно перемешать порядок | O(n) |
-| `shuffle(mapper)` | `Semantic<E>` | Пользовательская логика перемешивания | O(n) |
-| `skip(n)` | `Semantic<E>` | Пропустить первые n элементов | O(n) |
-| `sub(start, end)` | `Semantic<E>` | Получить подпоток | O(n) |
-| `takeWhile(predicate)` | `Semantic<E>` | Получить начальные элементы, удовлетворяющие условию | O(n) |
-| `translate(offset)` | `Semantic<E>` | Транслировать индексы | O(n) |
-| `translate(translator)` | `Semantic<E>` | Пользовательское преобразование индексов | O(n) |
-
-**Дополнение с примером кода:**
 ```typescript
-import { from } from 'semantic-typescript';
+// Примеры операций Collectable
+const data = from([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
+    .filter(n => n % 2 === 0)
+    .toOrdered();
 
-const stream = from([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+// Проверки совпадения
+console.log(data.anyMatch(n => n > 5)); // true
+console.log(data.allMatch(n => n < 20)); // true
 
-// Примеры операций преобразования потока
-const processedStream = stream
-    .filter(x => x % 2 === 0) // Отфильтровать четные числа
-    .map(x => x * 2) // Умножить каждый элемент на 2
-    .distinct() // Удалить дубликаты
-    .limit(3) // Ограничить первыми 3 элементами
-    .peek((val, index) => console.log(`Элемент ${val} по индексу ${index}`)); // Просмотреть элементы
-
-// Примечание: Поток еще не выполнен, требуется преобразование в Collectable для терминальных операций
-```
-
-#### Терминальные операции потоков
-
-| Метод | Тип возврата | Описание | Характеристики производительности |
-|------|----------|------|----------|
-| `toOrdered()` | `OrderedCollectable<E>` | Преобразовать в упорядоченную коллекцию | Операция сортировки, низкая производительность |
-| `toUnordered()` | `UnorderedCollectable<E>` | Преобразовать в неупорядоченную коллекцию | Самый быстрый, без сортировки |
-| `toWindow()` | `WindowCollectable<E>` | Преобразовать в оконную коллекцию | Операция сортировки, низкая производительность |
-| `toNumericStatistics()` | `Statistics<E, number>` | Численный статистический анализ | Операция сортировки, низкая производительность |
-| `toBigintStatistics()` | `Statistics<E, bigint>` | Статистический анализ для больших целых чисел | Операция сортировки, низкая производительность |
-| `sorted()` | `OrderedCollectable<E>` | Естественная сортировка | Переопределяет результаты перенаправления |
-| `sorted(comparator)` | `OrderedCollectable<E>` | Пользовательская сортировка | Переопределяет результаты перенаправления |
-
-**Дополнение с примером кода:**
-```typescript
-import { from } from 'semantic-typescript';
-
-const semanticStream = from([5, 2, 8, 1, 9, 3, 7, 4, 6]);
-
-// Преобразовать в упорядоченную коллекцию (низкая производительность)
-const ordered = semanticStream.toOrdered();
-
-// Преобразовать в неупорядоченную коллекцию (самый быстрый)
-const unordered = semanticStream.toUnordered();
-
-// Естественная сортировка
-const sortedNatural = semanticStream.sorted();
-
-// Пользовательская сортировка
-const sortedCustom = semanticStream.sorted((a, b) => b - a); // Сортировка по убыванию
-
-// Преобразовать в статистический объект
-const stats = semanticStream.toNumericStatistics();
-
-// Примечание: Необходимо вызывать указанные выше методы через экземпляр Semantic, чтобы получить Collectable, перед использованием терминальных методов
-```
-
-### Collector<E, A, R> - Сборщик данных
-
-Коллекторы используются для агрегации потоковых данных в определенные структуры.
-
-| Метод | Описание | Сценарий использования |
-|------|------|----------|
-| `collect(generator)` | Выполнить сбор данных | Терминальная операция потока |
-| `static full(identity, accumulator, finisher)` | Создать полный коллектор | Требует полной обработки |
-| `static shortable(identity, interruptor, accumulator, finisher)` | Создать прерываемый коллектор | Может завершиться досрочно |
-
-**Дополнение с примером кода:**
-```typescript
-import { Collector } from 'semantic-typescript';
-
-// Создать пользовательский коллектор
-const sumCollector = Collector.full(
-    () => 0, // Начальное значение
-    (acc, value) => acc + value, // Аккумулятор
-    result => result // Функция завершения
-);
-
-// Использовать коллектор (требуется преобразование из Semantic в Collectable сначала)
-const numbers = from([1, 2, 3, 4, 5]);
-const sum = numbers.toUnordered().collect(sumCollector); // 15
-```
-
-### Collectable<E> - Абстрактный класс собираемых данных
-
-Предоставляет богатые методы агрегации и преобразования данных. **Примечание: Сначала необходимо получить экземпляр Collectable, вызвав sorted(), toOrdered() и т.д. через экземпляр Semantic, перед использованием следующих методов.**
-
-#### Операции запроса данных
-
-| Метод | Тип возврата | Описание | Пример |
-|------|----------|------|------|
-| `anyMatch(predicate)` | `boolean` | Соответствует ли любой элемент | `anyMatch(x => x > 0)` |
-| `allMatch(predicate)` | `boolean` | Соответствуют ли все элементы | `allMatch(x => x > 0)` |
-| `count()` | `bigint` | Статистика количества элементов | `count()` → `5n` |
-| `isEmpty()` | `boolean` | Является ли поток пустым | `isEmpty()` |
-| `findAny()` | `Optional<E>` | Найти любой элемент | `findAny()` |
-| `findFirst()` | `Optional<E>` | Найти первый элемент | `findFirst()` |
-| `findLast()` | `Optional<E>` | Найти последний элемент | `findLast()` |
-
-**Дополнение с примером кода:**
-```typescript
-import { from } from 'semantic-typescript';
-
-const numbers = from([1, 2, 3, 4, 5]);
-
-// Необходимо преобразовать в Collectable перед использованием терминальных методов
-const collectable = numbers.toUnordered();
-
-// Операции запроса данных
-const hasEven = collectable.anyMatch(x => x % 2 === 0); // true
-const allPositive = collectable.allMatch(x => x > 0); // true
-const count = collectable.count(); // 5n
-const isEmpty = collectable.isEmpty(); // false
-const firstElement = collectable.findFirst(); // Optional.of(1)
-const anyElement = collectable.findAny(); // Любой элемент
-```
-
-#### Операции агрегации данных
-
-| Метод | Тип возврата | Описание | Сложность |
-|------|----------|------|--------|
-| `group(classifier)` | `Map<K, E[]>` | Группировать по классификатору | O(n) |
-| `groupBy(keyExtractor, valueExtractor)` | `Map<K, V[]>` | Группировать по экстракторам ключ-значение | O(n) |
-| `join()` | `string` | Объединить в строку | O(n) |
-| `join(delimiter)` | `string` | Объединить с разделителем | O(n) |
-| `partition(count)` | `E[][]` | Разделить по количеству | O(n) |
-| `partitionBy(classifier)` | `E[][]` | Разделить по классификатору | O(n) |
-| `reduce(accumulator)` | `Optional<E>` | Операция редукции | O(n) |
-| `reduce(identity, accumulator)` | `E` | Редукция с начальным значением | O(n) |
-| `toArray()` | `E[]` | Преобразовать в массив | O(n) |
-| `toMap(keyExtractor, valueExtractor)` | `Map<K, V>` | Преобразовать в Map | O(n) |
-| `toSet()` | `Set<E>` | Преобразовать в Set | O(n) |
-
-**Дополнение с примером кода:**
-```typescript
-import { from } from 'semantic-typescript';
-
-const people = from([
-    { name: "Alice", age: 25, city: "New York" },
-    { name: "Bob", age: 30, city: "London" },
-    { name: "Charlie", age: 25, city: "New York" }
-]);
-
-// Необходимо преобразовать в Collectable перед использованием операций агрегации
-const collectable = people.toUnordered();
+// Операции поиска
+data.findFirst().ifPresent(n => console.log(n)); // 2
+data.findAny().ifPresent(n => console.log(n)); // Любой элемент
 
 // Операции группировки
-const byCity = collectable.group(person => person.city);
-// Map { "New York" => [{name: "Alice", ...}, {name: "Charlie", ...}], "London" => [{name: "Bob", ...}] }
-
-const byAge = collectable.groupBy(
-    person => person.age,
-    person => person.name
+const grouped = data.groupBy(
+    n => n > 5 ? "large" : "small",
+    n => n * 2
 );
-// Map { 25 => ["Alice", "Charlie"], 30 => ["Bob"] }
+// {small: [4, 8], large: [12, 16, 20]}
 
-// Преобразовать в коллекции
-const array = collectable.toArray(); // Исходный массив
-const set = collectable.toSet(); // Коллекция Set
-const map = collectable.toMap(
-    person => person.name,
-    person => person.age
-); // Map { "Alice" => 25, "Bob" => 30, "Charlie" => 25 }
+// Операции свертки
+const sum = data.reduce(0, (acc, n) => acc + n); // 30
 
-// Операции редукции
-const totalAge = collectable.reduce(0, (acc, person) => acc + person.age); // 80
-const oldest = collectable.reduce((a, b) => a.age > b.age ? a : b); // Optional.of({name: "Bob", age: 30, ...})
+// Операции вывода
+data.join(", "); // "2, 4, 6, 8, 10"
 ```
 
-### Конкретные реализации коллекторов
+## Методы статистического анализа
 
-#### UnorderedCollectable<E>
-- **Характеристики**: Самый быстрый коллектор, без сортировки
-- **Сценарии использования**: Порядок не важен, желательна максимальная производительность
-- **Методы**: Наследует все методы Collectable
+### Методы NumericStatistics
 
-#### OrderedCollectable<E>
-- **Характеристики**: Гарантирует порядок элементов, низкая производительность
-- **Сценарии использования**: Требуются отсортированные результаты
-- **Специальные методы**: Наследует все методы, сохраняет внутреннее состояние сортировки
-
-#### WindowCollectable<E>
-- **Характеристики**: Поддерживает операции скользящего окна
-- **Сценарии использования**: Анализ временных рядов
-- **Специальные методы**:
-  - `slide(size, step)` - Скользящее окно
-  - `tumble(size)` - Тумблинг-окно
-
-**Дополнение с примером кода:**
-```typescript
-import { from } from 'semantic-typescript';
-
-const data = from([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
-
-// Неупорядоченный коллектор (самый быстрый)
-const unordered = data.toUnordered();
-const unorderedArray = unordered.toArray(); // Может сохранять исходный порядок [1, 2, 3, ...]
-
-// Упорядоченный коллектор
-const ordered = data.toOrdered();
-const orderedArray = ordered.toArray(); // Гарантированно отсортирован [1, 2, 3, ...]
-
-// Оконный коллектор
-const windowed = data.toWindow();
-const slidingWindows = windowed.slide(3n, 2n); // Размер окна 3, шаг 2
-// Окно 1: [1, 2, 3], Окно 2: [3, 4, 5], Окно 3: [5, 6, 7], ...
-
-const tumblingWindows = windowed.tumble(4n); // Размер тумблинг-окна 4
-// Окно 1: [1, 2, 3, 4], Окно 2: [5, 6, 7, 8], ...
-```
-
-### Statistics<E, D> - Статистический анализ
-
-Базовый класс статистического анализа, предоставляющий богатые методы статистических вычислений. **Примечание: Сначала необходимо получить экземпляр Statistics, вызвав toNumericStatistics() или toBigIntStatistics() через экземпляр Semantic, перед использованием следующих методов.**
-
-#### Операции статистических вычислений
-
-| Метод | Тип возврата | Описание | Сложность алгоритма |
-|------|----------|------|------------|
-| `maximum()` | `Optional<E>` | Максимальное значение | O(n) |
-| `minimum()` | `Optional<E>` | Минимальное значение | O(n) |
-| `range()` | `D` | Размах (макс-мин) | O(n) |
-| `variance()` | `D` | Дисперсия | O(n) |
-| `standardDeviation()` | `D` | Стандартное отклонение | O(n) |
-| `mean()` | `D` | Среднее значение | O(n) |
-| `median()` | `D` | Медиана | O(n log n) |
-| `mode()` | `D` | Мода | O(n) |
-| `frequency()` | `Map<D, bigint>` | Распределение частот | O(n) |
-| `summate()` | `D` | Суммирование | O(n) |
-| `quantile(quantile)` | `D` | Квантиль | O(n log n) |
-| `interquartileRange()` | `D` | Интерквартильный размах | O(n log n) |
-| `skewness()` | `D` | Асимметрия | O(n) |
-| `kurtosis()` | `D` | Эксцесс | O(n) |
-
-**Дополнение с примером кода:**
-```typescript
-import { from } from 'semantic-typescript';
-
-const numbers = from([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
-
-// Необходимо преобразовать в статистический объект перед использованием статистических методов
-const stats = numbers.toNumericStatistics();
-
-// Базовая статистика
-const count = stats.count(); // 10n
-const max = stats.maximum(); // Optional.of(10)
-const min = stats.minimum(); // Optional.of(1)
-const range = stats.range(); // 9
-const mean = stats.mean(); // 5.5
-const median = stats.median(); // 5.5
-const sum = stats.summate(); // 55
-
-// Продвинутая статистика
-const variance = stats.variance(); // 8.25
-const stdDev = stats.standardDeviation(); // 2.872
-const mode = stats.mode(); // Любое значение (так как все встречаются по одному разу)
-const q1 = stats.quantile(0.25); // 3.25
-const q3 = stats.quantile(0.75); // 7.75
-const iqr = stats.interquartileRange(); // 4.5
-
-// Распределение частот
-const freq = stats.frequency(); // Map {1 => 1n, 2 => 1n, ...}
-```
-
-#### Конкретные классы статистических реализаций
-
-**NumericStatistics<E>**
-- Обрабатывает статистический анализ числового типа
-- Все статистические вычисления возвращают числовой тип
-
-**BigIntStatistics<E>**
-- Обрабатывает статистический анализ типа bigint
-- Все статистические вычисления возвращают тип bigint
-
-**Дополнение с примером кода:**
-```typescript
-import { from } from 'semantic-typescript';
-
-// Числовая статистика
-const numberData = from([10, 20, 30, 40, 50]);
-const numericStats = numberData.toNumericStatistics();
-
-console.log(numericStats.mean()); // 30
-console.log(numericStats.summate()); // 150
-
-// Статистика больших целых чисел
-const bigintData = from([100n, 200n, 300n, 400n, 500n]);
-const bigintStats = bigintData.toBigIntStatistics();
-
-console.log(bigintStats.mean()); // 300n
-console.log(bigintStats.summate()); // 1500n
-
-// Статистика с использованием функций-мапперов
-const objectData = from([
-    { value: 15 },
-    { value: 25 },
-    { value: 35 },
-    { value: 45 }
-]);
-
-const objectStats = objectData.toNumericStatistics();
-const meanWithMapper = objectStats.mean(obj => obj.value); // 30
-const sumWithMapper = objectStats.summate(obj => obj.value); // 120
-```
-
-## Полный пример использования
+| Метод | Описание | Временная сложность | Пространственная сложность |
+|-------|----------|-------------------|--------------------------|
+| `range()` | Размах | O(n) | O(1) |
+| `variance()` | Дисперсия | O(n) | O(1) |
+| `standardDeviation()` | Стандартное отклонение | O(n) | O(1) |
+| `mean()` | Среднее значение | O(n) | O(1) |
+| `median()` | Медиана | O(n log n) | O(n) |
+| `mode()` | Мода | O(n) | O(n) |
+| `frequency()` | Распределение частот | O(n) | O(n) |
+| `summate()` | Суммирование | O(n) | O(1) |
+| `quantile(quantile)` | Квантиль | O(n log n) | O(n) |
+| `interquartileRange()` | Интерквартильный размах | O(n log n) | O(n) |
+| `skewness()` | Асимметрия | O(n) | O(1) |
+| `kurtosis()` | Эксцесс | O(n) | O(1) |
 
 ```typescript
-import { from, validate, invalidate } from 'semantic-typescript';
+// Примеры статистического анализа
+const numbers = from([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
+    .toNumericStatistics();
 
-// 1. Создать поток данных
-const rawData = [5, 2, 8, 1, null, 9, 3, undefined, 7, 4, 6];
-const semanticStream = from(rawData);
+console.log("Среднее значение:", numbers.mean()); // 5.5
+console.log("Медиана:", numbers.median()); // 5.5
+console.log("Стандартное отклонение:", numbers.standardDeviation()); // ~2.87
+console.log("Сумма:", numbers.summate()); // 55
 
-// 2. Конвейер обработки потока
-const processedStream = semanticStream
-    .filter(val => validate(val)) // Отфильтровать null и undefined
-    .map(val => val! * 2) // Умножить каждое значение на 2 (используется !, так как validate гарантирует не пустое)
-    .distinct(); // Удалить дубликаты
+// Статистический анализ с маппером
+const objects = from([
+    { value: 10 },
+    { value: 20 }, 
+    { value: 30 }
+]).toNumericStatistics();
 
-// 3. Преобразовать в Collectable и использовать терминальные операции
-const collectable = processedStream.toUnordered();
-
-// 4. Проверка данных и использование
-if (!collectable.isEmpty()) {
-    const results = collectable
-        .filter(x => x > 5) // Снова отфильтровать
-        .toArray(); // Преобразовать в массив
-    
-    console.log("Результаты обработки:", results); // [16, 18, 14, 8, 12]
-    
-    // Статистическая информация
-    const stats = processedStream.toNumericStatistics();
-    console.log("Среднее значение:", stats.mean()); // 11.2
-    console.log("Общая сумма:", stats.summate()); // 56
-}
-
-// 5. Обработать потенциально невалидные данные
-const potentiallyInvalidData: Array<number | null> = [1, null, 3, 4, null];
-const validData = potentiallyInvalidData.filter(validate);
-const invalidData = potentiallyInvalidData.filter(invalidate);
-
-console.log("Валидные данные:", validData); // [1, 3, 4]
-console.log("Невалидные данные:", invalidData); // [null, null]
+console.log("Отображенное среднее:", objects.mean(obj => obj.value)); // 20
 ```
 
-## Важные правила использования - итог
+## Руководство по выбору производительности
 
-1. **Создать поток**: Используйте фабричные методы `from()`, `range()`, `fill()` и т.д. для создания экземпляров Semantic
-2. **Преобразование потока**: Вызывайте методы `map()`, `filter()`, `distinct()` и т.д. на экземплярах Semantic
-3. **Преобразовать в Collectable**: Необходимо вызвать один из следующих методов через экземпляр Semantic:
-   - `toOrdered()` - Упорядоченный коллектор
-   - `toUnordered()` - Неупорядоченный коллектор (самый быстрый)
-   - `toWindow()` - Оконный коллектор
-   - `toNumericStatistics()` - Числовая статистика
-   - `toBigIntStatistics()` - Статистика больших целых чисел
-   - `sorted()` - Естественная сортировка
-   - `sorted(comparator)` - Пользовательская сортировка
-4. **Терминальные операции**: Вызывайте терминальные методы `toArray()`, `count()`, `summate()` и т.д. на экземплярах Collectable
-5. **Проверка данных**: Используйте `validate()` для гарантии, что данные не null/undefined, используйте `invalidate()` для проверки невалидных данных
+### Выбор неупорядоченного сборщика (Приоритет производительности)
+```typescript
+// Когда гарантия порядка не требуется
+const highPerformance = data
+    .filter(predicate)
+    .map(mapper)
+    .toUnoredered(); // Лучшая производительность
+```
 
-Этот дизайн обеспечивает типобезопасность и оптимизацию производительности, предоставляя при этом богатый функционал потоковой обработки.
+### Выбор упорядоченного сборщика (Требуется порядок)
+```typescript
+// Когда порядок элементов должен сохраняться
+const ordered = data.sorted(comparator);
+```
+
+### Выбор оконного сборщика (Оконные операции)
+```typescript
+// Когда требуются оконные операции
+const windowed = data
+    .toWindow()
+    .slide(5n, 2n); // Скользящее окно
+```
+
+### Выбор статистического анализа (Численные вычисления)
+```typescript
+// Когда требуется статистический анализ
+const stats = data
+    .toNumericStatistics(); // Численная статистика
+
+const bigIntStats = data
+    .toBigintStatistics(); // BigInt статистика
+```
+
+[GitHub](https://github.com/eloyhere/semantic-typescript)
+[NPMJS](https://www.npmjs.com/package/semantic-typescript)
+
+## Важные замечания
+
+1. **Влияние операций сортировки**: В упорядоченных сборщиках операция `sorted()` перезаписывает эффекты `redirect`, `translate`, `shuffle`
+2. **Соображения производительности**: Если гарантия порядка не требуется, отдавайте приоритет `toUnoredered()` для лучшей производительности
+3. **Использование памяти**: Операции сортировки требуют O(n) дополнительного пространства
+4. **Данные реального времени**: Потоки Semantic идеально подходят для данных реального времени и поддерживают асинхронные источники данных
+
+Эта библиотека предоставляет TypeScript-разработчикам мощные и гибкие возможности обработки потоков, сочетая преимущества функционального программирования с типобезопасностью.

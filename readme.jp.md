@@ -1,529 +1,427 @@
-# Semantic-TypeScript ストリーム処理フレームワーク
+# Semantic-TypeScript ストリーム処理ライブラリ
 
-## はじめに
+## 概要
 
-Semantic-TypeScriptは、JavaScriptのGeneratorFunction、Java Stream、およびMySQL Indexにインスパイアされたモダンなストリーム処理ライブラリです。コアの設計哲学は、データインデックスを通じた効率的なデータ処理パイプラインの構築に基づいており、フロントエンド開発に型安全で関数型スタイルのストリーミング操作体験を提供します。
+Semantic-TypeScriptは、JavaScript GeneratorFunction、Java Stream、MySQL Indexにインスパイアされたモダンなストリーム処理ライブラリです。このライブラリのコア設計は、データインデックスに基づいた効率的なデータ処理パイプラインの構築にあり、型安全で関数型スタイルのストリーム操作体験をフロントエンド開発者に提供します。
 
-従来の同期処理とは異なり、Semanticは非同期処理モデルを採用しています。データストリームを作成する際、終端データの受信タイミングは、アップストリームが`accept`および`interrupt`コールバック関数を呼び出すタイミングに完全に依存します。この設計により、ライブラリはリアルタイムデータストリーム、大規模データセット、非同期データソースをエレガントに扱うことができます。
+従来の同期処理とは異なり、Semanticは非同期処理モードを採用しています。データストリームを作成する際、端末がデータを受信するタイミングは、アップストリームが`accept`および`interrupt`コールバック関数をいつ呼び出すかに完全に依存します。この設計により、ライブラリはリアルタイムデータストリーム、大規模データセット、非同期データソースを優雅に処理できます。
 
-## コア機能
+## インストール
 
-| 機能 | 説明 | 利点 |
-|------|------|------|
-| **型安全ジェネリクス** | 完全なTypeScript型サポート | コンパイル時エラー検出、優れた開発体験 |
-| **関数型プログラミング** | 不変データ構造と純粋関数 | 予測可能なコード、テストと保守が容易 |
-| **遅延評価** | オンデマンド計算、パフォーマンス最適化 | 大規模データセット処理時の高いメモリ効率 |
-| **非同期ストリーム処理** | ジェネレータベースの非同期データストリーム | リアルタイムデータとイベント駆動シナリオに適応 |
-| **マルチパラダイムコレクター** | 順序付き、順序なし、統計的収集戦略 | 異なるシナリオに基づく最適な戦略選択 |
-| **統計分析** | 組み込みの完全な統計計算関数 | 統合データ分析とレポート生成 |
+```bash
+npm install semantic-typescript
+```
 
-## パフォーマンスに関する考慮事項
+## 基本型
 
-**重要な注意**: 以下のメソッドは、データを収集してソートするため、パフォーマンスを犠牲にして順序付きデータコレクションを生成します:
-- `toOrdered()`
-- `toWindow()`
-- `toNumericStatistics()`
-- `toBigIntStatistics()`
-- `sorted()`
-- `sorted(comparator)`
+| 型 | 説明 |
+|----|------|
+| `Invalid<T>` | nullまたはundefinedを拡張する型 |
+| `Valid<T>` | nullとundefinedを除外する型 |
+| `MaybeInvalid<T>` | nullまたはundefinedになり得る型 |
+| `Primitive` | プリミティブ型のコレクション |
+| `MaybePrimitive<T>` | プリミティブ型になり得る型 |
+| `OptionalSymbol` | Optionalクラスのシンボル識別子 |
+| `SemanticSymbol` | Semanticクラスのシンボル識別子 |
+| `CollectorsSymbol` | Collectorクラスのシンボル識別子 |
+| `CollectableSymbol` | Collectableクラスのシンボル識別子 |
+| `OrderedCollectableSymbol` | OrderedCollectableクラスのシンボル識別子 |
+| `WindowCollectableSymbol` | WindowCollectableクラスのシンボル識別子 |
+| `StatisticsSymbol` | Statisticsクラスのシンボル識別子 |
+| `NumericStatisticsSymbol` | NumericStatisticsクラスのシンボル識別子 |
+| `BigIntStatisticsSymbol` | BigIntStatisticsクラスのシンボル識別子 |
+| `UnorderedCollectableSymbol` | UnorderedCollectableクラスのシンボル識別子 |
+| `Runnable` | パラメータなし、戻り値なしの関数 |
+| `Supplier<R>` | パラメータなしでRを返す関数 |
+| `Functional<T, R>` | 単一パラメータ変換関数 |
+| `Predicate<T>` | 単一パラメータ述語関数 |
+| `BiFunctional<T, U, R>` | 二重パラメータ変換関数 |
+| `BiPredicate<T, U>` | 二重パラメータ述語関数 |
+| `Comparator<T>` | 比較関数 |
+| `TriFunctional<T, U, V, R>` | 三重パラメータ変換関数 |
+| `Consumer<T>` | 単一パラメータ消費関数 |
+| `BiConsumer<T, U>` | 二重パラメータ消費関数 |
+| `TriConsumer<T, U, V>` | 三重パラメータ消費関数 |
+| `Generator<T>` | ジェネレーター関数 |
 
-特に重要な注意点: `sorted()`および`sorted(comparator)`は、以下のメソッドの結果を上書きします:
-- `redirect(redirector)`
-- `translate(translator)` 
-- `shuffle(mapper)`
+```typescript
+// 型使用例
+const predicate: Predicate<number> = (n) => n > 0;
+const mapper: Functional<string, number> = (str) => str.length;
+const comparator: Comparator<number> = (a, b) => a - b;
+```
+
+## 型ガード
+
+| 関数 | 説明 | 時間計算量 | 空間計算量 |
+|------|------|------------|------------|
+| `validate<T>(t: MaybeInvalid<T>): t is T` | 値がnullまたはundefinedでないことを検証 | O(1) | O(1) |
+| `invalidate<T>(t: MaybeInvalid<T>): t is null \| undefined` | 値がnullまたはundefinedであることを検証 | O(1) | O(1) |
+| `isBoolean(t: unknown): t is boolean` | ブーリアンかどうかチェック | O(1) | O(1) |
+| `isString(t: unknown): t is string` | 文字列かどうかチェック | O(1) | O(1) |
+| `isNumber(t: unknown): t is number` | 数値かどうかチェック | O(1) | O(1) |
+| `isFunction(t: unknown): t is Function` | 関数かどうかチェック | O(1) | O(1) |
+| `isObject(t: unknown): t is object` | オブジェクトかどうかチェック | O(1) | O(1) |
+| `isSymbol(t: unknown): t is symbol` | シンボルかどうかチェック | O(1) | O(1) |
+| `isBigint(t: unknown): t is bigint` | BigIntかどうかチェック | O(1) | O(1) |
+| `isPrimitive(t: unknown): t is Primitive` | プリミティブ型かどうかチェック | O(1) | O(1) |
+| `isIterable(t: unknown): t is Iterable<unknown>` | 反復可能かどうかチェック | O(1) | O(1) |
+| `isOptional(t: unknown): t is Optional<unknown>` | Optionalインスタンスかどうかチェック | O(1) | O(1) |
+| `isSemantic(t: unknown): t is Semantic<unknown>` | Semanticインスタンスかどうかチェック | O(1) | O(1) |
+| `isCollector(t: unknown): t is Collector<unknown, unknown, unknown>` | Collectorインスタンスかどうかチェック | O(1) | O(1) |
+| `isCollectable(t: unknown): t is Collectable<unknown>` | Collectableインスタンスかどうかチェック | O(1) | O(1) |
+| `isOrderedCollectable(t: unknown): t is OrderedCollectable<unknown>` | OrderedCollectableインスタンスかどうかチェック | O(1) | O(1) |
+| `isWindowCollectable(t: unknown): t is WindowCollectable<unknown>` | WindowCollectableインスタンスかどうかチェック | O(1) | O(1) |
+| `isUnorderedCollectable(t: unknown): t is UnorderedCollectable<unknown>` | UnorderedCollectableインスタンスかどうかチェック | O(1) | O(1) |
+| `isStatistics(t: unknown): t is Statistics<unknown, number \| bigint>` | Statisticsインスタンスかどうかチェック | O(1) | O(1) |
+| `isNumericStatistics(t: unknown): t is NumericStatistics<unknown>` | NumericStatisticsインスタンスかどうかチェック | O(1) | O(1) |
+| `isBigIntStatistics(t: unknown): t is BigIntStatistics<unknown>` | BigIntStatisticsインスタンスかどうかチェック | O(1) | O(1) |
+
+```typescript
+// 型ガード使用例
+const value: unknown = "hello";
+
+if (isString(value)) {
+    console.log(value.length); // 型安全、valueはstringと推論
+}
+
+if (isOptional(someValue)) {
+    someValue.ifPresent(val => console.log(val));
+}
+```
+
+## ユーティリティ関数
+
+| 関数 | 説明 | 時間計算量 | 空間計算量 |
+|------|------|------------|------------|
+| `useCompare<T>(t1: T, t2: T): number` | 汎用比較関数 | O(1) | O(1) |
+| `useRandom<T = number \| bigint>(index: T): T` | 擬似乱数生成器 | O(log n) | O(1) |
+
+```typescript
+// ユーティリティ関数使用例
+const numbers = [3, 1, 4, 1, 5];
+numbers.sort(useCompare); // [1, 1, 3, 4, 5]
+
+const randomNum = useRandom(42); // シードベースの乱数
+const randomBigInt = useRandom(1000n); // BigInt乱数
+```
 
 ## ファクトリメソッド
 
-### ストリーム作成ファクトリ
+### Optionalファクトリメソッド
 
-| メソッド | シグネチャ | 説明 | 例 |
-|------|------|------|------|
-| `blob` | `(blob: Blob, chunk?: bigint) => Semantic<Uint8Array>` | Blobをバイトストリームに変換 | `blob(fileBlob, 1024n)` |
-| `empty` | `<E>() => Semantic<E>` | 空のストリームを作成 | `empty<number>()` |
-| `fill` | `<E>(element: E, count: bigint) => Semantic<E>` | 指定数の要素で埋め立て | `fill("hello", 5n)` |
-| `from` | `<E>(iterable: Iterable<E>) => Semantic<E>` | 反復可能オブジェクトからストリーム作成 | `from([1, 2, 3])` |
-| `range` | `<N extends number\|bigint>(start: N, end: N, step?: N) => Semantic<N>` | 数値範囲ストリームを作成 | `range(1, 10, 2)` |
-| `iterate` | `<E>(generator: Generator<E>) => Semantic<E>` | ジェネレータ関数からストリーム作成 | `iterate(myGenerator)` |
-| `websocket` | `(websocket: WebSocket) => Semantic<MessageEvent>` | WebSocketからイベントストリーム作成 | `websocket(socket)` |
+| メソッド | 説明 | 時間計算量 | 空間計算量 |
+|---------|------|------------|------------|
+| `Optional.empty<T>()` | 空のOptionalを作成 | O(1) | O(1) |
+| `Optional.of<T>(value)` | 値を持つOptionalを作成 | O(1) | O(1) |
+| `Optional.ofNullable<T>(value)` | null許容Optionalを作成 | O(1) | O(1) |
+| `Optional.ofNonNull<T>(value)` | 非nullOptionalを作成 | O(1) | O(1) |
 
-**コード例補足:**
 ```typescript
-import { from, range, fill, empty } from 'semantic-typescript';
+// Optional使用例
+const emptyOpt = Optional.empty<number>();
+const presentOpt = Optional.of(42);
+const nullableOpt = Optional.ofNullable<string>(null);
+const nonNullOpt = Optional.ofNonNull("hello");
 
-// 配列からストリーム作成
+presentOpt.ifPresent(val => console.log(val)); // 42を出力
+console.log(emptyOpt.orElse(100)); // 100を出力
+```
+
+### Collectorファクトリメソッド
+
+| メソッド | 説明 | 時間計算量 | 空間計算量 |
+|---------|------|------------|------------|
+| `Collector.full(identity, accumulator, finisher)` | 完全なコレクターを作成 | O(1) | O(1) |
+| `Collector.shortable(identity, interruptor, accumulator, finisher)` | 中断可能なコレクターを作成 | O(1) | O(1) |
+
+```typescript
+// Collector使用例
+const sumCollector = Collector.full(
+    () => 0,
+    (sum, num) => sum + num,
+    result => result
+);
+
+const numbers = from([1, 2, 3, 4, 5]);
+const total = numbers.toUnoredered().collect(sumCollector); // 15
+```
+
+### Semanticファクトリメソッド
+
+| メソッド | 説明 | 時間計算量 | 空間計算量 |
+|---------|------|------------|------------|
+| `blob(blob, chunkSize)` | Blobからストリームを生成 | O(n) | O(chunkSize) |
+| `empty<E>()` | 空のストリームを生成 | O(1) | O(1) |
+| `fill<E>(element, count)` | 埋め尽くされたストリームを生成 | O(n) | O(1) |
+| `from<E>(iterable)` | 反復可能オブジェクトからストリームを生成 | O(1) | O(1) |
+| `interval(period, delay?)` | 定期的なインターバルストリームを生成 | O(1)* | O(1) |
+| `iterate<E>(generator)` | ジェネレータからストリームを生成 | O(1) | O(1) |
+| `range(start, end, step)` | 数値範囲ストリームを生成 | O(n) | O(1) |
+| `websocket(websocket)` | WebSocketからストリームを生成 | O(1) | O(1) |
+
+```typescript
+// Semanticファクトリメソッドの使用例
+
+// Blobからストリームを作成（チャンク読み込み）
+blob(someBlob, 1024n)
+  .toUnordered()
+  .write(WritableStream)
+  .then(callback) // ストリーム書き込み成功
+  .catch(writeFi); // ストリーム書き込み失敗
+
+// 他のストリームと連結されるまで実行されない空ストリームを作成
+empty<string>()
+  .toUnordered()
+  .join(); //[]
+
+// 埋め尽くされたストリームを作成
+const filledStream = fill("hello", 3); // "hello", "hello", "hello"
+
+// 初期遅延2秒、実行周期5秒の時系列ストリームを作成
+// タイマーメカニズムで実装、システムスケジューリング制限による時間変動の可能性あり
+const intervalStream = interval(5000, 2000);
+
+// 反復可能オブジェクトからストリームを作成
 const numberStream = from([1, 2, 3, 4, 5]);
+const stringStream = from(new Set(["Alex", "Bob"]));
 
-// 数値範囲ストリーム作成
+// 範囲ストリームを作成
 const rangeStream = range(1, 10, 2); // 1, 3, 5, 7, 9
 
-// 繰り返し要素で埋め立て
-const filledStream = fill("hello", 3n); // "hello", "hello", "hello"
-
-// 空のストリーム作成
-const emptyStream = empty<number>();
+// WebSocketイベントストリーム
+const ws = new WebSocket("ws://localhost:8080");
+websocket(ws)
+  .filter((event)=> event.type === "message") // メッセージイベントのみ監視
+  .toUnordered() // イベントは通常ソート不要
+  .forEach((event)=> receive(event)); // メッセージ受信
 ```
 
-### ユーティリティ関数ファクトリ
+## Semanticクラスメソッド
 
-| メソッド | シグネチャ | 説明 | 例 |
-|------|------|------|------|
-| `validate` | `<T>(t: MaybeInvalid<T>) => t is T` | 値が有効か検証 | `validate(null)` → `false` |
-| `invalidate` | `<T>(t: MaybeInvalid<T>) => t is null\|undefined` | 値が無効か検証 | `invalidate(0)` → `false` |
-| `useCompare` | `<T>(t1: T, t2: T) => number` | 汎用比較関数 | `useCompare("a", "b")` → `-1` |
-| `useRandom` | `<T = number\|bigint>(index: T) => T` | 擬似乱数生成器 | `useRandom(5)` → 乱数 |
+| メソッド | 説明 | 時間計算量 | 空間計算量 |
+|---------|------|------------|------------|
+| `concat(other)` | 二つのストリームを連結 | O(n) | O(1) |
+| `distinct()` | 重複排除 | O(n) | O(n) |
+| `distinct(comparator)` | コンパレーターを使用した重複排除 | O(n²) | O(n) |
+| `dropWhile(predicate)` | 条件を満たす要素を破棄 | O(n) | O(1) |
+| `filter(predicate)` | 要素のフィルタリング | O(n) | O(1) |
+| `flat(mapper)` | フラットマッピング | O(n × m) | O(1) |
+| `flatMap(mapper)` | 新しい型へのフラットマッピング | O(n × m) | O(1) |
+| `limit(n)` | 要素数の制限 | O(n) | O(1) |
+| `map(mapper)` | マッピング変換 | O(n) | O(1) |
+| `peek(consumer)` | 要素の検査 | O(n) | O(1) |
+| `redirect(redirector)` | インデックスのリダイレクト | O(n) | O(1) |
+| `reverse()` | ストリームの反転 | O(n) | O(1) |
+| `shuffle()` | ランダムシャッフル | O(n) | O(1) |
+| `shuffle(mapper)` | マッパーを使用したシャッフル | O(n) | O(1) |
+| `skip(n)` | 最初のn要素をスキップ | O(n) | O(1) |
+| `sorted()` | ソート | O(n log n) | O(n) |
+| `sorted(comparator)` | コンパレーターを使用したソート | O(n log n) | O(n) |
+| `sub(start, end)` | サブストリームの取得 | O(n) | O(1) |
+| `takeWhile(predicate)` | 条件を満たす要素を取得 | O(n) | O(1) |
+| `translate(offset)` | インデックスの平行移動 | O(n) | O(1) |
+| `translate(translator)` | トランスレーターを使用した平行移動 | O(n) | O(1) |
 
-**コード例補足:**
 ```typescript
-import { validate, invalidate, useCompare, useRandom } from 'semantic-typescript';
+// Semantic操作例
+const result = from([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
+    .filter(n => n % 2 === 0)        // 偶数のフィルタリング
+    .map(n => n * 2)                 // 2倍に変換
+    .skip(1)                         // 最初の要素をスキップ
+    .limit(3)                        // 3要素に制限
+    .toArray();                      // 配列に変換
+// 結果: [8, 12, 20]
 
-// データ有効性検証
-const data: string | null = "hello";
-if (validate(data)) {
-    console.log(data.toUpperCase()); // validateがデータがnullでないことを保証するため安全な呼び出し
-}
-
-const nullData: string | null = null;
-if (invalidate(nullData)) {
-    console.log("データが無効です"); // invalidateがnullを検出したため実行される
-}
-
-// 値の比較
-const comparison = useCompare("apple", "banana"); // -1
-
-// 乱数生成
-const randomNum = useRandom(42); // シード42に基づく乱数
+// 複雑な操作例
+const complexResult = range(1, 100, 1)
+    .flatMap(n => from([n, n * 2])) // 各要素を2要素にマッピング
+    .distinct()                      // 重複排除
+    .shuffle()                       // ランダムシャッフル
+    .takeWhile(n => n < 50)         // 50未満の要素を取得
+    .toOrdered()                     // 順序付きコレクターに変換
+    .toArray();                      // 配列に変換
 ```
 
-## コアクラス詳細
+## コレクター変換メソッド
 
-### Optional<T> - 安全なnull値処理
+| メソッド | 説明 | 時間計算量 | 空間計算量 |
+|---------|------|------------|------------|
+| `toUnoredered()` | 非順序コレクターに変換（パフォーマンス優先） | O(1) | O(1) |
+| `toOrdered()` | 順序付きコレクターに変換 | O(1) | O(1) |
+| `sorted()` | ソートして順序付きコレクターに変換 | O(n log n) | O(n) |
+| `toWindow()` | ウィンドウコレクターに変換 | O(1) | O(1) |
+| `toNumericStatistics()` | 数値統計に変換 | O(1) | O(1) |
+| `toBigintStatistics()` | BigInt統計に変換 | O(1) | O(1) |
 
-Optionalクラスは、nullまたはundefinedになる可能性のある値を安全に扱うための関数型アプローチを提供します。
-
-| メソッド | 戻り値の型 | 説明 | 時間計算量 |
-|------|----------|------|------------|
-| `filter(predicate: Predicate<T>)` | `Optional<T>` | 条件を満たす値をフィルタリング | O(1) |
-| `get()` | `T` | 値を取得、空の場合はエラーをスロー | O(1) |
-| `getOrDefault(defaultValue: T)` | `T` | 値またはデフォルト値を取得 | O(1) |
-| `ifPresent(action: Consumer<T>)` | `void` | 値が存在する場合にアクションを実行 | O(1) |
-| `isEmpty()` | `boolean` | 空かどうかチェック | O(1) |
-| `isPresent()` | `boolean` | 値が存在するかチェック | O(1) |
-| `map<R>(mapper: Functional<T, R>)` | `Optional<R>` | 値のマッピングと変換 | O(1) |
-| `static of<T>(value: MaybeInvalid<T>)` | `Optional<T>` | Optionalインスタンスを作成 | O(1) |
-| `static ofNullable<T>(value?)` | `Optional<T>` | null許容Optionalを作成 | O(1) |
-| `static ofNonNull<T>(value: T)` | `Optional<T>` | non-null Optionalを作成 | O(1) |
-
-**コード例補足:**
 ```typescript
-import { Optional } from 'semantic-typescript';
+// コレクター変換例
+const numbers = from([3, 1, 4, 1, 5, 9, 2, 6, 5]);
 
-// Optionalインスタンス作成
-const optionalValue = Optional.ofNullable<string>(Math.random() > 0.5 ? "hello" : null);
+// パフォーマンス優先：非順序コレクターを使用
+const unordered = numbers
+    .filter(n => n > 3)
+    .toUnoredered();
 
-// チェーン操作
-const result = optionalValue
-    .filter(val => val.length > 3) // 長さが3より大きい値をフィルタリング
-    .map(val => val.toUpperCase()) // 大文字に変換
-    .getOrDefault("default"); // 値またはデフォルト値を取得
+// ソート必要：順序付きコレクターを使用  
+const ordered = numbers
+    .sorted()
+    .toOrdered();
 
-console.log(result); // "HELLO" または "default"
+// 統計分析：統計コレクターを使用
+const stats = numbers
+    .toNumericStatistics();
 
-// 安全な操作
-optionalValue.ifPresent(val => {
-    console.log(`値が存在します: ${val}`);
+console.log(stats.mean());        // 平均値
+console.log(stats.median());      // 中央値
+console.log(stats.standardDeviation()); // 標準偏差
+
+// ウィンドウ操作
+const windowed = numbers
+    .toWindow()
+    .tumble(3n); // 3要素ごとのウィンドウ
+
+windowed.forEach(window => {
+    console.log(window.toArray()); // 各ウィンドウの内容
 });
-
-// ステータスチェック
-if (optionalValue.isPresent()) {
-    console.log("値があります");
-} else if (optionalValue.isEmpty()) {
-    console.log("空です");
-}
 ```
 
-### Semantic<E> - 遅延データストリーム
+## Collectable収集メソッド
 
-Semanticは、豊富なストリーム演算子を提供するコアのストリーム処理クラスです。
+| メソッド | 説明 | 時間計算量 | 空間計算量 |
+|---------|------|------------|------------|
+| `anyMatch(predicate)` | 一致する要素が存在するかチェック | O(n) | O(1) |
+| `allMatch(predicate)` | すべての要素が一致するかチェック | O(n) | O(1) |
+| `count()` | 要素のカウント | O(n) | O(1) |
+| `isEmpty()` | 空かどうかチェック | O(1) | O(1) |
+| `findAny()` | 任意の要素を検索 | O(n) | O(1) |
+| `findFirst()` | 最初の要素を検索 | O(n) | O(1) |
+| `findLast()` | 最後の要素を検索 | O(n) | O(1) |
+| `forEach(action)` | 全要素の反復処理 | O(n) | O(1) |
+| `group(classifier)` | 分類器によるグループ化 | O(n) | O(n) |
+| `groupBy(keyExtractor, valueExtractor)` | キー値抽出器によるグループ化 | O(n) | O(n) |
+| `join()` | 文字列への結合 | O(n) | O(n) |
+| `join(delimiter)` | 区切り文字を使用した結合 | O(n) | O(n) |
+| `nonMatch(predicate)` | 一致する要素がないかチェック | O(n) | O(1) |
+| `partition(count)` | 数量による分割 | O(n) | O(n) |
+| `partitionBy(classifier)` | 分類器による分割 | O(n) | O(n) |
+| `reduce(accumulator)` | 縮約操作 | O(n) | O(1) |
+| `reduce(identity, accumulator)` | 初期値付き縮約 | O(n) | O(1) |
+| `toArray()` | 配列への変換 | O(n) | O(n) |
+| `toMap(keyExtractor, valueExtractor)` | Mapへの変換 | O(n) | O(n) |
+| `toSet()` | Setへの変換 | O(n) | O(n) |
+| `write(stream)` | ストリームへの書き込み | O(n) | O(1) |
 
-#### ストリーム変換操作
-
-| メソッド | 戻り値の型 | 説明 | パフォーマンス影響 |
-|------|----------|------|----------|
-| `concat(other: Semantic<E>)` | `Semantic<E>` | 2つのストリームを連結 | O(n+m) |
-| `distinct()` | `Semantic<E>` | 重複を削除（Set使用） | O(n) |
-| `distinct(comparator)` | `Semantic<E>` | カスタム比較子で重複削除 | O(n²) |
-| `dropWhile(predicate)` | `Semantic<E>` | 条件を満たす先頭要素を破棄 | O(n) |
-| `filter(predicate)` | `Semantic<E>` | 要素をフィルタリング | O(n) |
-| `flat(mapper)` | `Semantic<E>` | ネストしたストリームを平坦化 | O(n×m) |
-| `flatMap(mapper)` | `Semantic<R>` | マッピングと平坦化 | O(n×m) |
-| `limit(n)` | `Semantic<E>` | 要素数を制限 | O(n) |
-| `map(mapper)` | `Semantic<R>` | 要素のマッピングと変換 | O(n) |
-| `peek(consumer)` | `Semantic<E>` | 要素を変更せずに閲覧 | O(n) |
-| `redirect(redirector)` | `Semantic<E>` | インデックスのリダイレクト | O(n) |
-| `reverse()` | `Semantic<E>` | ストリーム順序を反転 | O(n) |
-| `shuffle()` | `Semantic<E>` | ランダムにシャッフル | O(n) |
-| `shuffle(mapper)` | `Semantic<E>` | カスタムシャッフルロジック | O(n) |
-| `skip(n)` | `Semantic<E>` | 最初のn要素をスキップ | O(n) |
-| `sub(start, end)` | `Semantic<E>` | サブストリームを取得 | O(n) |
-| `takeWhile(predicate)` | `Semantic<E>` | 条件を満たす先頭要素を取得 | O(n) |
-| `translate(offset)` | `Semantic<E>` | インデックスの平行移動 | O(n) |
-| `translate(translator)` | `Semantic<E>` | カスタムインデックス変換 | O(n) |
-
-**コード例補足:**
 ```typescript
-import { from } from 'semantic-typescript';
+// Collectable操作例
+const data = from([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
+    .filter(n => n % 2 === 0)
+    .toOrdered();
 
-const stream = from([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+// 一致チェック
+console.log(data.anyMatch(n => n > 5)); // true
+console.log(data.allMatch(n => n < 20)); // true
 
-// ストリーム変換操作の例
-const processedStream = stream
-    .filter(x => x % 2 === 0) // 偶数をフィルタリング
-    .map(x => x * 2) // 各要素を2倍
-    .distinct() // 重複を削除
-    .limit(3) // 最初の3要素に制限
-    .peek((val, index) => console.log(`インデックス${index}の要素${val}`)); // 要素を閲覧
-
-// 注: ストリームはまだ実行されていない、終端操作のためにCollectableへの変換が必要
-```
-
-#### ストリーム終端操作
-
-| メソッド | 戻り値の型 | 説明 | パフォーマンス特性 |
-|------|----------|------|----------|
-| `toOrdered()` | `OrderedCollectable<E>` | 順序付きコレクションに変換 | ソート操作、パフォーマンス低い |
-| `toUnordered()` | `UnorderedCollectable<E>` | 順序なしコレクションに変換 | 最速、ソートなし |
-| `toWindow()` | `WindowCollectable<E>` | ウィンドウコレクションに変換 | ソート操作、パフォーマンス低い |
-| `toNumericStatistics()` | `Statistics<E, number>` | 数値統計分析 | ソート操作、パフォーマンス低い |
-| `toBigintStatistics()` | `Statistics<E, bigint>` | ビッグ整数統計分析 | ソート操作、パフォーマンス低い |
-| `sorted()` | `OrderedCollectable<E>` | 自然順ソート | リダイレクト結果を上書き |
-| `sorted(comparator)` | `OrderedCollectable<E>` | カスタムソート | リダイレクト結果を上書き |
-
-**コード例補足:**
-```typescript
-import { from } from 'semantic-typescript';
-
-const semanticStream = from([5, 2, 8, 1, 9, 3, 7, 4, 6]);
-
-// 順序付きコレクションに変換（パフォーマンス低い）
-const ordered = semanticStream.toOrdered();
-
-// 順序なしコレクションに変換（最速）
-const unordered = semanticStream.toUnordered();
-
-// 自然順ソート
-const sortedNatural = semanticStream.sorted();
-
-// カスタムソート
-const sortedCustom = semanticStream.sorted((a, b) => b - a); // 降順ソート
-
-// 統計オブジェクトに変換
-const stats = semanticStream.toNumericStatistics();
-
-// 注: 上記メソッドはSemanticインスタンスを通じて呼び出し、Collectableを取得してから終端メソッドを使用する必要がある
-```
-
-### Collector<E, A, R> - データコレクター
-
-コレクターは、ストリームデータを特定の構造に集約するために使用されます。
-
-| メソッド | 説明 | 使用シナリオ |
-|------|------|----------|
-| `collect(generator)` | データ収集を実行 | ストリーム終端操作 |
-| `static full(identity, accumulator, finisher)` | 完全なコレクターを作成 | 完全な処理が必要 |
-| `static shortable(identity, interruptor, accumulator, finisher)` | 中断可能なコレクターを作成 | 早期終了する可能性あり |
-
-**コード例補足:**
-```typescript
-import { Collector } from 'semantic-typescript';
-
-// カスタムコレクター作成
-const sumCollector = Collector.full(
-    () => 0, // 初期値
-    (acc, value) => acc + value, // アキュムレータ
-    result => result // フィニッシャー関数
-);
-
-// コレクター使用（SemanticからCollectableへの変換が最初に必要）
-const numbers = from([1, 2, 3, 4, 5]);
-const sum = numbers.toUnordered().collect(sumCollector); // 15
-```
-
-### Collectable<E> - 収集可能データ抽象クラス
-
-豊富なデータ集約および変換メソッドを提供します。**注: 最初にSemanticインスタンスを通じてsorted()、toOrdered()などを呼び出してCollectableインスタンスを取得してから、以下のメソッドを使用する必要があります。**
-
-#### データクエリ操作
-
-| メソッド | 戻り値の型 | 説明 | 例 |
-|------|----------|------|------|
-| `anyMatch(predicate)` | `boolean` | いずれかの要素が条件に一致するか | `anyMatch(x => x > 0)` |
-| `allMatch(predicate)` | `boolean` | すべての要素が条件に一致するか | `allMatch(x => x > 0)` |
-| `count()` | `bigint` | 要素数の統計 | `count()` → `5n` |
-| `isEmpty()` | `boolean` | ストリームが空かどうか | `isEmpty()` |
-| `findAny()` | `Optional<E>` | 任意の要素を検索 | `findAny()` |
-| `findFirst()` | `Optional<E>` | 最初の要素を検索 | `findFirst()` |
-| `findLast()` | `Optional<E>` | 最後の要素を検索 | `findLast()` |
-
-**コード例補足:**
-```typescript
-import { from } from 'semantic-typescript';
-
-const numbers = from([1, 2, 3, 4, 5]);
-
-// 終端メソッドを使用する前にCollectableに変換する必要がある
-const collectable = numbers.toUnordered();
-
-// データクエリ操作
-const hasEven = collectable.anyMatch(x => x % 2 === 0); // true
-const allPositive = collectable.allMatch(x => x > 0); // true
-const count = collectable.count(); // 5n
-const isEmpty = collectable.isEmpty(); // false
-const firstElement = collectable.findFirst(); // Optional.of(1)
-const anyElement = collectable.findAny(); // 任意の要素
-```
-
-#### データ集約操作
-
-| メソッド | 戻り値の型 | 説明 | 計算量 |
-|------|----------|------|--------|
-| `group(classifier)` | `Map<K, E[]>` | 分類子でグループ化 | O(n) |
-| `groupBy(keyExtractor, valueExtractor)` | `Map<K, V[]>` | キー値抽出器でグループ化 | O(n) |
-| `join()` | `string` | 文字列として結合 | O(n) |
-| `join(delimiter)` | `string` | 区切り文字で結合 | O(n) |
-| `partition(count)` | `E[][]` | カウントで分割 | O(n) |
-| `partitionBy(classifier)` | `E[][]` | 分類子で分割 | O(n) |
-| `reduce(accumulator)` | `Optional<E>` | 縮約操作 | O(n) |
-| `reduce(identity, accumulator)` | `E` | 識別子付き縮約 | O(n) |
-| `toArray()` | `E[]` | 配列に変換 | O(n) |
-| `toMap(keyExtractor, valueExtractor)` | `Map<K, V>` | Mapに変換 | O(n) |
-| `toSet()` | `Set<E>` | Setに変換 | O(n) |
-
-**コード例補足:**
-```typescript
-import { from } from 'semantic-typescript';
-
-const people = from([
-    { name: "Alice", age: 25, city: "New York" },
-    { name: "Bob", age: 30, city: "London" },
-    { name: "Charlie", age: 25, city: "New York" }
-]);
-
-// 集約操作を使用する前にCollectableに変換する必要がある
-const collectable = people.toUnordered();
+// 検索操作
+data.findFirst().ifPresent(n => console.log(n)); // 2
+data.findAny().ifPresent(n => console.log(n)); // 任意の要素
 
 // グループ化操作
-const byCity = collectable.group(person => person.city);
-// Map { "New York" => [{name: "Alice", ...}, {name: "Charlie", ...}], "London" => [{name: "Bob", ...}] }
-
-const byAge = collectable.groupBy(
-    person => person.age,
-    person => person.name
+const grouped = data.groupBy(
+    n => n > 5 ? "large" : "small",
+    n => n * 2
 );
-// Map { 25 => ["Alice", "Charlie"], 30 => ["Bob"] }
-
-// コレクションに変換
-const array = collectable.toArray(); // 元の配列
-const set = collectable.toSet(); // Setコレクション
-const map = collectable.toMap(
-    person => person.name,
-    person => person.age
-); // Map { "Alice" => 25, "Bob" => 30, "Charlie" => 25 }
+// {small: [4, 8], large: [12, 16, 20]}
 
 // 縮約操作
-const totalAge = collectable.reduce(0, (acc, person) => acc + person.age); // 80
-const oldest = collectable.reduce((a, b) => a.age > b.age ? a : b); // Optional.of({name: "Bob", age: 30, ...})
+const sum = data.reduce(0, (acc, n) => acc + n); // 30
+
+// 出力操作
+data.join(", "); // "2, 4, 6, 8, 10"
 ```
 
-### 特定のコレクター実装
+## 統計分析メソッド
 
-#### UnorderedCollectable<E>
-- **特性**: 最速のコレクター、ソートなし
-- **使用シナリオ**: 順序が重要でない、最大のパフォーマンスが望まれる場合
-- **メソッド**: すべてのCollectableメソッドを継承
+### NumericStatisticsメソッド
 
-#### OrderedCollectable<E> 
-- **特性**: 要素の順序を保証、パフォーマンスは低い
-- **使用シナリオ**: ソートされた結果が必要な場合
-- **特殊メソッド**: すべてのメソッドを継承、内部ソート状態を維持
-
-#### WindowCollectable<E>
-- **特性**: スライディングウィンドウ操作をサポート
-- **使用シナリオ**: 時系列データ分析
-- **特殊メソッド**:
-  - `slide(size, step)` - スライディングウィンドウ
-  - `tumble(size)` - タンブリングウィンドウ
-
-**コード例補足:**
-```typescript
-import { from } from 'semantic-typescript';
-
-const data = from([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
-
-// 順序なしコレクター（最速）
-const unordered = data.toUnordered();
-const unorderedArray = unordered.toArray(); // 元の順序を維持する可能性あり [1, 2, 3, ...]
-
-// 順序付きコレクター
-const ordered = data.toOrdered();
-const orderedArray = ordered.toArray(); // ソートが保証される [1, 2, 3, ...]
-
-// ウィンドウコレクター
-const windowed = data.toWindow();
-const slidingWindows = windowed.slide(3n, 2n); // ウィンドウサイズ3、ステップ2
-// ウィンドウ1: [1, 2, 3], ウィンドウ2: [3, 4, 5], ウィンドウ3: [5, 6, 7], ...
-
-const tumblingWindows = windowed.tumble(4n); // タンブリングウィンドウサイズ4
-// ウィンドウ1: [1, 2, 3, 4], ウィンドウ2: [5, 6, 7, 8], ...
-```
-
-### Statistics<E, D> - 統計分析
-
-統計分析の基底クラスで、豊富な統計計算メソッドを提供します。**注: 最初にSemanticインスタンスを通じてtoNumericStatistics()またはtoBigIntStatistics()を呼び出してStatisticsインスタンスを取得してから、以下のメソッドを使用する必要があります。**
-
-#### 統計計算操作
-
-| メソッド | 戻り値の型 | 説明 | アルゴリズム計算量 |
-|------|----------|------|------------|
-| `maximum()` | `Optional<E>` | 最大値 | O(n) |
-| `minimum()` | `Optional<E>` | 最小値 | O(n) |
-| `range()` | `D` | 範囲（最大-最小） | O(n) |
-| `variance()` | `D` | 分散 | O(n) |
-| `standardDeviation()` | `D` | 標準偏差 | O(n) |
-| `mean()` | `D` | 平均値 | O(n) |
-| `median()` | `D` | 中央値 | O(n log n) |
-| `mode()` | `D` | 最頻値 | O(n) |
-| `frequency()` | `Map<D, bigint>` | 度数分布 | O(n) |
-| `summate()` | `D` | 合計 | O(n) |
-| `quantile(quantile)` | `D` | 分位数 | O(n log n) |
-| `interquartileRange()` | `D` | 四分位範囲 | O(n log n) |
-| `skewness()` | `D` | 歪度 | O(n) |
-| `kurtosis()` | `D` | 尖度 | O(n) |
-
-**コード例補足:**
-```typescript
-import { from } from 'semantic-typescript';
-
-const numbers = from([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
-
-// 統計メソッドを使用する前に統計オブジェクトに変換する必要がある
-const stats = numbers.toNumericStatistics();
-
-// 基本統計
-const count = stats.count(); // 10n
-const max = stats.maximum(); // Optional.of(10)
-const min = stats.minimum(); // Optional.of(1)
-const range = stats.range(); // 9
-const mean = stats.mean(); // 5.5
-const median = stats.median(); // 5.5
-const sum = stats.summate(); // 55
-
-// 高度な統計
-const variance = stats.variance(); // 8.25
-const stdDev = stats.standardDeviation(); // 2.872
-const mode = stats.mode(); // 任意の値（すべて1回ずつ出現するため）
-const q1 = stats.quantile(0.25); // 3.25
-const q3 = stats.quantile(0.75); // 7.75
-const iqr = stats.interquartileRange(); // 4.5
-
-// 度数分布
-const freq = stats.frequency(); // Map {1 => 1n, 2 => 1n, ...}
-```
-
-#### 特定の統計実装クラス
-
-**NumericStatistics<E>**
-- number型の統計分析を処理
-- すべての統計計算はnumber型を返す
-
-**BigIntStatistics<E>**  
-- bigint型の統計分析を処理
-- すべての統計計算はbigint型を返す
-
-**コード例補足:**
-```typescript
-import { from } from 'semantic-typescript';
-
-// 数値統計
-const numberData = from([10, 20, 30, 40, 50]);
-const numericStats = numberData.toNumericStatistics();
-
-console.log(numericStats.mean()); // 30
-console.log(numericStats.summate()); // 150
-
-// ビッグ整数統計
-const bigintData = from([100n, 200n, 300n, 400n, 500n]);
-const bigintStats = bigintData.toBigIntStatistics();
-
-console.log(bigintStats.mean()); // 300n
-console.log(bigintStats.summate()); // 1500n
-
-// マッパー関数を使用した統計
-const objectData = from([
-    { value: 15 },
-    { value: 25 }, 
-    { value: 35 },
-    { value: 45 }
-]);
-
-const objectStats = objectData.toNumericStatistics();
-const meanWithMapper = objectStats.mean(obj => obj.value); // 30
-const sumWithMapper = objectStats.summate(obj => obj.value); // 120
-```
-
-## 完全な使用例
+| メソッド | 説明 | 時間計算量 | 空間計算量 |
+|---------|------|------------|------------|
+| `range()` | 範囲 | O(n) | O(1) |
+| `variance()` | 分散 | O(n) | O(1) |
+| `standardDeviation()` | 標準偏差 | O(n) | O(1) |
+| `mean()` | 平均値 | O(n) | O(1) |
+| `median()` | 中央値 | O(n log n) | O(n) |
+| `mode()` | 最頻値 | O(n) | O(n) |
+| `frequency()` | 度数分布 | O(n) | O(n) |
+| `summate()` | 合計 | O(n) | O(1) |
+| `quantile(quantile)` | 分位数 | O(n log n) | O(n) |
+| `interquartileRange()` | 四分位範囲 | O(n log n) | O(n) |
+| `skewness()` | 歪度 | O(n) | O(1) |
+| `kurtosis()` | 尖度 | O(n) | O(1) |
 
 ```typescript
-import { from, validate, invalidate } from 'semantic-typescript';
+// 統計分析例
+const numbers = from([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
+    .toNumericStatistics();
 
-// 1. データストリーム作成
-const rawData = [5, 2, 8, 1, null, 9, 3, undefined, 7, 4, 6];
-const semanticStream = from(rawData);
+console.log("平均値:", numbers.mean()); // 5.5
+console.log("中央値:", numbers.median()); // 5.5
+console.log("標準偏差:", numbers.standardDeviation()); // ~2.87
+console.log("合計:", numbers.summate()); // 55
 
-// 2. ストリーム処理パイプライン
-const processedStream = semanticStream
-    .filter(val => validate(val)) // nullとundefinedをフィルタリング
-    .map(val => val! * 2) // 各値を2倍（!を使用、validateが空でないことを保証するため）
-    .distinct(); // 重複を削除
+// マッパーを使用した統計分析
+const objects = from([
+    { value: 10 },
+    { value: 20 }, 
+    { value: 30 }
+]).toNumericStatistics();
 
-// 3. Collectableに変換して終端操作を使用
-const collectable = processedStream.toUnordered();
-
-// 4. データ検証と使用
-if (!collectable.isEmpty()) {
-    const results = collectable
-        .filter(x => x > 5) // 再度フィルタリング
-        .toArray(); // 配列に変換
-    
-    console.log("処理結果:", results); // [16, 18, 14, 8, 12]
-    
-    // 統計情報
-    const stats = processedStream.toNumericStatistics();
-    console.log("平均値:", stats.mean()); // 11.2
-    console.log("合計:", stats.summate()); // 56
-}
-
-// 5. 潜在的に無効なデータの処理
-const potentiallyInvalidData: Array<number | null> = [1, null, 3, 4, null];
-const validData = potentiallyInvalidData.filter(validate);
-const invalidData = potentiallyInvalidData.filter(invalidate);
-
-console.log("有効なデータ:", validData); // [1, 3, 4]
-console.log("無効なデータ:", invalidData); // [null, null]
+console.log("マップされた平均値:", objects.mean(obj => obj.value)); // 20
 ```
 
-## 重要な使用ルールのまとめ
+## パフォーマンス選択ガイド
 
-1. **ストリーム作成**: `from()`、`range()`、`fill()`などのファクトリメソッドを使用してSemanticインスタンスを作成
-2. **ストリーム変換**: Semanticインスタンスで`map()`、`filter()`、`distinct()`などのメソッドを呼び出し
-3. **Collectableへの変換**: Semanticインスタンスを通じて以下のいずれかのメソッドを呼び出す必要があります:
-   - `toOrdered()` - 順序付きコレクター
-   - `toUnordered()` - 順序なしコレクター（最速）
-   - `toWindow()` - ウィンドウコレクター  
-   - `toNumericStatistics()` - 数値統計
-   - `toBigIntStatistics()` - ビッグ整数統計
-   - `sorted()` - 自然順ソート
-   - `sorted(comparator)` - カスタムソート
-4. **終端操作**: Collectableインスタンスで`toArray()`、`count()`、`summate()`などの終端メソッドを呼び出し
-5. **データ検証**: `validate()`を使用してデータがnull/undefinedでないことを保証、`invalidate()`を使用して無効なデータをチェック
+### 非順序コレクターを選択（パフォーマンス優先）
+```typescript
+// 順序保証が不要な場合
+const highPerformance = data
+    .filter(predicate)
+    .map(mapper)
+    .toUnoredered(); // 最高のパフォーマンス
+```
 
-この設計は、型安全性とパフォーマンス最適化を確保しながら、豊富なストリーム処理機能を提供します。
+### 順序付きコレクターを選択（順序が必要）
+```typescript
+// 要素の順序を維持する必要がある場合
+const ordered = data.sorted(comparator);
+```
+
+### ウィンドウコレクターを選択（ウィンドウ操作）
+```typescript
+// ウィンドウ操作が必要な場合
+const windowed = data
+    .toWindow()
+    .slide(5n, 2n); // スライディングウィンドウ
+```
+
+### 統計分析を選択（数値計算）
+```typescript
+// 統計分析が必要な場合
+const stats = data
+    .toNumericStatistics(); // 数値統計
+
+const bigIntStats = data
+    .toBigintStatistics(); // BigInt統計
+```
+
+[GitHub](https://github.com/eloyhere/semantic-typescript)
+[NPMJS](https://www.npmjs.com/package/semantic-typescript)
+
+## 重要な注意点
+
+1. **ソート操作の影響**: 順序付きコレクターでは、`sorted()`操作が`redirect`, `translate`, `shuffle`, `reverse`の効果を上書きします
+2. **パフォーマンス考慮**: 順序保証が不要な場合は、`toUnoredered()`を優先してより良いパフォーマンスを得てください
+3. **メモリ使用量**: ソート操作にはO(n)の追加スペースが必要です
+4. **リアルタイムデータ**: Semanticストリームはリアルタイムデータに適しており、非同期データソースをサポートします
+
+このライブラリは、TypeScript開発者に強力で柔軟なストリーム処理能力を提供し、関数型プログラミングの利点と型安全性を組み合わせています。

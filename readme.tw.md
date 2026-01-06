@@ -1,529 +1,426 @@
-# Semantic-TypeScript 串流處理框架
+# Semantic-TypeScript 流處理庫
 
-## 引言
+## 簡介
 
-Semantic-TypeScript 是一個現代化的串流處理函式庫，靈感來自 JavaScript GeneratorFunction、Java Stream 和 MySQL Index。其核心設計理念基於透過資料索引建構高效的資料處理管道，為前端開發提供型別安全、函數式風格的串流操作體驗。
+Semantic-TypeScript 是一個受到 JavaScript GeneratorFunction、Java Stream 和 MySQL Index 啟發而設計的現代化流處理庫。該庫的核心設計理念是基於數據索引建構高效的數據處理管道，為前端開發提供類型安全、函數式風格的流式操作體驗。
 
-與傳統的同步處理不同，Semantic 採用非同步處理模型。在建立資料流時，終端資料接收的時機完全取決於上游何時呼叫 `accept` 和 `interrupt` 回呼函數。這種設計使得函式庫能夠優雅地處理即時資料流、大型資料集和非同步資料來源。
+與傳統的同步處理不同，Semantic 採用非同步處理模式。在創建數據流時，終端接收數據的時間完全取決於上游何時調用 `accept` 和 `interrupt` 回調函數，這種設計使得庫能夠優雅地處理實時數據流、大型數據集和非同步數據源。
 
-## 核心特性
+## 安裝
 
-| 特性 | 描述 | 優勢 |
-|------|------|------|
-| **型別安全泛型** | 完整的 TypeScript 型別支援 | 編譯時錯誤檢測，更好的開發體驗 |
-| **函數式程式設計** | 不可變資料結構和純函數 | 更可預測的程式碼，易於測試和維護 |
-| **惰性求值** | 按需計算，效能最佳化 | 處理大型資料集時記憶體效率高 |
-| **非同步串流處理** | 基於產生器的非同步資料流 | 適用於即時資料和事件驅動場景 |
-| **多範型收集器** | 有序、無序、統計收集策略 | 根據不同場景選擇最佳策略 |
-| **統計分析** | 內建完整的統計計算函數 | 整合資料分析和報表生成 |
+```bash
+npm install semantic-typescript
+```
 
-## 效能考量
+## 基礎類型
 
-**重要注意**：以下方法會犧牲效能來收集和排序資料，從而產生有序的資料集合：
-- `toOrdered()`
-- `toWindow()`
-- `toNumericStatistics()`
-- `toBigIntStatistics()`
-- `sorted()`
-- `sorted(comparator)`
+| 類型 | 描述 |
+|------|------|
+| `Invalid<T>` | 擴展 null 或 undefined 的類型 |
+| `Valid<T>` | 排除 null 和 undefined 的類型 |
+| `MaybeInvalid<T>` | 可能為 null 或 undefined 的類型 |
+| `Primitive` | 原始類型集合 |
+| `MaybePrimitive<T>` | 可能為原始類型的類型 |
+| `OptionalSymbol` | Optional 類的符號標識 |
+| `SemanticSymbol` | Semantic 類的符號標識 |
+| `CollectorsSymbol` | Collector 類的符號標識 |
+| `CollectableSymbol` | Collectable 類的符號標識 |
+| `OrderedCollectableSymbol` | OrderedCollectable 類的符號標識 |
+| `WindowCollectableSymbol` | WindowCollectable 類的符號標識 |
+| `StatisticsSymbol` | Statistics 類的符號標識 |
+| `NumericStatisticsSymbol` | NumericStatistics 類的符號標識 |
+| `BigIntStatisticsSymbol` | BigIntStatistics 類的符號標識 |
+| `UnorderedCollectableSymbol` | UnorderedCollectable 類的符號標識 |
+| `Runnable` | 無參數無返回值的函數 |
+| `Supplier<R>` | 無參數返回 R 的函數 |
+| `Functional<T, R>` | 單參數轉換函數 |
+| `Predicate<T>` | 單參數判斷函數 |
+| `BiFunctional<T, U, R>` | 雙參數轉換函數 |
+| `BiPredicate<T, U>` | 雙參數判斷函數 |
+| `Comparator<T>` | 比較函數 |
+| `TriFunctional<T, U, V, R>` | 三參數轉換函數 |
+| `Consumer<T>` | 單參數消費函數 |
+| `BiConsumer<T, U>` | 雙參數消費函數 |
+| `TriConsumer<T, U, V>` | 三參數消費函數 |
+| `Generator<T>` | 生成器函數 |
 
-特別需要注意的是：`sorted()` 和 `sorted(comparator)` 會覆寫以下方法的結果：
-- `redirect(redirector)`
-- `translate(translator)`
-- `shuffle(mapper)`
+```typescript
+// 類型使用示例
+const predicate: Predicate<number> = (n) => n > 0;
+const mapper: Functional<string, number> = (str) => str.length;
+const comparator: Comparator<number> = (a, b) => a - b;
+```
+
+## 類型守衛
+
+| 函數 | 描述 | 時間複雜度 | 空間複雜度 |
+|------|------|------------|------------|
+| `validate<T>(t: MaybeInvalid<T>): t is T` | 驗證值不為 null 或 undefined | O(1) | O(1) |
+| `invalidate<T>(t: MaybeInvalid<T>): t is null \| undefined` | 驗證值為 null 或 undefined | O(1) | O(1) |
+| `isBoolean(t: unknown): t is boolean` | 檢查是否為布林值 | O(1) | O(1) |
+| `isString(t: unknown): t is string` | 檢查是否為字串 | O(1) | O(1) |
+| `isNumber(t: unknown): t is number` | 檢查是否為數字 | O(1) | O(1) |
+| `isFunction(t: unknown): t is Function` | 檢查是否為函數 | O(1) | O(1) |
+| `isObject(t: unknown): t is object` | 檢查是否為物件 | O(1) | O(1) |
+| `isSymbol(t: unknown): t is symbol` | 檢查是否為 Symbol | O(1) | O(1) |
+| `isBigint(t: unknown): t is bigint` | 檢查是否為 BigInt | O(1) | O(1) |
+| `isPrimitive(t: unknown): t is Primitive` | 檢查是否為原始類型 | O(1) | O(1) |
+| `isIterable(t: unknown): t is Iterable<unknown>` | 檢查是否為可迭代物件 | O(1) | O(1) |
+| `isOptional(t: unknown): t is Optional<unknown>` | 檢查是否為 Optional 實例 | O(1) | O(1) |
+| `isSemantic(t: unknown): t is Semantic<unknown>` | 檢查是否為 Semantic 實例 | O(1) | O(1) |
+| `isCollector(t: unknown): t is Collector<unknown, unknown, unknown>` | 檢查是否為 Collector 實例 | O(1) | O(1) |
+| `isCollectable(t: unknown): t is Collectable<unknown>` | 檢查是否為 Collectable 實例 | O(1) | O(1) |
+| `isOrderedCollectable(t: unknown): t is OrderedCollectable<unknown>` | 檢查是否為 OrderedCollectable 實例 | O(1) | O(1) |
+| `isWindowCollectable(t: unknown): t is WindowCollectable<unknown>` | 檢查是否為 WindowCollectable 實例 | O(1) | O(1) |
+| `isUnorderedCollectable(t: unknown): t is UnorderedCollectable<unknown>` | 檢查是否為 UnorderedCollectable 實例 | O(1) | O(1) |
+| `isStatistics(t: unknown): t is Statistics<unknown, number \| bigint>` | 檢查是否為 Statistics 實例 | O(1) | O(1) |
+| `isNumericStatistics(t: unknown): t is NumericStatistics<unknown>` | 檢查是否為 NumericStatistics 實例 | O(1) | O(1) |
+| `isBigIntStatistics(t: unknown): t is BigIntStatistics<unknown>` | 檢查是否為 BigIntStatistics 實例 | O(1) | O(1) |
+
+```typescript
+// 類型守衛使用示例
+const value: unknown = "hello";
+
+if (isString(value)) {
+    console.log(value.length); // 類型安全，value 被推斷為 string
+}
+
+if (isOptional(someValue)) {
+    someValue.ifPresent(val => console.log(val));
+}
+```
+
+## 工具函數
+
+| 函數 | 描述 | 時間複雜度 | 空間複雜度 |
+|------|------|------------|------------|
+| `useCompare<T>(t1: T, t2: T): number` | 通用比較函數 | O(1) | O(1) |
+| `useRandom<T = number | bigint>(index: T): T` | 偽隨機數生成器 | O(log n) | O(1) |
+
+```typescript
+// 工具函數使用示例
+const numbers = [3, 1, 4, 1, 5];
+numbers.sort(useCompare); // [1, 1, 3, 4, 5]
+
+const randomNum = useRandom(42); // 基於種子的隨機數
+const randomBigInt = useRandom(1000n); // BigInt 隨機數
+```
 
 ## 工廠方法
 
-### 串流建立工廠
+### Optional 工廠方法
 
-| 方法 | 簽章 | 描述 | 範例 |
-|------|------|------|------|
-| `blob` | `(blob: Blob, chunk?: bigint) => Semantic<Uint8Array>` | 將 Blob 轉換為位元組流 | `blob(fileBlob, 1024n)` |
-| `empty` | `<E>() => Semantic<E>` | 建立空串流 | `empty<number>()` |
-| `fill` | `<E>(element: E, count: bigint) => Semantic<E>` | 填充指定數量的元素 | `fill("hello", 5n)` |
-| `from` | `<E>(iterable: Iterable<E>) => Semantic<E>` | 從可迭代物件建立串流 | `from([1, 2, 3])` |
-| `range` | `<N extends number\|bigint>(start: N, end: N, step?: N) => Semantic<N>` | 建立數值範圍串流 | `range(1, 10, 2)` |
-| `iterate` | `<E>(generator: Generator<E>) => Semantic<E>` | 從產生器函數建立串流 | `iterate(myGenerator)` |
-| `websocket` | `(websocket: WebSocket) => Semantic<MessageEvent>` | 從 WebSocket 建立事件流 | `websocket(socket)` |
+| 方法 | 描述 | 時間複雜度 | 空間複雜度 |
+|------|------|------------|------------|
+| `Optional.empty<T>()` | 創建空的 Optional | O(1) | O(1) |
+| `Optional.of<T>(value)` | 創建包含值的 Optional | O(1) | O(1) |
+| `Optional.ofNullable<T>(value)` | 創建可能為空的 Optional | O(1) | O(1) |
+| `Optional.ofNonNull<T>(value)` | 創建非空的 Optional | O(1) | O(1) |
 
-**程式碼範例補充：**
 ```typescript
-import { from, range, fill, empty } from 'semantic-typescript';
+// Optional 使用示例
+const emptyOpt = Optional.empty<number>();
+const presentOpt = Optional.of(42);
+const nullableOpt = Optional.ofNullable<string>(null);
+const nonNullOpt = Optional.ofNonNull("hello");
 
-// 從陣列建立串流
+presentOpt.ifPresent(val => console.log(val)); // 輸出 42
+console.log(emptyOpt.orElse(100)); // 輸出 100
+```
+
+### Collector 工廠方法
+
+| 方法 | 描述 | 時間複雜度 | 空間複雜度 |
+|------|------|------------|------------|
+| `Collector.full(identity, accumulator, finisher)` | 創建完整收集器 | O(1) | O(1) |
+| `Collector.shortable(identity, interruptor, accumulator, finisher)` | 創建可中斷收集器 | O(1) | O(1) |
+
+```typescript
+// Collector 使用示例
+const sumCollector = Collector.full(
+    () => 0,
+    (sum, num) => sum + num,
+    result => result
+);
+
+const numbers = from([1, 2, 3, 4, 5]);
+const total = numbers.toUnoredered().collect(sumCollector); // 15
+```
+
+### Semantic 工廠方法
+
+| 方法 | 描述 | 時間複雜度 | 空間複雜度 |
+|------|------|------------|------------|
+| `blob(blob, chunkSize)` | 從 Blob 建立串流 | O(n) | O(chunkSize) |
+| `empty<E>()` | 建立空串流 | O(1) | O(1) |
+| `fill<E>(element, count)` | 建立填充串流 | O(n) | O(1) |
+| `from<E>(iterable)` | 從可迭代物件建立串流 | O(1) | O(1) |
+| `interval(period, delay?)` | 建立定時間隔串流 | O(1)* | O(1) |
+| `iterate<E>(generator)` | 從產生器建立串流 | O(1) | O(1) |
+| `range(start, end, step)` | 建立數值範圍串流 | O(n) | O(1) |
+| `websocket(websocket)` | 從 WebSocket 建立串流 | O(1) | O(1) |
+
+```typescript
+// Semantic 工廠方法使用範例
+
+// 從 Blob 建立串流（分塊讀取）
+blob(someBlob, 1024n)
+  .toUnordered()
+  .write(WritableStream)
+  .then(callback) // 串流寫入成功
+  .catch(writeFi); // 串流寫入失敗
+
+// 建立空串流，僅在與其他串流連接後才會執行
+empty<string>()
+  .toUnordered()
+  .join(); //[]
+
+// 建立填充串流
+const filledStream = fill("hello", 3); // "hello", "hello", "hello"
+
+// 建立初始延遲2秒、執行週期5秒的時序串流，
+// 基於計時器機制實現，因系統排程限制可能產生時間漂移
+const intervalStream = interval(5000, 2000);
+
+// 從可迭代物件建立串流
 const numberStream = from([1, 2, 3, 4, 5]);
+const stringStream = from(new Set(["Alex", "Bob"]));
 
-// 建立數值範圍串流
+// 建立範圍串流
 const rangeStream = range(1, 10, 2); // 1, 3, 5, 7, 9
 
-// 填充重複元素
-const filledStream = fill("hello", 3n); // "hello", "hello", "hello"
-
-// 建立空串流
-const emptyStream = empty<number>();
+// WebSocket 事件串流
+const ws = new WebSocket("ws://localhost:8080");
+websocket(ws)
+  .filter((event)=> event.type === "message") // 僅監聽訊息事件
+  .toUnordered() // 事件通常不排序
+  .forEach((event)=> receive(event)); // 接收訊息
 ```
 
-### 實用函數工廠
+## Semantic 類方法
 
-| 方法 | 簽章 | 描述 | 範例 |
-|------|------|------|------|
-| `validate` | `<T>(t: MaybeInvalid<T>) => t is T` | 驗證值是否有效 | `validate(null)` → `false` |
-| `invalidate` | `<T>(t: MaybeInvalid<T>) => t is null\|undefined` | 驗證值是否無效 | `invalidate(0)` → `false` |
-| `useCompare` | `<T>(t1: T, t2: T) => number` | 通用比較函數 | `useCompare("a", "b")` → `-1` |
-| `useRandom` | `<T = number\|bigint>(index: T) => T` | 偽隨機數產生器 | `useRandom(5)` → 隨機數 |
+| 方法 | 描述 | 時間複雜度 | 空間複雜度 |
+|------|------|------------|------------|
+| `concat(other)` | 連接兩個流 | O(n) | O(1) |
+| `distinct()` | 去重 | O(n) | O(n) |
+| `distinct(comparator)` | 使用比較器去重 | O(n²) | O(n) |
+| `dropWhile(predicate)` | 丟棄滿足條件的元素 | O(n) | O(1) |
+| `filter(predicate)` | 過濾元素 | O(n) | O(1) |
+| `flat(mapper)` | 扁平化映射 | O(n × m) | O(1) |
+| `flatMap(mapper)` | 扁平化映射到新型別 | O(n × m) | O(1) |
+| `limit(n)` | 限制元素數量 | O(n) | O(1) |
+| `map(mapper)` | 映射轉換 | O(n) | O(1) |
+| `peek(consumer)` | 查看元素 | O(n) | O(1) |
+| `redirect(redirector)` | 重定向索引 | O(n) | O(1) |
+| `reverse()` | 反轉流 | O(n) | O(1) |
+| `shuffle()` | 隨機打亂 | O(n) | O(1) |
+| `shuffle(mapper)` | 使用映射器打亂 | O(n) | O(1) |
+| `skip(n)` | 跳過前n個元素 | O(n) | O(1) |
+| `sorted()` | 排序 | O(n log n) | O(n) |
+| `sorted(comparator)` | 使用比較器排序 | O(n log n) | O(n) |
+| `sub(start, end)` | 獲取子流 | O(n) | O(1) |
+| `takeWhile(predicate)` | 獲取滿足條件的元素 | O(n) | O(1) |
+| `translate(offset)` | 平移索引 | O(n) | O(1) |
+| `translate(translator)` | 使用轉換器平移索引 | O(n) | O(1) |
 
-**程式碼範例補充：**
 ```typescript
-import { validate, invalidate, useCompare, useRandom } from 'semantic-typescript';
+// Semantic 操作示例
+const result = from([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
+    .filter(n => n % 2 === 0)        // 過濾偶數
+    .map(n => n * 2)                 // 乘以2
+    .skip(1)                         // 跳過第一個
+    .limit(3)                        // 限制3個元素
+    .toArray();                      // 轉換為陣列
+// 結果: [8, 12, 20]
 
-// 驗證資料有效性
-const data: string | null = "hello";
-if (validate(data)) {
-    console.log(data.toUpperCase()); // 安全呼叫，因為 validate 確保資料不為 null
-}
-
-const nullData: string | null = null;
-if (invalidate(nullData)) {
-    console.log("資料無效"); // 會執行，因為 invalidate 檢測到 null
-}
-
-// 比較值
-const comparison = useCompare("apple", "banana"); // -1
-
-// 產生隨機數
-const randomNum = useRandom(42); // 基於種子 42 的隨機數
+// 複雜操作示例
+const complexResult = range(1, 100, 1)
+    .flatMap(n => from([n, n * 2])) // 每個元素映射為兩個
+    .distinct()                      // 去重
+    .shuffle()                       // 打亂順序
+    .takeWhile(n => n < 50)         // 取小於50的元素
+    .toOrdered()                     // 轉換為有序收集器
+    .toArray();                      // 轉換為陣列
 ```
 
-## 核心類別詳情
+## 收集器轉換方法
 
-### Optional<T> - 安全空值處理
+| 方法 | 描述 | 時間複雜度 | 空間複雜度 |
+|------|------|------------|------------|
+| `toUnoredered()` | 轉換為無序收集器（效能優先） | O(1) | O(1) |
+| `toOrdered()` | 轉換為有序收集器 | O(1) | O(1) |
+| `sorted()` | 排序並轉換為有序收集器 | O(n log n) | O(n) |
+| `toWindow()` | 轉換為視窗收集器 | O(1) | O(1) |
+| `toNumericStatistics()` | 轉換為數值統計 | O(1) | O(1) |
+| `toBigintStatistics()` | 轉換為大數統計 | O(1) | O(1) |
 
-Optional 類別提供函數式方法來安全處理可能為 null 或 undefined 的值。
-
-| 方法 | 回傳型別 | 描述 | 時間複雜度 |
-|------|----------|------|------------|
-| `filter(predicate: Predicate<T>)` | `Optional<T>` | 過濾滿足條件的值 | O(1) |
-| `get()` | `T` | 獲取值，若為空則拋出錯誤 | O(1) |
-| `getOrDefault(defaultValue: T)` | `T` | 獲取值或預設值 | O(1) |
-| `ifPresent(action: Consumer<T>)` | `void` | 如果值存在則執行動作 | O(1) |
-| `isEmpty()` | `boolean` | 檢查是否為空 | O(1) |
-| `isPresent()` | `boolean` | 檢查值是否存在 | O(1) |
-| `map<R>(mapper: Functional<T, R>)` | `Optional<R>` | 對值進行對映和轉換 | O(1) |
-| `static of<T>(value: MaybeInvalid<T>)` | `Optional<T>` | 建立 Optional 實例 | O(1) |
-| `static ofNullable<T>(value?)` | `Optional<T>` | 建立可為空的 Optional | O(1) |
-| `static ofNonNull<T>(value: T)` | `Optional<T>` | 建立非空 Optional | O(1) |
-
-**程式碼範例補充：**
 ```typescript
-import { Optional } from 'semantic-typescript';
+// 收集器轉換示例
+const numbers = from([3, 1, 4, 1, 5, 9, 2, 6, 5]);
 
-// 建立 Optional 實例
-const optionalValue = Optional.ofNullable<string>(Math.random() > 0.5 ? "hello" : null);
+// 效能優先：使用無序收集器
+const unordered = numbers
+    .filter(n => n > 3)
+    .toUnoredered();
 
-// 鏈式操作
-const result = optionalValue
-    .filter(val => val.length > 3) // 過濾長度大於 3 的值
-    .map(val => val.toUpperCase()) // 轉換為大寫
-    .getOrDefault("default"); // 獲取值或預設值
+// 需要排序：使用有序收集器  
+const ordered = numbers.sorted();
 
-console.log(result); // "HELLO" 或 "default"
+// 統計分析：使用統計收集器
+const stats = numbers
+    .toNumericStatistics();
 
-// 安全操作
-optionalValue.ifPresent(val => {
-    console.log(`值存在: ${val}`);
+console.log(stats.mean());        // 平均值
+console.log(stats.median());      // 中位數
+console.log(stats.standardDeviation()); // 標準差
+
+// 視窗操作
+const windowed = numbers
+    .toWindow()
+    .tumble(3n); // 每3個元素一個視窗
+
+windowed.forEach(window => {
+    console.log(window.toArray()); // 每個視窗的內容
 });
-
-// 檢查狀態
-if (optionalValue.isPresent()) {
-    console.log("有值");
-} else if (optionalValue.isEmpty()) {
-    console.log("為空");
-}
 ```
 
-### Semantic<E> - 惰性資料流
+## Collectable 收集方法
 
-Semantic 是核心的串流處理類別，提供豐富的串流運算子。
+| 方法 | 描述 | 時間複雜度 | 空間複雜度 |
+|------|------|------------|------------|
+| `anyMatch(predicate)` | 是否存在匹配元素 | O(n) | O(1) |
+| `allMatch(predicate)` | 是否所有元素匹配 | O(n) | O(1) |
+| `count()` | 元素計數 | O(n) | O(1) |
+| `isEmpty()` | 是否為空 | O(1) | O(1) |
+| `findAny()` | 查找任意元素 | O(n) | O(1) |
+| `findFirst()` | 查找第一個元素 | O(n) | O(1) |
+| `findLast()` | 查找最後一個元素 | O(n) | O(1) |
+| `forEach(action)` | 遍歷所有元素 | O(n) | O(1) |
+| `group(classifier)` | 按分類器分組 | O(n) | O(n) |
+| `groupBy(keyExtractor, valueExtractor)` | 按鍵值提取器分組 | O(n) | O(n) |
+| `join()` | 連接為字串 | O(n) | O(n) |
+| `join(delimiter)` | 使用分隔符連接 | O(n) | O(n) |
+| `nonMatch(predicate)` | 是否沒有元素匹配 | O(n) | O(1) |
+| `partition(count)` | 按數量分區 | O(n) | O(n) |
+| `partitionBy(classifier)` | 按分類器分區 | O(n) | O(n) |
+| `reduce(accumulator)` | 歸約操作 | O(n) | O(1) |
+| `reduce(identity, accumulator)` | 帶初始值的歸約 | O(n) | O(1) |
+| `toArray()` | 轉換為陣列 | O(n) | O(n) |
+| `toMap(keyExtractor, valueExtractor)` | 轉換為Map | O(n) | O(n) |
+| `toSet()` | 轉換為Set | O(n) | O(n) |
+| `write(stream)` | 寫入流 | O(n) | O(1) |
 
-#### 串流轉換操作
-
-| 方法 | 回傳型別 | 描述 | 效能影響 |
-|------|----------|------|----------|
-| `concat(other: Semantic<E>)` | `Semantic<E>` | 連接兩個串流 | O(n+m) |
-| `distinct()` | `Semantic<E>` | 移除重複項（使用 Set） | O(n) |
-| `distinct(comparator)` | `Semantic<E>` | 自訂比較器去重 | O(n²) |
-| `dropWhile(predicate)` | `Semantic<E>` | 丟棄滿足條件的起始元素 | O(n) |
-| `filter(predicate)` | `Semantic<E>` | 過濾元素 | O(n) |
-| `flat(mapper)` | `Semantic<E>` | 扁平化巢狀串流 | O(n×m) |
-| `flatMap(mapper)` | `Semantic<R>` | 對映並扁平化 | O(n×m) |
-| `limit(n)` | `Semantic<E>` | 限制元素數量 | O(n) |
-| `map(mapper)` | `Semantic<R>` | 對映和轉換元素 | O(n) |
-| `peek(consumer)` | `Semantic<E>` | 檢視元素而不修改 | O(n) |
-| `redirect(redirector)` | `Semantic<E>` | 重新導向索引 | O(n) |
-| `reverse()` | `Semantic<E>` | 反轉串流順序 | O(n) |
-| `shuffle()` | `Semantic<E>` | 隨機洗牌順序 | O(n) |
-| `shuffle(mapper)` | `Semantic<E>` | 自訂洗牌邏輯 | O(n) |
-| `skip(n)` | `Semantic<E>` | 跳過前 n 個元素 | O(n) |
-| `sub(start, end)` | `Semantic<E>` | 獲取子串流 | O(n) |
-| `takeWhile(predicate)` | `Semantic<E>` | 獲取滿足條件的起始元素 | O(n) |
-| `translate(offset)` | `Semantic<E>` | 平移索引 | O(n) |
-| `translate(translator)` | `Semantic<E>` | 自訂索引轉換 | O(n) |
-
-**程式碼範例補充：**
 ```typescript
-import { from } from 'semantic-typescript';
+// Collectable 操作示例
+const data = from([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
+    .filter(n => n % 2 === 0)
+    .toOrdered();
 
-const stream = from([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+// 匹配檢查
+console.log(data.anyMatch(n => n > 5)); // true
+console.log(data.allMatch(n => n < 20)); // true
 
-// 串流轉換操作範例
-const processedStream = stream
-    .filter(x => x % 2 === 0) // 過濾偶數
-    .map(x => x * 2) // 每個元素乘以 2
-    .distinct() // 移除重複項
-    .limit(3) // 限制為前 3 個元素
-    .peek((val, index) => console.log(`元素 ${val} 在索引 ${index}`)); // 檢視元素
-
-// 注意：串流尚未執行，需要轉換為 Collectable 以進行終端操作
-```
-
-#### 串流終端操作
-
-| 方法 | 回傳型別 | 描述 | 效能特性 |
-|------|----------|------|----------|
-| `toOrdered()` | `OrderedCollectable<E>` | 轉換為有序集合 | 排序操作，效能較低 |
-| `toUnordered()` | `UnorderedCollectable<E>` | 轉換為無序集合 | 最快，無排序 |
-| `toWindow()` | `WindowCollectable<E>` | 轉換為視窗集合 | 排序操作，效能較低 |
-| `toNumericStatistics()` | `Statistics<E, number>` | 數值統計分析 | 排序操作，效能較低 |
-| `toBigintStatistics()` | `Statistics<E, bigint>` | 大整數統計分析 | 排序操作，效能較低 |
-| `sorted()` | `OrderedCollectable<E>` | 自然排序 | 覆寫重新導向結果 |
-| `sorted(comparator)` | `OrderedCollectable<E>` | 自訂排序 | 覆寫重新導向結果 |
-
-**程式碼範例補充：**
-```typescript
-import { from } from 'semantic-typescript';
-
-const semanticStream = from([5, 2, 8, 1, 9, 3, 7, 4, 6]);
-
-// 轉換為有序集合（效能較低）
-const ordered = semanticStream.toOrdered();
-
-// 轉換為無序集合（最快）
-const unordered = semanticStream.toUnordered();
-
-// 自然排序
-const sortedNatural = semanticStream.sorted();
-
-// 自訂排序
-const sortedCustom = semanticStream.sorted((a, b) => b - a); // 降序排序
-
-// 轉換為統計物件
-const stats = semanticStream.toNumericStatistics();
-
-// 注意：必須透過 Semantic 實例呼叫上述方法以獲取 Collectable，然後才能使用終端方法
-```
-
-### Collector<E, A, R> - 資料收集器
-
-收集器用於將串流資料聚合為特定結構。
-
-| 方法 | 描述 | 使用場景 |
-|------|------|----------|
-| `collect(generator)` | 執行資料收集 | 串流終端操作 |
-| `static full(identity, accumulator, finisher)` | 建立完整收集器 | 需要完整處理 |
-| `static shortable(identity, interruptor, accumulator, finisher)` | 建立可中斷收集器 | 可能提前終止 |
-
-**程式碼範例補充：**
-```typescript
-import { Collector } from 'semantic-typescript';
-
-// 建立自訂收集器
-const sumCollector = Collector.full(
-    () => 0, // 初始值
-    (acc, value) => acc + value, // 累加器
-    result => result // 完成函數
-);
-
-// 使用收集器（需要先從 Semantic 轉換為 Collectable）
-const numbers = from([1, 2, 3, 4, 5]);
-const sum = numbers.toUnordered().collect(sumCollector); // 15
-```
-
-### Collectable<E> - 可收集資料抽象類別
-
-提供豐富的資料聚合和轉換方法。**注意：必須先透過 Semantic 實例呼叫 sorted()、toOrdered() 等方法獲取 Collectable 實例，然後才能使用以下方法。**
-
-#### 資料查詢操作
-
-| 方法 | 回傳型別 | 描述 | 範例 |
-|------|----------|------|------|
-| `anyMatch(predicate)` | `boolean` | 是否有任何元素匹配 | `anyMatch(x => x > 0)` |
-| `allMatch(predicate)` | `boolean` | 是否所有元素匹配 | `allMatch(x => x > 0)` |
-| `count()` | `bigint` | 元素數量統計 | `count()` → `5n` |
-| `isEmpty()` | `boolean` | 串流是否為空 | `isEmpty()` |
-| `findAny()` | `Optional<E>` | 尋找任意元素 | `findAny()` |
-| `findFirst()` | `Optional<E>` | 尋找第一個元素 | `findFirst()` |
-| `findLast()` | `Optional<E>` | 尋找最後一個元素 | `findLast()` |
-
-**程式碼範例補充：**
-```typescript
-import { from } from 'semantic-typescript';
-
-const numbers = from([1, 2, 3, 4, 5]);
-
-// 必須先轉換為 Collectable 才能使用終端方法
-const collectable = numbers.toUnordered();
-
-// 資料查詢操作
-const hasEven = collectable.anyMatch(x => x % 2 === 0); // true
-const allPositive = collectable.allMatch(x => x > 0); // true
-const count = collectable.count(); // 5n
-const isEmpty = collectable.isEmpty(); // false
-const firstElement = collectable.findFirst(); // Optional.of(1)
-const anyElement = collectable.findAny(); // 任意元素
-```
-
-#### 資料聚合操作
-
-| 方法 | 回傳型別 | 描述 | 複雜度 |
-|------|----------|------|--------|
-| `group(classifier)` | `Map<K, E[]>` | 按分類器分組 | O(n) |
-| `groupBy(keyExtractor, valueExtractor)` | `Map<K, V[]>` | 按鍵值提取器分組 | O(n) |
-| `join()` | `string` | 連接為字串 | O(n) |
-| `join(delimiter)` | `string` | 使用分隔符連接 | O(n) |
-| `partition(count)` | `E[][]` | 按數量分割 | O(n) |
-| `partitionBy(classifier)` | `E[][]` | 按分類器分割 | O(n) |
-| `reduce(accumulator)` | `Optional<E>` | 歸約操作 | O(n) |
-| `reduce(identity, accumulator)` | `E` | 帶初始值的歸約 | O(n) |
-| `toArray()` | `E[]` | 轉換為陣列 | O(n) |
-| `toMap(keyExtractor, valueExtractor)` | `Map<K, V>` | 轉換為 Map | O(n) |
-| `toSet()` | `Set<E>` | 轉換為 Set | O(n) |
-
-**程式碼範例補充：**
-```typescript
-import { from } from 'semantic-typescript';
-
-const people = from([
-    { name: "Alice", age: 25, city: "New York" },
-    { name: "Bob", age: 30, city: "London" },
-    { name: "Charlie", age: 25, city: "New York" }
-]);
-
-// 必須先轉換為 Collectable 才能使用聚合操作
-const collectable = people.toUnordered();
+// 查找操作
+data.findFirst().ifPresent(n => console.log(n)); // 2
+data.findAny().ifPresent(n => console.log(n)); // 任意元素
 
 // 分組操作
-const byCity = collectable.group(person => person.city);
-// Map { "New York" => [{name: "Alice", ...}, {name: "Charlie", ...}], "London" => [{name: "Bob", ...}] }
-
-const byAge = collectable.groupBy(
-    person => person.age,
-    person => person.name
+const grouped = data.groupBy(
+    n => n > 5 ? "large" : "small",
+    n => n * 2
 );
-// Map { 25 => ["Alice", "Charlie"], 30 => ["Bob"] }
-
-// 轉換為集合
-const array = collectable.toArray(); // 原始陣列
-const set = collectable.toSet(); // Set 集合
-const map = collectable.toMap(
-    person => person.name,
-    person => person.age
-); // Map { "Alice" => 25, "Bob" => 30, "Charlie" => 25 }
+// {small: [4, 8], large: [12, 16, 20]}
 
 // 歸約操作
-const totalAge = collectable.reduce(0, (acc, person) => acc + person.age); // 80
-const oldest = collectable.reduce((a, b) => a.age > b.age ? a : b); // Optional.of({name: "Bob", age: 30, ...})
+const sum = data.reduce(0, (acc, n) => acc + n); // 30
+
+// 輸出操作
+data.join(", "); // "2, 4, 6, 8, 10"
 ```
 
-### 特定收集器實作
+## 統計分析方法
 
-#### UnorderedCollectable<E>
-- **特性**：最快的收集器，無排序
-- **使用場景**：順序不重要，需要最高效能
-- **方法**：繼承所有 Collectable 方法
+### NumericStatistics 方法
 
-#### OrderedCollectable<E>
-- **特性**：保證元素順序，效能較低
-- **使用場景**：需要排序結果
-- **特殊方法**：繼承所有方法，維持內部排序狀態
-
-#### WindowCollectable<E>
-- **特性**：支援滑動視窗操作
-- **使用場景**：時間序列資料分析
-- **特殊方法**：
-  - `slide(size, step)` - 滑動視窗
-  - `tumble(size)` - 翻滾視窗
-
-**程式碼範例補充：**
-```typescript
-import { from } from 'semantic-typescript';
-
-const data = from([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
-
-// 無序收集器（最快）
-const unordered = data.toUnordered();
-const unorderedArray = unordered.toArray(); // 可能維持原始順序 [1, 2, 3, ...]
-
-// 有序收集器
-const ordered = data.toOrdered();
-const orderedArray = ordered.toArray(); // 保證排序 [1, 2, 3, ...]
-
-// 視窗收集器
-const windowed = data.toWindow();
-const slidingWindows = windowed.slide(3n, 2n); // 視窗大小 3，步長 2
-// 視窗 1: [1, 2, 3], 視窗 2: [3, 4, 5], 視窗 3: [5, 6, 7], ...
-
-const tumblingWindows = windowed.tumble(4n); // 翻滾視窗大小 4
-// 視窗 1: [1, 2, 3, 4], 視窗 2: [5, 6, 7, 8], ...
-```
-
-### Statistics<E, D> - 統計分析
-
-統計分析基礎類別，提供豐富的統計計算方法。**注意：必須先透過 Semantic 實例呼叫 toNumericStatistics() 或 toBigIntStatistics() 獲取 Statistics 實例，然後才能使用以下方法。**
-
-#### 統計計算操作
-
-| 方法 | 回傳型別 | 描述 | 演算法複雜度 |
-|------|----------|------|------------|
-| `maximum()` | `Optional<E>` | 最大值 | O(n) |
-| `minimum()` | `Optional<E>` | 最小值 | O(n) |
-| `range()` | `D` | 範圍（最大值-最小值） | O(n) |
-| `variance()` | `D` | 變異數 | O(n) |
-| `standardDeviation()` | `D` | 標準差 | O(n) |
-| `mean()` | `D` | 平均值 | O(n) |
-| `median()` | `D` | 中位數 | O(n log n) |
-| `mode()` | `D` | 眾數 | O(n) |
-| `frequency()` | `Map<D, bigint>` | 頻率分佈 | O(n) |
-| `summate()` | `D` | 總和 | O(n) |
-| `quantile(quantile)` | `D` | 分位數 | O(n log n) |
-| `interquartileRange()` | `D` | 四分位距 | O(n log n) |
-| `skewness()` | `D` | 偏度 | O(n) |
-| `kurtosis()` | `D` | 峰度 | O(n) |
-
-**程式碼範例補充：**
-```typescript
-import { from } from 'semantic-typescript';
-
-const numbers = from([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
-
-// 必須先轉換為統計物件才能使用統計方法
-const stats = numbers.toNumericStatistics();
-
-// 基礎統計
-const count = stats.count(); // 10n
-const max = stats.maximum(); // Optional.of(10)
-const min = stats.minimum(); // Optional.of(1)
-const range = stats.range(); // 9
-const mean = stats.mean(); // 5.5
-const median = stats.median(); // 5.5
-const sum = stats.summate(); // 55
-
-// 進階統計
-const variance = stats.variance(); // 8.25
-const stdDev = stats.standardDeviation(); // 2.872
-const mode = stats.mode(); // 任意值（因為每個都出現一次）
-const q1 = stats.quantile(0.25); // 3.25
-const q3 = stats.quantile(0.75); // 7.75
-const iqr = stats.interquartileRange(); // 4.5
-
-// 頻率分佈
-const freq = stats.frequency(); // Map {1 => 1n, 2 => 1n, ...}
-```
-
-#### 特定統計實作類別
-
-**NumericStatistics<E>**
-- 處理 number 型別的統計分析
-- 所有統計計算回傳 number 型別
-
-**BigIntStatistics<E>**
-- 處理 bigint 型別的統計分析
-- 所有統計計算回傳 bigint 型別
-
-**程式碼範例補充：**
-```typescript
-import { from } from 'semantic-typescript';
-
-// 數值統計
-const numberData = from([10, 20, 30, 40, 50]);
-const numericStats = numberData.toNumericStatistics();
-
-console.log(numericStats.mean()); // 30
-console.log(numericStats.summate()); // 150
-
-// 大整數統計
-const bigintData = from([100n, 200n, 300n, 400n, 500n]);
-const bigintStats = bigintData.toBigIntStatistics();
-
-console.log(bigintStats.mean()); // 300n
-console.log(bigintStats.summate()); // 1500n
-
-// 使用對映函數的統計
-const objectData = from([
-    { value: 15 },
-    { value: 25 },
-    { value: 35 },
-    { value: 45 }
-]);
-
-const objectStats = objectData.toNumericStatistics();
-const meanWithMapper = objectStats.mean(obj => obj.value); // 30
-const sumWithMapper = objectStats.summate(obj => obj.value); // 120
-```
-
-## 完整使用範例
+| 方法 | 描述 | 時間複雜度 | 空間複雜度 |
+|------|------|------------|------------|
+| `range()` | 極差 | O(n) | O(1) |
+| `variance()` | 方差 | O(n) | O(1) |
+| `standardDeviation()` | 標準差 | O(n) | O(1) |
+| `mean()` | 平均值 | O(n) | O(1) |
+| `median()` | 中位數 | O(n log n) | O(n) |
+| `mode()` | 眾數 | O(n) | O(n) |
+| `frequency()` | 頻率分佈 | O(n) | O(n) |
+| `summate()` | 求和 | O(n) | O(1) |
+| `quantile(quantile)` | 分位數 | O(n log n) | O(n) |
+| `interquartileRange()` | 四分位距 | O(n log n) | O(n) |
+| `skewness()` | 偏度 | O(n) | O(1) |
+| `kurtosis()` | 峰度 | O(n) | O(1) |
 
 ```typescript
-import { from, validate, invalidate } from 'semantic-typescript';
+// 統計分析示例
+const numbers = from([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
+    .toNumericStatistics();
 
-// 1. 建立資料流
-const rawData = [5, 2, 8, 1, null, 9, 3, undefined, 7, 4, 6];
-const semanticStream = from(rawData);
+console.log("平均值:", numbers.mean()); // 5.5
+console.log("中位數:", numbers.median()); // 5.5
+console.log("標準差:", numbers.standardDeviation()); // ~2.87
+console.log("總和:", numbers.summate()); // 55
 
-// 2. 串流處理管道
-const processedStream = semanticStream
-    .filter(val => validate(val)) // 過濾掉 null 和 undefined
-    .map(val => val! * 2) // 每個值乘以 2（使用 ! 因為 validate 確保不為空）
-    .distinct(); // 移除重複項
+// 使用映射器的統計分析
+const objects = from([
+    { value: 10 },
+    { value: 20 }, 
+    { value: 30 }
+]).toNumericStatistics();
 
-// 3. 轉換為 Collectable 並使用終端操作
-const collectable = processedStream.toUnordered();
-
-// 4. 資料驗證和使用
-if (!collectable.isEmpty()) {
-    const results = collectable
-        .filter(x => x > 5) // 再次過濾
-        .toArray(); // 轉換為陣列
-
-    console.log("處理結果:", results); // [16, 18, 14, 8, 12]
-
-    // 統計資訊
-    const stats = processedStream.toNumericStatistics();
-    console.log("平均值:", stats.mean()); // 11.2
-    console.log("總和:", stats.summate()); // 56
-}
-
-// 5. 處理潛在的無效資料
-const potentiallyInvalidData: Array<number | null> = [1, null, 3, 4, null];
-const validData = potentiallyInvalidData.filter(validate);
-const invalidData = potentiallyInvalidData.filter(invalidate);
-
-console.log("有效資料:", validData); // [1, 3, 4]
-console.log("無效資料:", invalidData); // [null, null]
+console.log("映射平均值:", objects.mean(obj => obj.value)); // 20
 ```
 
-## 重要使用規則總結
+## 效能選擇指南
 
-1. **建立串流**：使用 `from()`、`range()`、`fill()` 等工廠方法建立 Semantic 實例
-2. **串流轉換**：在 Semantic 實例上呼叫 `map()`、`filter()`、`distinct()` 等方法
-3. **轉換為 Collectable**：必須透過 Semantic 實例呼叫以下方法之一：
-   - `toOrdered()` - 有序收集器
-   - `toUnordered()` - 無序收集器（最快）
-   - `toWindow()` - 視窗收集器
-   - `toNumericStatistics()` - 數值統計
-   - `toBigIntStatistics()` - 大整數統計
-   - `sorted()` - 自然排序
-   - `sorted(comparator)` - 自訂排序
-4. **終端操作**：在 Collectable 實例上呼叫 `toArray()`、`count()`、`summate()` 等終端方法
-5. **資料驗證**：使用 `validate()` 確保資料不為 null/undefined，使用 `invalidate()` 檢查無效資料
+### 選擇無序收集器（效能優先）
+```typescript
+// 當不需要順序保證時，使用無序收集器獲得最佳效能
+const highPerformance = data
+    .filter(predicate)
+    .map(mapper)
+    .toUnoredered(); // 最佳效能
+```
 
-這種設計確保了型別安全性和效能最佳化，同時提供豐富的串流處理功能。
+### 選擇有序收集器（需要順序）
+```typescript
+// 當需要保持元素順序時，使用有序收集器
+const ordered = data
+    .sorted(comparator) // 排序操作會覆蓋重定向效果
+```
+
+### 選擇視窗收集器（視窗操作）
+```typescript
+// 需要進行視窗操作時
+const windowed = data
+    .toWindow()
+    .slide(5n, 2n); // 滑動視窗
+```
+
+### 選擇統計分析（數值計算）
+```typescript
+// 需要進行統計分析時
+const stats = data
+    .toNumericStatistics(); // 數值統計
+
+const bigIntStats = data
+    .toBigintStatistics(); // 大數統計
+```
+
+[GitHub](https://github.com/eloyhere/semantic-typescript)
+[NPMJS](https://www.npmjs.com/package/semantic-typescript)
+
+## 注意事項
+
+1. **排序操作的影響**：在有序收集器中，`sorted()` 操作會覆蓋 `redirect`、`translate`、`shuffle`、`reverse` 的效果
+2. **效能考慮**：如果不需要順序保證，優先使用 `toUnoredered()` 獲得更好效能
+3. **記憶體使用**：排序操作需要 O(n) 的額外空間
+4. **實時數據**：Semantic 流適合處理實時數據，支援非同步數據源
+
+這個庫為 TypeScript 開發者提供了強大而靈活的流式處理能力，結合了函數式編程的優點和類型安全的保障。

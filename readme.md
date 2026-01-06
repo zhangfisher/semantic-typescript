@@ -36,31 +36,52 @@ Particularly important to note: `sorted()` and `sorted(comparator)` will overrid
 
 ### Stream Creation Factories
 
-| Method | Signature | Description | Example |
-|------|------|------|------|
-| `blob` | `(blob: Blob, chunk?: bigint) => Semantic<Uint8Array>` | Convert Blob to byte stream | `blob(fileBlob, 1024n)` |
-| `empty` | `<E>() => Semantic<E>` | Create empty stream | `empty<number>()` |
-| `fill` | `<E>(element: E, count: bigint) => Semantic<E>` | Fill with specified number of elements | `fill("hello", 5n)` |
-| `from` | `<E>(iterable: Iterable<E>) => Semantic<E>` | Create stream from iterable object | `from([1, 2, 3])` |
-| `range` | `<N extends number\|bigint>(start: N, end: N, step?: N) => Semantic<N>` | Create numerical range stream | `range(1, 10, 2)` |
-| `iterate` | `<E>(generator: Generator<E>) => Semantic<E>` | Create stream from generator function | `iterate(myGenerator)` |
-| `websocket` | `(websocket: WebSocket) => Semantic<MessageEvent>` | Create event stream from WebSocket | `websocket(socket)` |
+| Method | Description | Time Complexity | Space Complexity |
+|--------|-------------|-----------------|------------------|
+| `blob(blob, chunkSize)` | Create stream from Blob | O(n) | O(chunkSize) |
+| `empty<E>()` | Create empty stream | O(1) | O(1) |
+| `fill<E>(element, count)` | Create filled stream | O(n) | O(1) |
+| `from<E>(iterable)` | Create stream from iterable object | O(1) | O(1) |
+| `interval(period, delay?)` | Create timed interval stream | O(1)* | O(1) |
+| `iterate<E>(generator)` | Create stream from generator | O(1) | O(1) |
+| `range(start, end, step)` | Create numeric range stream | O(n) | O(1) |
+| `websocket(websocket)` | Create stream from WebSocket | O(1) | O(1) |
 
-**Code Example Supplement:**
 ```typescript
-import { from, range, fill, empty } from 'semantic-typescript';
+// Example usage of Semantic factory methods
 
-// Create stream from array
+// Create stream from Blob (chunked reading)
+blob(someBlob, 1024n)
+  .toUnordered()
+  .write(WritableStream)
+  .then(callback) // Stream write successful
+  .catch(writeFi); // Stream write failed
+
+// Create empty stream that won't execute until concatenated with other streams
+empty<string>()
+  .toUnordered()
+  .join(); //[]
+
+// Create filled stream
+const filledStream = fill("hello", 3); // "hello", "hello", "hello"
+
+// Create time series stream with 2-second initial delay and 5-second execution cycle,
+// implemented via timer mechanism, potential timing variations due to system scheduling constraints.
+const intervalStream = interval(5000, 2000);
+
+// Create stream from iterable object
 const numberStream = from([1, 2, 3, 4, 5]);
+const stringStream = from(new Set(["Alex", "Bob"]));
 
-// Create numerical range stream
+// Create range stream
 const rangeStream = range(1, 10, 2); // 1, 3, 5, 7, 9
 
-// Fill with repeated elements
-const filledStream = fill("hello", 3n); // "hello", "hello", "hello"
-
-// Create empty stream
-const emptyStream = empty<number>();
+// WebSocket event stream
+const ws = new WebSocket("ws://localhost:8080");
+websocket(ws)
+  .filter((event)=> event.type === "message") // Monitor only message events
+  .toUnordered() // For events typically unsorted
+  .forEach((event)=> receive(event)); // Receive messages
 ```
 
 ### Utility Function Factories
