@@ -315,7 +315,7 @@ class Optional<T> {
     }
 };
 
-export let blob: BiFunctional<Blob, bigint, Semantic<Uint8Array>> = (blob: Blob, chunk: bigint = 64n * 1024n): Semantic<Uint8Array> => {
+export let blob: Functional<Blob, Semantic<Uint8Array>> & BiFunctional<Blob, bigint, Semantic<Uint8Array>> = (blob: Blob, chunk: bigint = 64n * 1024n): Semantic<Uint8Array> => {
     let size: number = Number(chunk);
     if (size <= 0) {
         throw new RangeError("Chunk size must be positive.");
@@ -384,7 +384,7 @@ export let empty: <E>() => Semantic<E> = <E>(): Semantic<E> => {
     return new Semantic<E>(() => { });
 }
 
-export let fill: <E>(element: E | Supplier<E>, count: bigint) => Semantic<E> = <E>(element: E | Supplier<E>, count: bigint): Semantic<E> => {
+export let fill:  (<E>(element: E, count: bigint) => Semantic<E>) & (<E>(supplier: Supplier<E>, count: bigint) => Semantic<E> = <E>(element: E | Supplier<E>, count: bigint): Semantic<E> => {
     if (validate(element) && count > 0n) {
         return new Semantic<E>((accept, interrupt) => {
             for (let i = 0n; i < count; i++) {
@@ -440,8 +440,8 @@ export let iterate: <E>(generator: Generator<E>) => Semantic<E> = <E>(generator:
     throw new TypeError("Invalid arguments.");
 };
 
-export let range: <N extends number | bigint>(start: N, end: N, step: N) => Semantic<N> = <N extends number | bigint>(start: N, end: N, step: N = (typeof start === 'bigint' ? 1n : 1) as N): Semantic<N> => {
-    if ((isNumber(step) && step === 0) || (isBigint(step) && step === 0n)) {
+export let range: BiFunctional<number, number, Semantic<number>> & TriFunctional<number, number, number, Semantic<number>> & BiFunctional<bigint, bigint, Semantic<bigint>> TriFunctional<bigint, bigint, bigint, Semantic<bigint>> = (start: number | bigint, end: number | bigint, step: number = 1): Semantic<number | bigint> => {
+    if ((!isNumber(step) && !isBigint(step)) || (isNumber(step) && step === 0) || (isBigint(step) && step === 0n)) {
         throw new TypeError("Step cannot be zero.");
     }
     if (isNumber(start) && isNumber(end) && isNumber(step)) {
@@ -2306,3 +2306,4 @@ export class BigIntStatistics<E> extends Statistics<E, bigint> {
         throw new TypeError("Invalid arguments.");
     }
 };
+
