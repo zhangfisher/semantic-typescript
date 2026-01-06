@@ -134,8 +134,11 @@ export let SemanticSymbol = Symbol.for("Semantic");
 export let CollectorsSymbol = Symbol.for("Collector");
 export let CollectableSymbol = Symbol.for("Collectable");
 export let OrderedCollectableSymbol = Symbol.for("OrderedCollectable");
-export let UnorderedCollectableSymbol = Symbol.for("UnorderedCollectable");
+export let WindowCollectableSymbol = Symbol.for("WindowCollectable");
 export let StatisticsSymbol = Symbol.for("Statistics");
+export let NumericStatisticsSymbol = Symbol.for("NumericStatistics");
+export let BigIntStatisticsSymbol = Symbol.for("BigIntStatistics");
+export let UnorderedCollectableSymbol = Symbol.for("UnorderedCollectable");
 
 export let isOptional: (t: unknown) => t is Optional<unknown> = (t: unknown): t is Optional<unknown> => {
     if (isObject(t)) {
@@ -167,6 +170,12 @@ export let isOrderedCollectable: (t: unknown) => t is OrderedCollectable<unknown
     }
     return false;
 };
+export let isWindowCollectable: (t: unknown) => t is OrderedCollectable<unknown> = (t: unknown): t is OrderedCollectable<unknown> => {
+    if (isObject(t)) {
+        return Reflect.get(t, "WindowCollectable") === OrderedCollectableSymbol;
+    }
+    return false;
+};
 export let isUnorderedCollectable: (t: unknown) => t is UnorderedCollectable<unknown> = (t: unknown): t is UnorderedCollectable<unknown> => {
     if (isObject(t)) {
         return Reflect.get(t, "UnorderedCollectable") === UnorderedCollectableSymbol;
@@ -176,6 +185,18 @@ export let isUnorderedCollectable: (t: unknown) => t is UnorderedCollectable<unk
 export let isStatistics: (t: unknown) => t is Statistics<unknown, number | bigint> = (t: unknown): t is Statistics<unknown, number | bigint> => {
     if (isObject(t)) {
         return Reflect.get(t, "Statistics") === StatisticsSymbol;
+    }
+    return false;
+};
+export let isNumericStatistics: (t: unknown) => t is Statistics<unknown, number | bigint> = (t: unknown): t is Statistics<unknown, number | bigint> => {
+    if (isObject(t)) {
+        return Reflect.get(t, "NumericStatistics") === NumericStatisticsSymbol;
+    }
+    return false;
+};
+export let isBigIntStatistics: (t: unknown) => t is Statistics<unknown, number | bigint> = (t: unknown): t is Statistics<unknown, number | bigint> => {
+    if (isObject(t)) {
+        return Reflect.get(t, "BigIntStatistics") === BigIntStatisticsSymbol;
     }
     return false;
 };
@@ -228,60 +249,65 @@ class Optional<T> {
         this.value = value;
     }
 
-    filter(predicate: Predicate<T>): Optional<T> {
+    public filter(predicate: Predicate<T>): Optional<T> {
         if (this.isPresent() && isFunction(predicate) && predicate(this.value as T)) {
             return new Optional<T>(this.value as T);
         }
         return new Optional<T>((void 0));
     }
 
-    get(): T {
+    public get(): T;
+    public get(defaultValue: T): T;
+    public get(defaultValue?: T): T {
         if (this.isPresent()) {
             return this.value as T;
+        } else {
+            if (validate(defaultValue)) {
+                return defaultValue;
+            } else {
+                throw new TypeError("Invalid default value and optional is empty.");
+            }
         }
-        throw new TypeError("Optional is empty");
     }
 
-    getOrDefault(defaultValue: T): T {
-        if (this.isPresent()) {
-            return this.value as T;
-        }
-        if (validate(defaultValue)) {
-            return defaultValue;
-        }
-        throw new TypeError("Default value is not valid");
-    }
-
-    ifPresent(action: Consumer<T>): void {
+    public ifPresent(action: Consumer<T>): void;
+    public ifPresent(action: Consumer<T>, elseAction: Runnable): void;
+    public ifPresent(action: Consumer<T>, elseAction?: Runnable): void {
         if (this.isPresent() && isFunction(action)) {
             action(this.value as T);
+        } else if (isFunction(elseAction)) {
+            elseAction();
         }
     }
 
-    isEmpty(): boolean {
+    public isEmpty(): boolean {
         return invalidate(this.value);
     }
 
-    isPresent(): boolean {
+    public isPresent(): boolean {
         return validate(this.value);
     }
 
-    map<R>(mapper: Functional<T, R>): Optional<R> {
+    public map<R>(mapper: Functional<T, R>): Optional<R> {
         if (this.isPresent() && isFunction(mapper)) {
             return new Optional<R>(mapper(this.value as T));
         }
         return new Optional<R>(null);
     }
 
-    static of<T>(value: MaybeInvalid<T>) {
+    public static empty<T>() {
+        return new Optional<T>(null);
+    }
+
+    public static of<T>(value: MaybeInvalid<T>) {
         return Optional.ofNullable<T>(value);
     }
 
-    static ofNullable<T>(value: MaybeInvalid<T> = (void 0)) {
+    public static ofNullable<T>(value: MaybeInvalid<T> = (void 0)) {
         return new Optional<T>(value);
     }
 
-    static ofNonNull<T>(value: T) {
+    public static ofNonNull<T>(value: T) {
         if (validate(value)) {
             return new Optional<T>(value);
         }
@@ -387,7 +413,32 @@ export let from: <E>(iterable: Iterable<E>) => Semantic<E> = <E>(iterable: Itera
         });
     }
     throw new TypeError("Invalid arguments");
-}
+};
+
+export let interval: Functional<number, Semantic<number>> & BiFunctional<number, number, Semantic<number>> = (period: number, delay: number = 0): Semantic<number> => {
+    if (period > 0 && delay >= 0) {
+        return new Semantic<number>((accept, interrupt): void => {
+            setTimeout((): void => {
+                let index: number = 0;
+                let timer: number = setInterval((): void => {
+                    if (interrupt(index)) {
+                        clearInterval(timer);
+                    }
+                    accept(period, BigInt(index));
+                    index++;
+                }, period);
+            }, delay);
+        });
+    }
+    throw new TypeError("Invalid arguments.");
+};
+
+export let iterate: <E>(generator: Generator<E>) => Semantic<E> = <E>(generator: Generator<E>): Semantic<E> => {
+    if (isFunction(generator)) {
+        return new Semantic(generator);
+    }
+    throw new TypeError("Invalid arguments.");
+};
 
 export let range: <N extends number | bigint>(start: N, end: N, step: N) => Semantic<N> = <N extends number | bigint>(start: N, end: N, step: N = (typeof start === 'bigint' ? 1n : 1) as N): Semantic<N> => {
     if ((isNumber(step) && step === 0) || (isBigint(step) && step === 0n)) {
@@ -421,13 +472,6 @@ export let range: <N extends number | bigint>(start: N, end: N, step: N) => Sema
     throw new TypeError("Invalid arguments.");
 };
 
-export let iterate: <E>(generator: Generator<E>) => Semantic<E> = <E>(generator: Generator<E>): Semantic<E> => {
-    if (isFunction(generator)) {
-        return new Semantic(generator);
-    }
-    throw new TypeError("Invalid arguments.");
-}
-
 export let websocket: Functional<WebSocket, Semantic<MessageEvent | CloseEvent | Event>> = (websocket: WebSocket): Semantic<MessageEvent | CloseEvent | Event> => {
     if (invalidate(websocket)) {
         throw new TypeError("WebSocket is invalid.");
@@ -435,6 +479,14 @@ export let websocket: Functional<WebSocket, Semantic<MessageEvent | CloseEvent |
     return new Semantic<MessageEvent | CloseEvent | Event>((accept, interrupt) => {
         let index: bigint = 0n;
         let stop: boolean = false;
+        websocket.addEventListener("open", (event: Event): void => {
+            if (stop || interrupt(event)) {
+                stop = true;
+            } else {
+                accept(event, index);
+                index++;
+            }
+        });
         websocket.addEventListener("message", (event: MessageEvent): void => {
             if (stop || interrupt(event)) {
                 stop = true;
@@ -882,6 +934,8 @@ export class Collector<E, A, R> {
 
 export abstract class Collectable<E> {
 
+    protected readonly Collectable: symbol = CollectableSymbol;
+
     public constructor() {
 
     }
@@ -1235,53 +1289,48 @@ export abstract class Collectable<E> {
         });
     }
 
-    public write(stream: WritableStream<string>): Promise<void>;
-    public write(stream: WritableStream<Uint8Array>, accumulator: Functional<E, Uint8Array>): Promise<void>;
-    public write(stream: WritableStream<string | Uint8Array>, accumulator?: Functional<E, Uint8Array>): Promise<void> {
+    public write(stream: WritableStream<string>): Promise<WritableStream<string>>;
+    public write(stream: WritableStream<string>, accumulator: BiFunctional<E, bigint, string>): Promise<WritableStream<string>>;
+    public write(stream: WritableStream<Uint8Array>, accumulator: BiFunctional<E, bigint, Uint8Array>): Promise<WritableStream<Uint8Array>>;
+    public write(stream: WritableStream<string | Uint8Array | string>, accumulator?: BiFunctional<E, bigint, Uint8Array | string>): Promise<WritableStream<string>> | Promise<WritableStream<Uint8Array | string>> {
         if (isObject(stream) && invalidate(accumulator)) {
-            return this.collect<Promise<WritableStream<string>>, Promise<void>>((): Promise<WritableStream<string>> => {
-                return Promise.resolve(stream);
-            }, (promise: Promise<WritableStream<string>>, element: E): Promise<WritableStream<string>> => {
-                return new Promise<WritableStream<string>>((resolve1, reject1) => {
-                    promise.then(async (stream: WritableStream<string>): Promise<WritableStream<string>> => {
+            let optional: Optional<WritableStream<string>> = this.collect<Optional<WritableStream<string>>, Optional<WritableStream<string>>>((): Optional<WritableStream<string>> => {
+                return Optional.ofNonNull<WritableStream<string>>(stream);
+            }, (result: Optional<WritableStream<string>>, element: E): Optional<WritableStream<string>> => {
+                try {
+                    return result.map((stream: WritableStream<string>): WritableStream<string> => {
                         let writer: WritableStreamDefaultWriter<string> = stream.getWriter();
-                        await writer.write(String(element));
-                        resolve1(stream);
+                        writer.write(String(element));
                         return stream;
-                    }, reject1);
-                });
-            }, (promise: Promise<WritableStream<string>>): Promise<void> => {
-                return new Promise<void>((resolve, reject) => {
-                    promise.then(async (stream: WritableStream<string>): Promise<void> => {
-                        await stream.getWriter().close();
-                        resolve();
-                    }, (reason): void => {
-                        reject(reason);
                     });
-                });
+                } catch (reason) {
+                    return Optional.empty();
+                }
+            }, (a: Optional<WritableStream<string>>): Optional<WritableStream<string>> => {
+                return a;
+            });
+            return new Promise<WritableStream<string>>((resolve, reject) => {
+                optional.ifPresent(resolve, reject);
             });
         } else if (isObject(stream) && isFunction(accumulator)) {
-            return this.collect<Promise<WritableStream<Uint8Array>>, Promise<void>>((): Promise<WritableStream<Uint8Array>> => {
-                return Promise.resolve(stream);
-            }, (promise: Promise<WritableStream<Uint8Array>>, element: E): Promise<WritableStream<Uint8Array>> => {
-                return new Promise<WritableStream<Uint8Array>>((resolve1, reject1) => {
-                    promise.then(async (stream: WritableStream<Uint8Array>): Promise<WritableStream<Uint8Array>> => {
-                        let writer: WritableStreamDefaultWriter<Uint8Array> = stream.getWriter();
-                        await writer.write(accumulator(element));
-                        resolve1(stream);
+            let optional: Optional<WritableStream<Uint8Array | string>> = this.collect<Optional<WritableStream<Uint8Array | string>>, Optional<WritableStream<Uint8Array | string>>>((): Optional<WritableStream<Uint8Array | string>> => {
+                return Optional.ofNonNull<WritableStream<Uint8Array | string>>(stream);
+            }, (result: Optional<WritableStream<Uint8Array | string>>, element: E, index: bigint): Optional<WritableStream<Uint8Array | string>> => {
+                try {
+                    return result.map((stream: WritableStream<Uint8Array | string>): WritableStream<Uint8Array | string> => {
+                        let writer: WritableStreamDefaultWriter<Uint8Array | string> = stream.getWriter();
+                        writer.write(accumulator(element, index));
                         return stream;
-                    }, reject1);
-                });
-            }, (promise: Promise<WritableStream<Uint8Array>>): Promise<void> => {
-                return new Promise<void>((resolve, reject) => {
-                    promise.then(async (stream: WritableStream<Uint8Array>): Promise<void> => {
-                        await stream.getWriter().close();
-                        resolve();
-                    }, (reason): void => {
-                        reject(reason);
                     });
-                });
-            })
+                } catch (reason) {
+                    return Optional.empty();
+                }
+            }, (a: Optional<WritableStream<Uint8Array | string>>): Optional<WritableStream<Uint8Array | string>> => {
+                return a;
+            });
+            return new Promise<WritableStream<Uint8Array | string>>((resolve, reject) => {
+                optional.ifPresent(resolve, reject);
+            });
         } else {
             throw new TypeError("Invalid arguments.");
         }
@@ -1289,6 +1338,8 @@ export abstract class Collectable<E> {
 }
 
 export class UnorderedCollectable<E> extends Collectable<E> {
+
+    protected readonly UnorderedCollectable: symbol = UnorderedCollectableSymbol;
 
     protected generator: Generator<E>;
 
@@ -1307,6 +1358,8 @@ type Indexed<K, V> = {
     value: V;
 }
 export class OrderedCollectable<E> extends Collectable<E> {
+
+    protected readonly OrderedCollectable: symbol = OrderedCollectableSymbol;
 
     protected ordered: Array<Indexed<bigint, E>> = [];
 
@@ -1362,6 +1415,8 @@ export class OrderedCollectable<E> extends Collectable<E> {
 
 export class WindowCollectable<E> extends OrderedCollectable<E> {
 
+    protected readonly WindowCollectable: symbol = WindowCollectableSymbol;
+
     public constructor(iterable: Iterable<E>);
     public constructor(iterable: Iterable<E>, comparator: Comparator<E>);
     public constructor(generator: Generator<E>);
@@ -1406,6 +1461,8 @@ export class WindowCollectable<E> extends OrderedCollectable<E> {
 };
 
 export abstract class Statistics<E, D extends number | bigint> extends OrderedCollectable<E> {
+
+    protected readonly Statistics: symbol = StatisticsSymbol;
 
     public constructor(iterable: Iterable<E>);
     public constructor(iterable: Iterable<E>, comparator: Comparator<E>);
@@ -1557,6 +1614,8 @@ export abstract class Statistics<E, D extends number | bigint> extends OrderedCo
 };
 
 export class NumericStatistics<E> extends Statistics<E, number> {
+
+    protected readonly NumericStatistics: symbol = NumericStatisticsSymbol;
 
     public constructor(iterable: Iterable<E>);
     public constructor(iterable: Iterable<E>, comparator: Comparator<E>);
@@ -1901,6 +1960,8 @@ export class NumericStatistics<E> extends Statistics<E, number> {
 };
 
 export class BigIntStatistics<E> extends Statistics<E, bigint> {
+
+    protected readonly BigIntStatistics: symbol = BigIntStatisticsSymbol;
 
     public constructor(iterable: Iterable<E>);
     public constructor(iterable: Iterable<E>, comparator: Comparator<E>);
