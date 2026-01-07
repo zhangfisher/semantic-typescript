@@ -263,9 +263,7 @@ const unordered = numbers
     .toUnoredered();
 
 // Need sorting: use ordered collector  
-const ordered = numbers
-    .sorted()
-    .toOrdered();
+const ordered = numbers.sorted();
 
 // Statistical analysis: use statistical collector
 const stats = numbers
@@ -422,5 +420,6 @@ const bigIntStats = data
 2. **Performance Considerations**: If order guarantee is not needed, prioritise using `toUnoredered()` for better performance
 3. **Memory Usage**: Sorting operations require O(n) additional space
 4. **Real-time Data**: Semantic streams are suitable for processing real-time data and support asynchronous data sources
+
 
 This library provides TypeScript developers with powerful and flexible streaming capabilities, combining the benefits of functional programming with type safety guarantees.
