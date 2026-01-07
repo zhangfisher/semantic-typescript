@@ -125,7 +125,7 @@ const nullableOpt = Optional.ofNullable<string>(null);
 const nonNullOpt = Optional.ofNonNull("hello");
 
 presentOpt.ifPresent(val => console.log(val)); // Outputs 42
-console.log(emptyOpt.orElse(100)); // Outputs 100
+console.log(emptyOpt.get(100)); // Outputs 100
 ```
 
 ### Collector Factory Methods
@@ -138,9 +138,9 @@ console.log(emptyOpt.orElse(100)); // Outputs 100
 ```typescript
 // Collector usage examples
 const sumCollector = Collector.full(
-    () => 0,
-    (sum, num) => sum + num,
-    result => result
+    (): number => 0,
+    (result: number, element: number) => result + element,
+    (result: number) => result
 );
 
 const numbers = from([1, 2, 3, 4, 5]);
@@ -168,7 +168,7 @@ blob(someBlob, 1024n)
   .toUnordered()
   .write(WritableStream)
   .then(callback) // Write stream successful
-  .catch(writeFi); // Write stream failed
+  .catch(callback); // Write stream failed
 
 // Create an empty stream, won't execute until concatenated with other streams
 empty<string>()
@@ -423,4 +423,5 @@ const bigIntStats = data
 
 
 This library provides TypeScript developers with powerful and flexible streaming capabilities, combining the benefits of functional programming with type safety guarantees.
+
 
