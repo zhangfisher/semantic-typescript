@@ -482,24 +482,6 @@ export class OrderedCollectable<E> extends Collectable<E> {
         } else {
             throw new TypeError("Invalid arguments.");
         }
-        if (isFunction(argument2)) {
-            let comparator: Comparator<E> = argument2;
-            this.ordered = this.ordered.sort((a, b) => comparator(a.value, b.value)).map((indexed: Indexed<bigint, E>, index: number) => {
-                return {
-                    index: BigInt(index),
-                    value: indexed.value
-                };
-            });
-        } else {
-            this.ordered = this.ordered.sort((a: Indexed<bigint, E>, b: Indexed<bigint, E>): number => {
-                return useCompare(a.value, b.value);
-            }).map((indexed: Indexed<bigint, E>, index: number) => {
-                return {
-                    index: BigInt(index),
-                    value: indexed.value
-                };
-            });
-        }
         buffer.map((indexed: Indexed<bigint, E>, _index: number, array: Array<Indexed<bigint, E>>): Indexed<bigint, E> => {
             let length: bigint = BigInt(array.length);
             return {
@@ -507,16 +489,18 @@ export class OrderedCollectable<E> extends Collectable<E> {
                 value: indexed.value
             }
         }).sort((a: Indexed<bigint, E>, b: Indexed<bigint, E>): number => {
-            return useCompare(a.index, b.index);
+            if(isFunction(argument2)){
+                let comparator: Comparator<E> = argument2;
+                return comparator(a.value, b.value);
+            }else{
+                return useCompare(a.index, b.index);
+            }
         }).forEach((indexed: Indexed<bigint, E>) => {
             this.ordered.push(indexed);
         });
     }
 
     public override source(): Generator<E> | Iterable<E> {
-        this.ordered.forEach((indexed: Indexed<bigint, E>) => {
-            console.log(indexed.index, indexed.value);
-        });
         return this.ordered.map((indexed: Indexed<bigint, E>) => indexed.value);
     }
 };

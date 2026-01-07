@@ -1,4 +1,4 @@
-import { isBigInt, isFunction, isNumber, isPrimitive } from "./guard";
+import { isFunction, isNumber, isPrimitive } from "./guard";
 import type { MaybePrimitive } from "./utility";
 
 export let useCompare: <T>(t1: T, t2: T) => number = <T>(t1: T, t2: T): number => {
@@ -61,30 +61,6 @@ export let useRandom: <T = number | bigint>(index: T) => T = <T = number | bigin
         let lcg = (1103515245 * x + 12345) % 2147483648;
         let mixed = (h * 0.5 + golden * 0.3 + lcg / 2147483648 * 0.2);
         return (mixed * 1000000) as unknown as T;
-    }
-    if (isBigInt(index)) {
-        let x = BigInt(index);
-        let two = 2n;
-        let three = 3n;
-        let scale = 1000000n;
-        let vanDerCorput = (base: bigint, n: bigint): bigint => {
-            let result = 0n;
-            let f = 1n;
-            let i = n;
-            let basePower = 1n;
-            while (i > 0n) {
-                result += (i % base) * f;
-                i = i / base;
-                f = f * scale / basePower;
-                basePower = basePower * base;
-            }
-            return result;
-        };
-        let h1 = vanDerCorput(two, x);
-        let h2 = vanDerCorput(three, x);
-        let combined = (h1 + h2) % (scale * 10n);
-        let random = (combined * 123456789n) % scale;
-        return random as unknown as T;
     }
     throw new TypeError("Invalid input type");
 };
