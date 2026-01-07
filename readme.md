@@ -15,34 +15,40 @@ npm install semantic-typescript
 ## Basic Types
 
 | Type | Description |
-|------|------|
-| `Invalid<T>` | Type extending null or undefined |
-| `Valid<T>` | Type excluding null and undefined |
-| `MaybeInvalid<T>` | Type that may be null or undefined |
+|------|-------------|
+| `Invalid<T>` | Type that extends `null` or `undefined` |
+| `Valid<T>` | Type that excludes `null` and `undefined` |
+| `MaybeInvalid<T>` | Type that may be `null` or `undefined` |
 | `Primitive` | Collection of primitive types |
 | `MaybePrimitive<T>` | Type that may be a primitive type |
-| `OptionalSymbol` | Symbol identifier for the Optional class |
-| `SemanticSymbol` | Symbol identifier for the Semantic class |
-| `CollectorsSymbol` | Symbol identifier for the Collector class |
-| `CollectableSymbol` | Symbol identifier for the Collectable class |
-| `OrderedCollectableSymbol` | Symbol identifier for the OrderedCollectable class |
-| `WindowCollectableSymbol` | Symbol identifier for the WindowCollectable class |
-| `StatisticsSymbol` | Symbol identifier for the Statistics class |
-| `NumericStatisticsSymbol` | Symbol identifier for the NumericStatistics class |
-| `BigIntStatisticsSymbol` | Symbol identifier for the BigIntStatistics class |
-| `UnorderedCollectableSymbol` | Symbol identifier for the UnorderedCollectable class |
-| `Runnable` | Function with no parameters and no return value |
-| `Supplier<R>` | Function with no parameters returning R |
+| `OptionalSymbol` | Symbol identifier of the `Optional` class |
+| `SemanticSymbol` | Symbol identifier of the `Semantic` class |
+| `CollectorsSymbol` | Symbol identifier of the `Collector` class |
+| `CollectableSymbol` | Symbol identifier of the `Collectable` class |
+| `OrderedCollectableSymbol` | Symbol identifier of the `OrderedCollectable` class |
+| `WindowCollectableSymbol` | Symbol identifier of the `WindowCollectable` class |
+| `StatisticsSymbol` | Symbol identifier of the `Statistics` class |
+| `NumericStatisticsSymbol` | Symbol identifier of the `NumericStatistics` class |
+| `BigIntStatisticsSymbol` | Symbol identifier of the `BigIntStatistics` class |
+| `UnorderedCollectableSymbol` | Symbol identifier of the `UnorderedCollectable` class |
+
+## Functional Interfaces
+
+| Interface | Description |
+|-----------|-------------|
+| `Runnable` | Function with no parameters and no return value |  
+| `Supplier<R>` | Function with no parameters returning `R` |  
 | `Functional<T, R>` | Single-parameter transformation function |
-| `Predicate<T>` | Single-parameter predicate function |
 | `BiFunctional<T, U, R>` | Two-parameter transformation function |
-| `BiPredicate<T, U>` | Two-parameter predicate function |
-| `Comparator<T>` | Comparison function |
 | `TriFunctional<T, U, V, R>` | Three-parameter transformation function |
+| `Predicate<T>` | Single-parameter predicate function |
+| `BiPredicate<T, U>` | Two-parameter predicate function |
+| `TriPredicate<T, U, V>` | Three-parameter predicate function |
 | `Consumer<T>` | Single-parameter consumer function |
 | `BiConsumer<T, U>` | Two-parameter consumer function |
 | `TriConsumer<T, U, V>` | Three-parameter consumer function |
-| `Generator<T>` | Generator function |
+| `Comparator<T>` | Two-parameter comparison function |
+| `Generator<T>` | Generator function (core and foundation) |
 
 ```typescript
 // Type usage examples
@@ -136,15 +142,34 @@ console.log(emptyOpt.get(100)); // Outputs 100
 | `Collector.shortable(identity, interruptor, accumulator, finisher)` | Create an interruptible collector | O(1) | O(1) |
 
 ```typescript
-// Collector usage examples
-const sumCollector = Collector.full(
-    (): number => 0,
-    (result: number, element: number) => result + element,
-    (result: number) => result
-);
+// Collector conversion examples
+const numbers = from([3, 1, 4, 1, 5, 9, 2, 6, 5]);
 
-const numbers = from([1, 2, 3, 4, 5]);
-const total = numbers.toUnoredered().collect(sumCollector); // 15
+// Performance first: use unordered collector
+const unordered = numbers
+    .filter(n => n > 3)
+    .toUnoredered();
+
+// Sorting needed: use ordered collector  
+const ordered = numbers.sorted();
+
+// Counts the number of elements
+let count = Collector.full(
+    () => 0, // Initial value
+    (accumulator, element) => accumulator + element, // Accumulate
+    (accumulator) => accumulator // Finish
+);
+count.collect(from([1,2,3,4,5])); // Counts from a stream
+count.collect([1,2,3,4,5]); // Counts from an iterable object
+
+let find = Collector.shortable(
+    () => Optional.empty(), // Initial value
+    (element, index, accumulator) => accumulator.isPresent(), // Interrupt
+    (accumulator, element, index) => Optional.of(element), // Accumulate
+    (accumulator) => accumulator // Finish
+);
+find.collect(from([1,2,3,4,5])); // Finds the first element
+find.collect([1,2,3,4,5]); // Finds the first element
 ```
 
 ### Semantic Factory Methods
@@ -229,7 +254,7 @@ const result = from([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
     .map(n => n * 2)                 // Multiply by 2
     .skip(1)                         // Skip the first
     .limit(3)                        // Limit to 3 elements
-    .toUnordered()                  
+    .toUnordered()                   // Convert to unordered collector
     .toArray();                      // Convert to array
 // Result: [8, 12, 20]
 
@@ -243,44 +268,65 @@ const complexResult = range(1, 100, 1)
     .toArray();                      // Convert to array
 ```
 
-## Collector Conversion Methods
+## Semantic Conversion Methods
 
 | Method | Description | Time Complexity | Space Complexity |
-|------|------|------------|------------|
-| `toUnoredered()` | Convert to unordered collector (performance first) | O(1) | O(1) |
+|------------|------------|------------|------------|
+| `sorted()` | Convert to ordered collector | O(n log n) | O(n) |
+| `toUnordered()` | Convert to unordered collector | O(1) | O(1) |
 | `toOrdered()` | Convert to ordered collector | O(1) | O(1) |
-| `sorted()` | Sort and convert to ordered collector | O(n log n) | O(n) |
+| `toNumericStatistics()` | Convert to numeric statistics | O(n) | O(1) |
+| `toBigintStatistics()` | Convert to bigint statistics | O(n) | O(1) |
 | `toWindow()` | Convert to window collector | O(1) | O(1) |
-| `toNumericStatistics()` | Convert to numerical statistics | O(1) | O(1) |
-| `toBigintStatistics()` | Convert to big integer statistics | O(1) | O(1) |
+| `toCollectable()` | Convert to `UnorderdCollectable` | O(n) | O(1) |
+| `toCollectable(mapper)` | Convert to customized collectable | O(n) | O(1) |
 
 ```typescript
-// Collector conversion examples
-const numbers = from([3, 1, 4, 1, 5, 9, 2, 6, 5]);
+// Convert to an ascending sorted array
+from([6,4,3,5,2]) // Creates a stream
+    .sorted() // Sorts the stream in ascending order
+    .toArray(); // [2, 3, 4, 5, 6]
 
-// Performance first: use unordered collector
-const unordered = numbers
-    .filter(n => n > 3)
-    .toUnoredered();
+// Convert to a descending sorted array
+from([6,4,3,5,2]) // Creates a stream
+    .soted((a, b) => b - a) // Sorts the stream in descending order
+    .toArray(); // [6, 5, 4, 3, 2]
 
-// Need sorting: use ordered collector  
-const ordered = numbers.sorted();
+// Redirect to a reversed array
+from([6,4,3,5,2])
+    .redirect((element, index) => -index) // Redirects to reversed order
+    .toOrderd() // Keeps the redirected order
+    .toArray(); // [2, 5, 3, 4, 6]
 
-// Statistical analysis: use statistical collector
-const stats = numbers.toNumericStatistics();
+// Ignore redirections to reverse array
+from([6,4,3,5,2])
+    .redirect((element, index) => -index) // Redirects to reversed order
+    .toUnorderd() // Drops the redirected order. This operation will ignore `redirect`, `reverse`, `shuffle` and `translate` operations
+    .toArray(); // [2, 5, 3, 4, 6]
 
-console.log(stats.mean());        // Average value
-console.log(stats.median());      // Median value
-console.log(stats.standardDeviation()); // Standard deviation
+// Reverse the stream into an array
+from([6, 4, 3, 5, 2])
+    .reverse() // Reverses the stream
+    .toOrdered() // Guarantees the reversed order
+    .toArray(); // [2, 5, 3, 4, 6]
 
-// Window operations
-const windowed = numbers
-    .toWindow()
-    .tumble(3n); // Every 3 elements form a window
+// Overwrite the shuffled stream into an array
+from([6, 4, 3, 5, 2])
+    .shuffle() // Shuffles the stream
+    .sorted() // Overwrites the shuffled order. This operation will overwrite `redirect`, `reverse`, `shuffle` and `translate` operations
+    .toArray(); // [2, 5, 3, 4, 6]
 
-windowed.forEach(window => {
-    console.log(window.toArray()); // Contents of each window
-});
+// Convert to window collector
+from([6, 4, 3, 5, 2]).toWindow();
+
+// Convert to numeric statistics
+from([6, 4, 3, 5, 2]).toNumericStatistics();
+
+// Convert to bigint statistics
+from([6n, 4n, 3n, 5n, 2n]).toBigintStatistics();
+
+// Defines a customized collector to collect data
+let customizedCollector = from([1, 2, 3, 4, 5]).toCollectable((generator: Generator<E>) => new CustomizedCollector(generator));
 ```
 
 ## Collectable Collection Methods

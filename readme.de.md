@@ -12,37 +12,43 @@ Im Gegensatz zur traditionellen synchronen Verarbeitung verwendet Semantic einen
 npm install semantic-typescript
 ```
 
-## Grundlegende Typen
+## Grundtypen
 
 | Typ | Beschreibung |
-|-----|-------------|
-| `Invalid<T>` | Typ, der null oder undefined erweitert |
-| `Valid<T>` | Typ, der null und undefined ausschließt |
-| `MaybeInvalid<T>` | Typ, der null oder undefined sein kann |
-| `Primitive` | Sammlung primitiver Typen |
-| `MaybePrimitive<T>` | Typ, der ein Primitiv sein kann |
-| `OptionalSymbol` | Symbolkennung für die Optional-Klasse |
-| `SemanticSymbol` | Symbolkennung für die Semantic-Klasse |
-| `CollectorsSymbol` | Symbolkennung für die Collector-Klasse |
-| `CollectableSymbol` | Symbolkennung für die Collectable-Klasse |
-| `OrderedCollectableSymbol` | Symbolkennung für die OrderedCollectable-Klasse |
-| `WindowCollectableSymbol` | Symbolkennung für die WindowCollectable-Klasse |
-| `StatisticsSymbol` | Symbolkennung für die Statistics-Klasse |
-| `NumericStatisticsSymbol` | Symbolkennung für die NumericStatistics-Klasse |
-| `BigIntStatisticsSymbol` | Symbolkennung für die BigIntStatistics-Klasse |
-| `UnorderedCollectableSymbol` | Symbolkennung für die UnorderedCollectable-Klasse |
-| `Runnable` | Funktion ohne Parameter und Rückgabewert |
-| `Supplier<R>` | Funktion ohne Parameter, die R zurückgibt |
-| `Functional<T, R>` | Ein-Parameter-Transformationsfunktion |
-| `Predicate<T>` | Ein-Parameter-Prüffunktion |
-| `BiFunctional<T, U, R>` | Zwei-Parameter-Transformationsfunktion |
-| `BiPredicate<T, U>` | Zwei-Parameter-Prüffunktion |
-| `Comparator<T>` | Vergleichsfunktion |
-| `TriFunctional<T, U, V, R>` | Drei-Parameter-Transformationsfunktion |
-| `Consumer<T>` | Ein-Parameter-Consumer-Funktion |
-| `BiConsumer<T, U>` | Zwei-Parameter-Consumer-Funktion |
-| `TriConsumer<T, U, V>` | Drei-Parameter-Consumer-Funktion |
-| `Generator<T>` | Generatorfunktion |
+|------|-------------|
+| `Invalid<T>` | Ein Typ, der null oder undefined erweitert |
+| `Valid<T>` | Ein Typ, der null und undefined ausschließt |
+| `MaybeInvalid<T>` | Ein Typ, der null oder undefined sein kann |
+| `Primitive` | Sammlung von primitiven Typen |
+| `MaybePrimitive<T>` | Ein Typ, der ein primitiver Typ sein kann |
+| `OptionalSymbol` | Symbolkennung der Klasse Optional |
+| `SemanticSymbol` | Symbolkennung der Klasse Semantic |
+| `CollectorsSymbol` | Symbolkennung der Klasse Collector |
+| `CollectableSymbol` | Symbolkennung der Klasse Collectable |
+| `OrderedCollectableSymbol` | Symbolkennung der Klasse OrderedCollectable |
+| `WindowCollectableSymbol` | Symbolkennung der Klasse WindowCollectable |
+| `StatisticsSymbol` | Symbolkennung der Klasse Statistics |
+| `NumericStatisticsSymbol` | Symbolkennung der Klasse NumericStatistics |
+| `BigIntStatisticsSymbol` | Symbolkennung der Klasse BigIntStatistics |
+| `UnorderedCollectableSymbol` | Symbolkennung der Klasse UnorderedCollectable |
+
+## Funktionale Schnittstellen
+
+| Schnittstelle | Beschreibung |
+|---------------|-------------|
+| `Runnable` | Funktion ohne Parameter und Rückgabewert |  
+| `Supplier<R>` | Funktion ohne Parameter, gibt R zurück |  
+| `Functional<T, R>` | Einzelparameter-Konvertierungsfunktion |
+| `BiFunctional<T, U, R>` | Zweiparameter-Konvertierungsfunktion |
+| `TriFunctional<T, U, V, R>` | Dreiparameter-Konvertierungsfunktion |
+| `Predicate<T>` | Einzelparameter-Auswahlfunktion |
+| `BiPredicate<T, U>` | Zweiparameter-Auswahlfunktion |
+| `TriPredicate<T, U, V>` | Dreiparameter-Auswahlfunktion |
+| `Consumer<T>` | Einzelparameter-Verarbeitungsfunktion |
+| `BiConsumer<T, U>` | Zweiparameter-Verarbeitungsfunktion |
+| `TriConsumer<T, U, V>` | Dreiparameter-Verarbeitungsfunktion |
+| `Comparator<T>` | Zweiparameter-Vergleichsfunktion |
+| `Generator<T>` | Generatorfunktion (Kern und Basis) |
 
 ```typescript
 // Typverwendungsbeispiele
@@ -136,15 +142,34 @@ console.log(emptyOpt.orElse(100)); // Gibt 100 aus
 | `Collector.shortable(identity, interruptor, accumulator, finisher)` | Erstellt unterbrechbaren Collector | O(1) | O(1) |
 
 ```typescript
-// Collector-Verwendungsbeispiele
-const sumCollector = Collector.full(
-    () => 0,
-    (sum, num) => sum + num,
-    result => result
-);
+// Beispiele für Collector-Konvertierung
+const numbers = from([3, 1, 4, 1, 5, 9, 2, 6, 5]);
 
-const numbers = from([1, 2, 3, 4, 5]);
-const total = numbers.toUnoredered().collect(sumCollector); // 15
+// Leistung zuerst: Verwende ungeordneten Collector
+const unordered = numbers
+    .filter(n => n > 3)
+    .toUnoredered();
+
+// Sortierung benötigt: Verwende geordneten Collector  
+const ordered = numbers.sorted();
+
+// Zählt die Anzahl der Elemente
+let count = Collector.full(
+    () => 0, // Anfangswert
+    (accumulator, element) => accumulator + element, // Akkumulieren
+    (accumulator) => accumulator // Abschluss
+);
+count.collect(from([1,2,3,4,5])); // Zählt aus einem Stream
+count.collect([1,2,3,4,5]); // Zählt aus einem Iterable-Objekt
+
+let find = Collector.shortable(
+    () => Optional.empty(), // Anfangswert
+    (element, index, accumulator) => accumulator.isPresent(), // Unterbrechen
+    (accumulator, element, index) => Optional.of(element), // Akkumulieren
+    (accumulator) => accumulator // Abschluss
+);
+find.collect(from([1,2,3,4,5])); // Findet das erste Element
+find.collect([1,2,3,4,5]); // Findet das erste Element
 ```
 
 ### Semantic-Fabrikmethoden
@@ -155,6 +180,7 @@ const total = numbers.toUnoredered().collect(sumCollector); // 15
 | `empty<E>()` | Erzeugt leeren Stream | O(1) | O(1) |
 | `fill<E>(element, count)` | Erzeugt gefüllten Stream | O(n) | O(1) |
 | `from<E>(iterable)` | Erzeugt Stream aus iterierbarem Objekt | O(1) | O(1) |
+| `generate<E>(element, interrupt)` | Erzeugt Stream mit Generatorfunktion | O(1) | O(1) |
 | `interval(period, delay?)` | Erzeugt regelmäßigen Intervall-Stream | O(1)* | O(1) |
 | `iterate<E>(generator)` | Erzeugt Stream aus Generator | O(1) | O(1) |
 | `range(start, end, step)` | Erzeugt numerischen Bereichs-Stream | O(n) | O(1) |
@@ -230,6 +256,7 @@ const result = from([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
     .map(n => n * 2)                 // Multipliziert mit 2
     .skip(1)                         // Überspringt erstes Element
     .limit(3)                        // Begrenzt auf 3 Elemente
+    .toUnordered()                    // Ungeordneten Collector verwenden
     .toArray();                      // Konvertiert zu Array
 // Ergebnis: [8, 12, 20]
 
@@ -243,45 +270,65 @@ const complexResult = range(1, 100, 1)
     .toArray();                      // Konvertiert zu Array
 ```
 
-## Collector-Transformationsmethoden
+## Semantische Konversionsmethoden
 
-| Methode | Beschreibung | Zeitkomplexität | Raumkomplexität |
-|---------|-------------|-----------------|-----------------|
-| `toUnoredered()` | Konvertiert zu ungeordnetem Collector (Leistungspriorität) | O(1) | O(1) |
-| `toOrdered()` | Konvertiert zu geordnetem Collector | O(1) | O(1) |
-| `sorted()` | Sortiert und konvertiert zu geordnetem Collector | O(n log n) | O(n) |
-| `toWindow()` | Konvertiert zu Fenster-Collector | O(1) | O(1) |
-| `toNumericStatistics()` | Konvertiert zu numerischer Statistik | O(1) | O(1) |
-| `toBigintStatistics()` | Konvertiert zu BigInt-Statistik | O(1) | O(1) |
+| Methode | Beschreibung | Zeitkomplexität | Platzkomplexität |
+|------------|------------|------------|------------|
+| `sorted()` | In geordneten Collector umwandeln | O(n log n) | O(n) |
+| `toUnordered()` | In ungeordneten Collector umwandeln | O(1) | O(1) |
+| `toOrdered()` | In geordneten Collector umwandeln | O(1) | O(1) |
+| `toNumericStatistics()` | In numerische Statistik umwandeln | O(n) | O(1) |
+| `toBigintStatistics()` | In BigInt-Statistik umwandeln | O(n) | O(1) |
+| `toWindow()` | In Window-Collector umwandeln | O(1) | O(1) |
+| `toCollectable()` | In `UnorderedCollectable` umwandeln | O(n) | O(1) |
+| `toCollectable(mapper)` | In benutzerdefinierten Collectable umwandeln | O(n) | O(1) |
 
 ```typescript
-// Collector-Transformationsbeispiele
-const numbers = from([3, 1, 4, 1, 5, 9, 2, 6, 5]);
+// In ein aufsteigend sortiertes Array umwandeln
+from([6,4,3,5,2]) // Erstellt einen Stream
+    .sorted() // Sortiert den Stream in aufsteigender Reihenfolge
+    .toArray(); // [2, 3, 4, 5, 6]
 
-// Leistungspriorität: Ungeordneten Collector verwenden
-const unordered = numbers
-    .filter(n => n > 3)
-    .toUnoredered();
+// In ein absteigend sortiertes Array umwandeln
+from([6,4,3,5,2]) // Erstellt einen Stream
+    .soted((a, b) => b - a) // Sortiert den Stream in absteigender Reihenfolge
+    .toArray(); // [6, 5, 4, 3, 2]
 
-// Sortierung benötigt: Geordneten Collector verwenden  
-const ordered = numbers.sorted();
+// Umleiten zu einem umgekehrten Array
+from([6,4,3,5,2])
+    .redirect((element, index) => -index) // Leitet in umgekehrter Reihenfolge um
+    .toOrderd() // Behält die umgeleitete Reihenfolge bei
+    .toArray(); // [2, 5, 3, 4, 6]
 
-// Statistische Analyse: Statistik-Collector verwenden
-const stats = numbers
-    .toNumericStatistics();
+// Umleitungen zum Umkehren des Arrays ignorieren
+from([6,4,3,5,2])
+    .redirect((element, index) => -index) // Leitet in umgekehrter Reihenfolge um
+    .toUnorderd() // Verwirft die umgeleitete Reihenfolge. Diese Operation ignoriert die Operationen `redirect`, `reverse`, `shuffle` und `translate`
+    .toArray(); // [2, 5, 3, 4, 6]
 
-console.log(stats.mean());        // Durchschnitt
-console.log(stats.median());      // Median
-console.log(stats.standardDeviation()); // Standardabweichung
+// Den Stream umkehren und in ein Array umwandeln
+from([6, 4, 3, 5, 2])
+    .reverse() // Kehrt den Stream um
+    .toOrdered() // Garantiert die umgekehrte Reihenfolge
+    .toArray(); // [2, 5, 3, 4, 6]
 
-// Fensteroperationen
-const windowed = numbers
-    .toWindow()
-    .tumble(3n); // Fenster mit je 3 Elementen
+// Den gemischten Stream überschreiben und in ein Array umwandeln
+from([6, 4, 3, 5, 2])
+    .shuffle() // Mischt den Stream
+    .sorted() // Überschreibt die gemischte Reihenfolge. Diese Operation überschreibt die Operationen `redirect`, `reverse`, `shuffle` und `translate`
+    .toArray(); // [2, 5, 3, 4, 6]
 
-windowed.forEach(window => {
-    console.log(window.toArray()); // Inhalt jedes Fensters
-});
+// In Window-Collector umwandeln
+from([6, 4, 3, 5, 2]).toWindow();
+
+// In numerische Statistik umwandeln
+from([6, 4, 3, 5, 2]).toNumericStatistics();
+
+// In BigInt-Statistik umwandeln
+from([6n, 4n, 3n, 5n, 2n]).toBigintStatistics();
+
+// Definiert einen benutzerdefinierten Collector zur Datensammlung
+let customizedCollector = from([1, 2, 3, 4, 5]).toCollectable((generator: Generator<E>) => new CustomizedCollector(generator));
 ```
 
 ## Collectable-Sammelmethoden

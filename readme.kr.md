@@ -15,34 +15,40 @@ npm install semantic-typescript
 ## 기본 타입
 
 | 타입 | 설명 |
-|------|------|
-| `Invalid<T>` | null 또는 undefined를 확장하는 타입 |
-| `Valid<T>` | null과 undefined를 제외하는 타입 |
-| `MaybeInvalid<T>` | null 또는 undefined가 될 수 있는 타입 |
-| `Primitive` | 기본 타입 컬렉션 |
-| `MaybePrimitive<T>` | 기본 타입이 될 수 있는 타입 |
-| `OptionalSymbol` | Optional 클래스의 심볼 식별자 |
-| `SemanticSymbol` | Semantic 클래스의 심볼 식별자 |
-| `CollectorsSymbol` | Collector 클래스의 심볼 식별자 |
-| `CollectableSymbol` | Collectable 클래스의 심볼 식별자 |
-| `OrderedCollectableSymbol` | OrderedCollectable 클래스의 심볼 식별자 |
-| `WindowCollectableSymbol` | WindowCollectable 클래스의 심볼 식별자 |
-| `StatisticsSymbol` | Statistics 클래스의 심볼 식별자 |
-| `NumericStatisticsSymbol` | NumericStatistics 클래스의 심볼 식별자 |
-| `BigIntStatisticsSymbol` | BigIntStatistics 클래스의 심볼 식별자 |
-| `UnorderedCollectableSymbol` | UnorderedCollectable 클래스의 심볼 식별자 |
-| `Runnable` | 매개변수 없음, 반환값 없는 함수 |
-| `Supplier<R>` | 매개변수 없이 R을 반환하는 함수 |
+|------|-------------|
+| `Invalid<T>` | `null` 또는 `undefined`를 확장하는 타입 |
+| `Valid<T>` | `null` 및 `undefined`를 제외한 타입 |
+| `MaybeInvalid<T>` | `null` 또는 `undefined`가 될 수 있는 타입 |
+| `Primitive` | 원시 타입들의 집합 |
+| `MaybePrimitive<T>` | 원시 타입이 될 수 있는 타입 |
+| `OptionalSymbol` | `Optional` 클래스의 심볼 식별자 |
+| `SemanticSymbol` | `Semantic` 클래스의 심볼 식별자 |
+| `CollectorsSymbol` | `Collector` 클래스의 심볼 식별자 |
+| `CollectableSymbol` | `Collectable` 클래스의 심볼 식별자 |
+| `OrderedCollectableSymbol` | `OrderedCollectable` 클래스의 심볼 식별자 |
+| `WindowCollectableSymbol` | `WindowCollectable` 클래스의 심볼 식별자 |
+| `StatisticsSymbol` | `Statistics` 클래스의 심볼 식별자 |
+| `NumericStatisticsSymbol` | `NumericStatistics` 클래스의 심볼 식별자 |
+| `BigIntStatisticsSymbol` | `BigIntStatistics` 클래스의 심볼 식별자 |
+| `UnorderedCollectableSymbol` | `UnorderedCollectable` 클래스의 심볼 식별자 |
+
+## 함수형 인터페이스
+
+| 인터페이스 | 설명 |
+|-----------|-------------|
+| `Runnable` | 매개변수 없고 반환값도 없는 함수 |  
+| `Supplier<R>` | 매개변수 없이 `R`을 반환하는 함수 |  
 | `Functional<T, R>` | 단일 매개변수 변환 함수 |
+| `BiFunctional<T, U, R>` | 두 매개변수 변환 함수 |
+| `TriFunctional<T, U, V, R>` | 세 매개변수 변환 함수 |
 | `Predicate<T>` | 단일 매개변수 조건 함수 |
-| `BiFunctional<T, U, R>` | 이중 매개변수 변환 함수 |
-| `BiPredicate<T, U>` | 이중 매개변수 조건 함수 |
-| `Comparator<T>` | 비교 함수 |
-| `TriFunctional<T, U, V, R>` | 삼중 매개변수 변환 함수 |
+| `BiPredicate<T, U>` | 두 매개변수 조건 함수 |
+| `TriPredicate<T, U, V>` | 세 매개변수 조건 함수 |
 | `Consumer<T>` | 단일 매개변수 소비 함수 |
-| `BiConsumer<T, U>` | 이중 매개변수 소비 함수 |
-| `TriConsumer<T, U, V>` | 삼중 매개변수 소비 함수 |
-| `Generator<T>` | 생성기 함수 |
+| `BiConsumer<T, U>` | 두 매개변수 소비 함수 |
+| `TriConsumer<T, U, V>` | 세 매개변수 소비 함수 |
+| `Comparator<T>` | 두 매개변수 비교 함수 |
+| `Generator<T>` | 제너레이터 함수 (핵심 및 기반) |
 
 ```typescript
 // 타입 사용 예제
@@ -136,15 +142,34 @@ console.log(emptyOpt.orElse(100)); // 100 출력
 | `Collector.shortable(identity, interruptor, accumulator, finisher)` | 중단 가능한 수집기 생성 | O(1) | O(1) |
 
 ```typescript
-// Collector 사용 예제
-const sumCollector = Collector.full(
-    () => 0,
-    (sum, num) => sum + num,
-    result => result
-);
+// 컬렉터 변환 예제
+const numbers = from([3, 1, 4, 1, 5, 9, 2, 6, 5]);
 
-const numbers = from([1, 2, 3, 4, 5]);
-const total = numbers.toUnoredered().collect(sumCollector); // 15
+// 성능 우선: 비정렬 컬렉터 사용
+const unordered = numbers
+    .filter(n => n > 3)
+    .toUnoredered();
+
+// 정렬 필요: 정렬 컬렉터 사용  
+const ordered = numbers.sorted();
+
+// 요소 개수 세기
+let count = Collector.full(
+    () => 0, // 초기값
+    (accumulator, element) => accumulator + element, // 누적
+    (accumulator) => accumulator // 완료
+);
+count.collect(from([1,2,3,4,5])); // 스트림에서 카운트
+count.collect([1,2,3,4,5]); // 이터러블 객체에서 카운트
+
+let find = Collector.shortable(
+    () => Optional.empty(), // 초기값
+    (element, index, accumulator) => accumulator.isPresent(), // 중단
+    (accumulator, element, index) => Optional.of(element), // 누적
+    (accumulator) => accumulator // 완료
+);
+find.collect(from([1,2,3,4,5])); // 첫 번째 요소 찾기
+find.collect([1,2,3,4,5]); // 첫 번째 요소 찾기
 ```
 
 ### Semantic 팩토리 메서드
@@ -155,6 +180,7 @@ const total = numbers.toUnoredered().collect(sumCollector); // 15
 | `empty<E>()` | 빈 스트림 생성 | O(1) | O(1) |
 | `fill<E>(element, count)` | 채워진 스트림 생성 | O(n) | O(1) |
 | `from<E>(iterable)` | 반복 가능 객체로부터 스트림 생성 | O(1) | O(1) |
+| `generate<E>(element, interrupt)` | 생성기를 사용한 스트림 생성 | O(1) | O(1) |
 | `interval(period, delay?)` | 정기적 간격 스트림 생성 | O(1)* | O(1) |
 | `iterate<E>(generator)` | 생성기로부터 스트림 생성 | O(1) | O(1) |
 | `range(start, end, step)` | 숫자 범위 스트림 생성 | O(n) | O(1) |
@@ -230,6 +256,7 @@ const result = from([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
     .map(n => n * 2)                 // 2배 변환
     .skip(1)                         // 첫 번째 요소 건너뛰기
     .limit(3)                        // 3개 요소로 제한
+    .toUnordered()                    // 비정렬 수집기로 변환
     .toArray();                      // 배열로 변환
 // 결과: [8, 12, 20]
 
@@ -243,47 +270,65 @@ const complexResult = range(1, 100, 1)
     .toArray();                      // 배열로 변환
 ```
 
-## 수집기 변환 메서드
+## 意味論的変換メソッド
 
-| 메서드 | 설명 | 시간 복잡도 | 공간 복잡도 |
-|--------|------|------------|------------|
-| `toUnoredered()` | 비정렬 수집기로 변환 (성능 우선) | O(1) | O(1) |
-| `toOrdered()` | 정렬된 수집기로 변환 | O(1) | O(1) |
-| `sorted()` | 정렬 후 정렬된 수집기로 변환 | O(n log n) | O(n) |
-| `toWindow()` | 윈도우 수집기로 변환 | O(1) | O(1) |
-| `toNumericStatistics()` | 숫자 통계로 변환 | O(1) | O(1) |
-| `toBigintStatistics()` | BigInt 통계로 변환 | O(1) | O(1) |
+| メソッド | 説明 | 時間計算量 | 空間計算量 |
+|------------|------------|------------|------------|
+| `sorted()` | 順序付きコレクターに変換 | O(n log n) | O(n) |
+| `toUnordered()` | 順序なしコレクターに変換 | O(1) | O(1) |
+| `toOrdered()` | 順序付きコレクターに変換 | O(1) | O(1) |
+| `toNumericStatistics()` | 数値統計に変換 | O(n) | O(1) |
+| `toBigintStatistics()` | bigint 統計に変換 | O(n) | O(1) |
+| `toWindow()` | ウィンドウコレクターに変換 | O(1) | O(1) |
+| `toCollectable()` | `UnorderdCollectable` に変換 | O(n) | O(1) |
+| `toCollectable(mapper)` | カスタムコレクターに変換 | O(n) | O(1) |
 
 ```typescript
-// 수집기 변환 예제
-const numbers = from([3, 1, 4, 1, 5, 9, 2, 6, 5]);
+// 昇順ソート配列に変換
+from([6,4,3,5,2]) // ストリーム作成
+    .sorted() // ストリームを昇順でソート
+    .toArray(); // [2, 3, 4, 5, 6]
 
-// 성능 우선: 비정렬 수집기 사용
-const unordered = numbers
-    .filter(n => n > 3)
-    .toUnoredered();
+// 降順ソート配列に変換
+from([6,4,3,5,2]) // ストリーム作成
+    .soted((a, b) => b - a) // ストリームを降順でソート
+    .toArray(); // [6, 5, 4, 3, 2]
 
-// 정렬 필요: 정렬된 수집기 사용  
-const ordered = numbers
-    .sorted()
-    .toOrdered();
+// 反転配列へリダイレクト
+from([6,4,3,5,2])
+    .redirect((element, index) => -index) // 反転順にリダイレクト
+    .toOrderd() // リダイレクト後の順序を保持
+    .toArray(); // [2, 5, 3, 4, 6]
 
-// 통계 분석: 통계 수집기 사용
-const stats = numbers
-    .toNumericStatistics();
+// 反転配列へのリダイレクトを無視
+from([6,4,3,5,2])
+    .redirect((element, index) => -index) // 反転順にリダイレクト
+    .toUnorderd() // リダイレクト順を破棄。この操作は `redirect`、`reverse`、`shuffle`、`translate` を無視する
+    .toArray(); // [2, 5, 3, 4, 6]
 
-console.log(stats.mean());        // 평균값
-console.log(stats.median());      // 중앙값
-console.log(stats.standardDeviation()); // 표준편차
+// ストリームを反転して配列化
+from([6, 4, 3, 5, 2])
+    .reverse() // ストリームを反転
+    .toOrdered() // 反転順を保証
+    .toArray(); // [2, 5, 3, 4, 6]
 
-// 윈도우 작업
-const windowed = numbers
-    .toWindow()
-    .tumble(3n); // 3개 요소 윈도우
+// シャッフルしたストリームを上書きして配列化
+from([6, 4, 3, 5, 2])
+    .shuffle() // ストリームをシャッフル
+    .sorted() // シャッフル順を上書き。この操作は `redirect`、`reverse`、`shuffle`、`translate` を上書きする
+    .toArray(); // [2, 5, 3, 4, 6]
 
-windowed.forEach(window => {
-    console.log(window.toArray()); // 각 윈도우 내용
-});
+// ウィンドウコレクターに変換
+from([6, 4, 3, 5, 2]).toWindow();
+
+// 数値統計に変換
+from([6, 4, 3, 5, 2]).toNumericStatistics();
+
+// bigint 統計に変換
+from([6n, 4n, 3n, 5n, 2n]).toBigintStatistics();
+
+// データ収集用のカスタムコレクターを定義
+let customizedCollector = from([1, 2, 3, 4, 5]).toCollectable((generator: Generator<E>) => new CustomizedCollector(generator));
 ```
 
 ## Collectable 수집 메서드

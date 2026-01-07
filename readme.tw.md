@@ -15,34 +15,40 @@ npm install semantic-typescript
 ## 基礎類型
 
 | 類型 | 描述 |
-|------|------|
-| `Invalid<T>` | 擴展 null 或 undefined 的類型 |
-| `Valid<T>` | 排除 null 和 undefined 的類型 |
-| `MaybeInvalid<T>` | 可能為 null 或 undefined 的類型 |
-| `Primitive` | 原始類型集合 |
+|------|-------------|
+| `Invalid<T>` | 擴展 `null` 或 `undefined` 的類型 |
+| `Valid<T>` | 排除 `null` 及 `undefined` 的類型 |
+| `MaybeInvalid<T>` | 可能為 `null` 或 `undefined` 的類型 |
+| `Primitive` | 原始類型的集合 |
 | `MaybePrimitive<T>` | 可能為原始類型的類型 |
-| `OptionalSymbol` | Optional 類的符號標識 |
-| `SemanticSymbol` | Semantic 類的符號標識 |
-| `CollectorsSymbol` | Collector 類的符號標識 |
-| `CollectableSymbol` | Collectable 類的符號標識 |
-| `OrderedCollectableSymbol` | OrderedCollectable 類的符號標識 |
-| `WindowCollectableSymbol` | WindowCollectable 類的符號標識 |
-| `StatisticsSymbol` | Statistics 類的符號標識 |
-| `NumericStatisticsSymbol` | NumericStatistics 類的符號標識 |
-| `BigIntStatisticsSymbol` | BigIntStatistics 類的符號標識 |
-| `UnorderedCollectableSymbol` | UnorderedCollectable 類的符號標識 |
-| `Runnable` | 無參數無返回值的函數 |
-| `Supplier<R>` | 無參數返回 R 的函數 |
-| `Functional<T, R>` | 單參數轉換函數 |
-| `Predicate<T>` | 單參數判斷函數 |
-| `BiFunctional<T, U, R>` | 雙參數轉換函數 |
-| `BiPredicate<T, U>` | 雙參數判斷函數 |
-| `Comparator<T>` | 比較函數 |
-| `TriFunctional<T, U, V, R>` | 三參數轉換函數 |
-| `Consumer<T>` | 單參數消費函數 |
-| `BiConsumer<T, U>` | 雙參數消費函數 |
-| `TriConsumer<T, U, V>` | 三參數消費函數 |
-| `Generator<T>` | 生成器函數 |
+| `OptionalSymbol` | `Optional` 類別的符號識別 |
+| `SemanticSymbol` | `Semantic` 類別的符號識別 |
+| `CollectorsSymbol` | `Collector` 類別的符號識別 |
+| `CollectableSymbol` | `Collectable` 類別的符號識別 |
+| `OrderedCollectableSymbol` | `OrderedCollectable` 類別的符號識別 |
+| `WindowCollectableSymbol` | `WindowCollectable` 類別的符號識別 |
+| `StatisticsSymbol` | `Statistics` 類別的符號識別 |
+| `NumericStatisticsSymbol` | `NumericStatistics` 類別的符號識別 |
+| `BigIntStatisticsSymbol` | `BigIntStatistics` 類別的符號識別 |
+| `UnorderedCollectableSymbol` | `UnorderedCollectable` 類別的符號識別 |
+
+## 函式介面
+
+| 介面 | 描述 |
+|------|-------------|
+| `Runnable` | 無參數且無回傳值的函式 |  
+| `Supplier<R>` | 無參數並回傳 `R` 的函式 |  
+| `Functional<T, R>` | 單參數轉換函式 |
+| `BiFunctional<T, U, R>` | 雙參數轉換函式 |
+| `TriFunctional<T, U, V, R>` | 三參數轉換函式 |
+| `Predicate<T>` | 單參數判斷函式 |
+| `BiPredicate<T, U>` | 雙參數判斷函式 |
+| `TriPredicate<T, U, V>` | 三參數判斷函式 |
+| `Consumer<T>` | 單參數消費函式 |
+| `BiConsumer<T, U>` | 雙參數消費函式 |
+| `TriConsumer<T, U, V>` | 三參數消費函式 |
+| `Comparator<T>` | 雙參數比較函式 |
+| `Generator<T>` | 產生器函式（核心與基礎） |
 
 ```typescript
 // 類型使用示例
@@ -136,15 +142,50 @@ console.log(emptyOpt.orElse(100)); // 輸出 100
 | `Collector.shortable(identity, interruptor, accumulator, finisher)` | 創建可中斷收集器 | O(1) | O(1) |
 
 ```typescript
-// Collector 使用示例
-const sumCollector = Collector.full(
-    () => 0,
-    (sum, num) => sum + num,
-    result => result
-);
+// 收集器轉換範例
+const numbers = from([3, 1, 4, 1, 5, 9, 2, 6, 5]);
 
-const numbers = from([1, 2, 3, 4, 5]);
-const total = numbers.toUnoredered().collect(sumCollector); // 15
+// 效能優先：使用無序收集器
+const unordered = numbers
+    .filter(n => n > 3)
+    .toUnoredered();
+
+// 需要排序：使用有序收集器  
+const ordered = numbers.sorted();
+
+// 計算元素數量
+let count = Collector.full(
+    () => 0, // 初始值
+    (accumulator, element) => accumulator + element, // 累積
+    (accumulator) => accumulator // 完成
+);
+count.collect(from([1,2,3,4,5])); // 從串流中計數
+count.collect([1,2,3,4,5]); // 從可迭代物件中計數
+
+let find = Collector.shortable(
+    () => Optional.empty(), // 初始值
+    (element, index, accumulator) => accumulator.isPresent(), // 中斷
+    (accumulator, element, index) => Optional.of(element), // 累積
+    (accumulator) => accumulator // 完成
+);
+find.collect(from([1,2,3,4,5])); // 尋找第一個元素
+find.collect([1,2,3,4,5]); // 尋找第一個元素
+
+// 統計分析：使用統計收集器
+const stats = numbers.toNumericStatistics();
+
+console.log(stats.mean());        // 平均值
+console.log(stats.median());      // 中位數
+console.log(stats.standardDeviation()); // 標準差
+
+// 視窗操作
+const windowed = numbers
+    .toWindow()
+    .tumble(3n); // 每 3 個元素形成一個視窗
+
+windowed.forEach(window => {
+    console.log(window.toArray()); // 每個視窗的內容
+});
 ```
 
 ### Semantic 工廠方法
@@ -155,6 +196,7 @@ const total = numbers.toUnoredered().collect(sumCollector); // 15
 | `empty<E>()` | 建立空串流 | O(1) | O(1) |
 | `fill<E>(element, count)` | 建立填充串流 | O(n) | O(1) |
 | `from<E>(iterable)` | 從可迭代物件建立串流 | O(1) | O(1) |
+| `generate<E>(element, interrupt)` | 建立產生器串流 | O(1) | O(1) |
 | `interval(period, delay?)` | 建立定時間隔串流 | O(1)* | O(1) |
 | `iterate<E>(generator)` | 從產生器建立串流 | O(1) | O(1) |
 | `range(start, end, step)` | 建立數值範圍串流 | O(n) | O(1) |
@@ -243,45 +285,65 @@ const complexResult = range(1, 100, 1)
     .toArray();                      // 轉換為陣列
 ```
 
-## 收集器轉換方法
+## Semantic轉換方法
 
 | 方法 | 描述 | 時間複雜度 | 空間複雜度 |
-|------|------|------------|------------|
-| `toUnoredered()` | 轉換為無序收集器（效能優先） | O(1) | O(1) |
-| `toOrdered()` | 轉換為有序收集器 | O(1) | O(1) |
-| `sorted()` | 排序並轉換為有序收集器 | O(n log n) | O(n) |
-| `toWindow()` | 轉換為視窗收集器 | O(1) | O(1) |
-| `toNumericStatistics()` | 轉換為數值統計 | O(1) | O(1) |
-| `toBigintStatistics()` | 轉換為大數統計 | O(1) | O(1) |
+|------------|------------|------------|------------|
+| `sorted()` | 轉為有序收集器 | O(n log n) | O(n) |
+| `toUnordered()` | 轉為無序收集器 | O(1) | O(1) |
+| `toOrdered()` | 轉為有序收集器 | O(1) | O(1) |
+| `toNumericStatistics()` | 轉為數值統計 | O(n) | O(1) |
+| `toBigintStatistics()` | 轉為 bigint 統計 | O(n) | O(1) |
+| `toWindow()` | 轉為視窗收集器 | O(1) | O(1) |
+| `toCollectable()` | 轉為 `UnorderdCollectable` | O(n) | O(1) |
+| `toCollectable(mapper)` | 轉為自訂收集器 | O(n) | O(1) |
 
 ```typescript
-// 收集器轉換示例
-const numbers = from([3, 1, 4, 1, 5, 9, 2, 6, 5]);
+// 轉為升序排序陣列
+from([6,4,3,5,2]) // 建立串流
+    .sorted() // 依升序排序串流
+    .toArray(); // [2, 3, 4, 5, 6]
 
-// 效能優先：使用無序收集器
-const unordered = numbers
-    .filter(n => n > 3)
-    .toUnoredered();
+// 轉為降序排序陣列
+from([6,4,3,5,2]) // 建立串流
+    .soted((a, b) => b - a) // 依降序排序串流
+    .toArray(); // [6, 5, 4, 3, 2]
 
-// 需要排序：使用有序收集器  
-const ordered = numbers.sorted();
+// 重新導向為反轉陣列
+from([6,4,3,5,2])
+    .redirect((element, index) => -index) // 重新導向為反轉順序
+    .toOrderd() // 保持重新導向後的順序
+    .toArray(); // [2, 5, 3, 4, 6]
 
-// 統計分析：使用統計收集器
-const stats = numbers
-    .toNumericStatistics();
+// 忽略反轉陣列的重新導向
+from([6,4,3,5,2])
+    .redirect((element, index) => -index) // 重新導向為反轉順序
+    .toUnorderd() // 捨棄重新導向的順序。此操作會忽略 `redirect`、`reverse`、`shuffle` 與 `translate` 操作
+    .toArray(); // [2, 5, 3, 4, 6]
 
-console.log(stats.mean());        // 平均值
-console.log(stats.median());      // 中位數
-console.log(stats.standardDeviation()); // 標準差
+// 將串流反轉為陣列
+from([6, 4, 3, 5, 2])
+    .reverse() // 反轉串流
+    .toOrdered() // 保證反轉後的順序
+    .toArray(); // [2, 5, 3, 4, 6]
 
-// 視窗操作
-const windowed = numbers
-    .toWindow()
-    .tumble(3n); // 每3個元素一個視窗
+// 覆寫洗牌後的串流為陣列
+from([6, 4, 3, 5, 2])
+    .shuffle() // 打亂串流
+    .sorted() // 覆寫洗牌順序。此操作會覆寫 `redirect`、`reverse`、`shuffle` 與 `translate` 操作
+    .toArray(); // [2, 5, 3, 4, 6]
 
-windowed.forEach(window => {
-    console.log(window.toArray()); // 每個視窗的內容
-});
+// 轉為視窗收集器
+from([6, 4, 3, 5, 2]).toWindow();
+
+// 轉為數值統計
+from([6, 4, 3, 5, 2]).toNumericStatistics();
+
+// 轉為 bigint 統計
+from([6n, 4n, 3n, 5n, 2n]).toBigintStatistics();
+
+// 定義自訂收集器以收集資料
+let customizedCollector = from([1, 2, 3, 4, 5]).toCollectable((generator: Generator<E>) => new CustomizedCollector(generator));
 ```
 
 ## Collectable 收集方法

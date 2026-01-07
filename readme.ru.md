@@ -15,34 +15,40 @@ npm install semantic-typescript
 ## Базовые типы
 
 | Тип | Описание |
-|-----|----------|
-| `Invalid<T>` | Тип, расширяющий null или undefined |
-| `Valid<T>` | Тип, исключающий null и undefined |
-| `MaybeInvalid<T>` | Тип, который может быть null или undefined |
-| `Primitive` | Коллекция примитивных типов |
-| `MaybePrimitive<T>` | Тип, который может быть примитивом |
-| `OptionalSymbol` | Символьный идентификатор для класса Optional |
-| `SemanticSymbol` | Символьный идентификатор для класса Semantic |
-| `CollectorsSymbol` | Символьный идентификатор для класса Collector |
-| `CollectableSymbol` | Символьный идентификатор для класса Collectable |
-| `OrderedCollectableSymbol` | Символьный идентификатор для класса OrderedCollectable |
-| `WindowCollectableSymbol` | Символьный идентификатор для класса WindowCollectable |
-| `StatisticsSymbol` | Символьный идентификатор для класса Statistics |
-| `NumericStatisticsSymbol` | Символьный идентификатор для класса NumericStatistics |
-| `BigIntStatisticsSymbol` | Символьный идентификатор для класса BigIntStatistics |
-| `UnorderedCollectableSymbol` | Символьный идентификатор для класса UnorderedCollectable |
-| `Runnable` | Функция без параметров и возвращаемого значения |
-| `Supplier<R>` | Функция без параметров, возвращающая R |
+|------|-------------|
+| `Invalid<T>` | Тип, расширяющий `null` или `undefined` |
+| `Valid<T>` | Тип, исключающий `null` и `undefined` |
+| `MaybeInvalid<T>` | Тип, который может быть `null` или `undefined` |
+| `Primitive` | Набор примитивных типов |
+| `MaybePrimitive<T>` | Тип, который может быть примитивным |
+| `OptionalSymbol` | Символьный идентификатор класса `Optional` |
+| `SemanticSymbol` | Символьный идентификатор класса `Semantic` |
+| `CollectorsSymbol` | Символьный идентификатор класса `Collector` |
+| `CollectableSymbol` | Символьный идентификатор класса `Collectable` |
+| `OrderedCollectableSymbol` | Символьный идентификатор класса `OrderedCollectable` |
+| `WindowCollectableSymbol` | Символьный идентификатор класса `WindowCollectable` |
+| `StatisticsSymbol` | Символьный идентификатор класса `Statistics` |
+| `NumericStatisticsSymbol` | Символьный идентификатор класса `NumericStatistics` |
+| `BigIntStatisticsSymbol` | Символьный идентификатор класса `BigIntStatistics` |
+| `UnorderedCollectableSymbol` | Символьный идентификатор класса `UnorderedCollectable` |
+
+## Функциональные интерфейсы
+
+| Интерфейс | Описание |
+|-----------|-------------|
+| `Runnable` | Функция без параметров и без возвращаемого значения |  
+| `Supplier<R>` | Функция без параметров, возвращающая `R` |  
 | `Functional<T, R>` | Функция преобразования с одним параметром |
-| `Predicate<T>` | Предикатная функция с одним параметром |
 | `BiFunctional<T, U, R>` | Функция преобразования с двумя параметрами |
-| `BiPredicate<T, U>` | Предикатная функция с двумя параметрами |
-| `Comparator<T>` | Функция сравнения |
 | `TriFunctional<T, U, V, R>` | Функция преобразования с тремя параметрами |
-| `Consumer<T>` | Потребительская функция с одним параметром |
-| `BiConsumer<T, U>` | Потребительская функция с двумя параметрами |
-| `TriConsumer<T, U, V>` | Потребительская функция с тремя параметрами |
-| `Generator<T>` | Функция-генератор |
+| `Predicate<T>` | Предикатная функция с одним параметром |
+| `BiPredicate<T, U>` | Предикатная функция с двумя параметрами |
+| `TriPredicate<T, U, V>` | Предикатная функция с тремя параметрами |
+| `Consumer<T>` | Функция-потребитель с одним параметром |
+| `BiConsumer<T, U>` | Функция-потребитель с двумя параметрами |
+| `TriConsumer<T, U, V>` | Функция-потребитель с тремя параметрами |
+| `Comparator<T>` | Функция сравнения с двумя параметрами |
+| `Generator<T>` | Генераторная функция (ядро и основа) |
 
 ```typescript
 // Примеры использования типов
@@ -136,15 +142,34 @@ console.log(emptyOpt.orElse(100)); // Выводит 100
 | `Collector.shortable(identity, interruptor, accumulator, finisher)` | Создает прерываемый сборщик | O(1) | O(1) |
 
 ```typescript
-// Примеры использования Collector
-const sumCollector = Collector.full(
-    () => 0,
-    (sum, num) => sum + num,
-    result => result
-);
+// Примеры преобразования коллекторов
+const numbers = from([3, 1, 4, 1, 5, 9, 2, 6, 5]);
 
-const numbers = from([1, 2, 3, 4, 5]);
-const total = numbers.toUnoredered().collect(sumCollector); // 15
+// Производительность в приоритете: используем неупорядоченный коллектор
+const unordered = numbers
+    .filter(n => n > 3)
+    .toUnoredered();
+
+// Нужна сортировка: используем упорядоченный коллектор  
+const ordered = numbers.sorted();
+
+// Подсчитывает количество элементов
+let count = Collector.full(
+    () => 0, // Начальное значение
+    (accumulator, element) => accumulator + element, // Аккумулировать
+    (accumulator) => accumulator // Завершить
+);
+count.collect(from([1,2,3,4,5])); // Считает из потока
+count.collect([1,2,3,4,5]); // Считает из итерируемого объекта
+
+let find = Collector.shortable(
+    () => Optional.empty(), // Начальное значение
+    (element, index, accumulator) => accumulator.isPresent(), // Прервать
+    (accumulator, element, index) => Optional.of(element), // Аккумулировать
+    (accumulator) => accumulator // Завершить
+);
+find.collect(from([1,2,3,4,5])); // Находит первый элемент
+find.collect([1,2,3,4,5]); // Находит первый элемент
 ```
 
 ### Фабричные методы Semantic
@@ -155,6 +180,7 @@ const total = numbers.toUnoredered().collect(sumCollector); // 15
 | `empty<E>()` | Создает пустой поток | O(1) | O(1) |
 | `fill<E>(element, count)` | Создает заполненный поток | O(n) | O(1) |
 | `from<E>(iterable)` | Создает поток из итерируемого объекта | O(1) | O(1) |
+| `generate<E>(element, interrupt)` | Создает поток из генератора | O(1) | O(1) |
 | `interval(period, delay?)` | Создает регулярный интервальный поток | O(1)* | O(1) |
 | `iterate<E>(generator)` | Создает поток из генератора | O(1) | O(1) |
 | `range(start, end, step)` | Создает числовой диапазонный поток | O(n) | O(1) |
@@ -231,6 +257,7 @@ const result = from([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
     .map(n => n * 2)                 // Умножает на 2
     .skip(1)                         // Пропускает первый
     .limit(3)                        // Ограничивает 3 элементами
+    .toUnordered()                    // Преобразует в неупорядоченный сборщик
     .toArray();                      // Преобразует в массив
 // Результат: [8, 12, 20]
 
@@ -244,47 +271,65 @@ const complexResult = range(1, 100, 1)
     .toArray();                      // Преобразует в массив
 ```
 
-## Методы преобразования сборщиков
+## Семантические методы преобразования
 
 | Метод | Описание | Временная сложность | Пространственная сложность |
-|-------|----------|-------------------|--------------------------|
-| `toUnoredered()` | Преобразует в неупорядоченный сборщик (приоритет производительности) | O(1) | O(1) |
-| `toOrdered()` | Преобразует в упорядоченный сборщик | O(1) | O(1) |
-| `sorted()` | Сортирует и преобразует в упорядоченный сборщик | O(n log n) | O(n) |
-| `toWindow()` | Преобразует в оконный сборщик | O(1) | O(1) |
-| `toNumericStatistics()` | Преобразует в числовую статистику | O(1) | O(1) |
-| `toBigintStatistics()` | Преобразует в BigInt статистику | O(1) | O(1) |
+|------------|------------|------------|------------|
+| `sorted()` | Преобразовать в упорядоченный коллектор | O(n log n) | O(n) |
+| `toUnordered()` | Преобразовать в неупорядоченный коллектор | O(1) | O(1) |
+| `toOrdered()` | Преобразовать в упорядоченный коллектор | O(1) | O(1) |
+| `toNumericStatistics()` | Преобразовать в числовую статистику | O(n) | O(1) |
+| `toBigintStatistics()` | Преобразовать в статистику BigInt | O(n) | O(1) |
+| `toWindow()` | Преобразовать в коллектор окон | O(1) | O(1) |
+| `toCollectable()` | Преобразовать в `UnorderdCollectable` | O(n) | O(1) |
+| `toCollectable(mapper)` | Преобразовать в пользовательский коллектор | O(n) | O(1) |
 
 ```typescript
-// Примеры преобразования сборщиков
-const numbers = from([3, 1, 4, 1, 5, 9, 2, 6, 5]);
+// Преобразовать в массив, отсортированный по возрастанию
+from([6,4,3,5,2]) // Создаёт поток
+    .sorted() // Сортирует поток по возрастанию
+    .toArray(); // [2, 3, 4, 5, 6]
 
-// Приоритет производительности: Использовать неупорядоченный сборщик
-const unordered = numbers
-    .filter(n => n > 3)
-    .toUnoredered();
+// Преобразовать в массив, отсортированный по убыванию
+from([6,4,3,5,2]) // Создаёт поток
+    .soted((a, b) => b - a) // Сортирует поток по убыванию
+    .toArray(); // [6, 5, 4, 3, 2]
 
-// Нужна сортировка: Использовать упорядоченный сборщик  
-const ordered = numbers
-    .sorted()
-    .toOrdered();
+// Перенаправить в обратный массив
+from([6,4,3,5,2])
+    .redirect((element, index) => -index) // Перенаправляет в обратном порядке
+    .toOrderd() // Сохраняет перенаправленный порядок
+    .toArray(); // [2, 5, 3, 4, 6]
 
-// Статистический анализ: Использовать статистический сборщик
-const stats = numbers
-    .toNumericStatistics();
+// Игнорировать перенаправления для обращения массива
+from([6,4,3,5,2])
+    .redirect((element, index) => -index) // Перенаправляет в обратном порядке
+    .toUnorderd() // Удаляет перенаправленный порядок. Эта операция игнорирует `redirect`, `reverse`, `shuffle` и `translate`
+    .toArray(); // [2, 5, 3, 4, 6]
 
-console.log(stats.mean());        // Среднее значение
-console.log(stats.median());      // Медиана
-console.log(stats.standardDeviation()); // Стандартное отклонение
+// Обратить поток в массив
+from([6, 4, 3, 5, 2])
+    .reverse() // Обращает поток
+    .toOrdered() // Гарантирует обращённый порядок
+    .toArray(); // [2, 5, 3, 4, 6]
 
-// Оконные операции
-const windowed = numbers
-    .toWindow()
-    .tumble(3n); // Окно из 3 элементов
+// Перезаписать перетасованный поток в массив
+from([6, 4, 3, 5, 2])
+    .shuffle() // Перемешивает поток
+    .sorted() // Перезаписывает перетасованный порядок. Эта операция перезаписывает `redirect`, `reverse`, `shuffle` и `translate`
+    .toArray(); // [2, 5, 3, 4, 6]
 
-windowed.forEach(window => {
-    console.log(window.toArray()); // Содержимое каждого окна
-});
+// Преобразовать в коллектор окон
+from([6, 4, 3, 5, 2]).toWindow();
+
+// Преобразовать в числовую статистику
+from([6, 4, 3, 5, 2]).toNumericStatistics();
+
+// Преобразовать в статистику BigInt
+from([6n, 4n, 3n, 5n, 2n]).toBigintStatistics();
+
+// Определить пользовательский коллектор для сбора данных
+let customizedCollector = from([1, 2, 3, 4, 5]).toCollectable((generator: Generator<E>) => new CustomizedCollector(generator));
 ```
 
 ## Методы сбора Collectable

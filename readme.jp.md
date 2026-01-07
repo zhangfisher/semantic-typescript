@@ -15,34 +15,40 @@ npm install semantic-typescript
 ## 基本型
 
 | 型 | 説明 |
-|----|------|
-| `Invalid<T>` | nullまたはundefinedを拡張する型 |
-| `Valid<T>` | nullとundefinedを除外する型 |
-| `MaybeInvalid<T>` | nullまたはundefinedになり得る型 |
-| `Primitive` | プリミティブ型のコレクション |
+|------|-------------|
+| `Invalid<T>` | `null` または `undefined` を拡張する型 |
+| `Valid<T>` | `null` および `undefined` を除外する型 |
+| `MaybeInvalid<T>` | `null` または `undefined` になり得る型 |
+| `Primitive` | プリミティブ型の集合 |
 | `MaybePrimitive<T>` | プリミティブ型になり得る型 |
-| `OptionalSymbol` | Optionalクラスのシンボル識別子 |
-| `SemanticSymbol` | Semanticクラスのシンボル識別子 |
-| `CollectorsSymbol` | Collectorクラスのシンボル識別子 |
-| `CollectableSymbol` | Collectableクラスのシンボル識別子 |
-| `OrderedCollectableSymbol` | OrderedCollectableクラスのシンボル識別子 |
-| `WindowCollectableSymbol` | WindowCollectableクラスのシンボル識別子 |
-| `StatisticsSymbol` | Statisticsクラスのシンボル識別子 |
-| `NumericStatisticsSymbol` | NumericStatisticsクラスのシンボル識別子 |
-| `BigIntStatisticsSymbol` | BigIntStatisticsクラスのシンボル識別子 |
-| `UnorderedCollectableSymbol` | UnorderedCollectableクラスのシンボル識別子 |
-| `Runnable` | パラメータなし、戻り値なしの関数 |
-| `Supplier<R>` | パラメータなしでRを返す関数 |
-| `Functional<T, R>` | 単一パラメータ変換関数 |
-| `Predicate<T>` | 単一パラメータ述語関数 |
-| `BiFunctional<T, U, R>` | 二重パラメータ変換関数 |
-| `BiPredicate<T, U>` | 二重パラメータ述語関数 |
-| `Comparator<T>` | 比較関数 |
-| `TriFunctional<T, U, V, R>` | 三重パラメータ変換関数 |
-| `Consumer<T>` | 単一パラメータ消費関数 |
-| `BiConsumer<T, U>` | 二重パラメータ消費関数 |
-| `TriConsumer<T, U, V>` | 三重パラメータ消費関数 |
-| `Generator<T>` | ジェネレーター関数 |
+| `OptionalSymbol` | `Optional` クラスのシンボル識別子 |
+| `SemanticSymbol` | `Semantic` クラスのシンボル識別子 |
+| `CollectorsSymbol` | `Collector` クラスのシンボル識別子 |
+| `CollectableSymbol` | `Collectable` クラスのシンボル識別子 |
+| `OrderedCollectableSymbol` | `OrderedCollectable` クラスのシンボル識別子 |
+| `WindowCollectableSymbol` | `WindowCollectable` クラスのシンボル識別子 |
+| `StatisticsSymbol` | `Statistics` クラスのシンボル識別子 |
+| `NumericStatisticsSymbol` | `NumericStatistics` クラスのシンボル識別子 |
+| `BigIntStatisticsSymbol` | `BigIntStatistics` クラスのシンボル識別子 |
+| `UnorderedCollectableSymbol` | `UnorderedCollectable` クラスのシンボル識別子 |
+
+## 関数型インターフェース
+
+| インターフェース | 説明 |
+|------------------|-------------|
+| `Runnable` | 引数も戻り値も持たない関数 |  
+| `Supplier<R>` | 引数なしで `R` を返す関数 |  
+| `Functional<T, R>` | 単一引数の変換関数 |
+| `BiFunctional<T, U, R>` | 二引数の変換関数 |
+| `TriFunctional<T, U, V, R>` | 三引数の変換関数 |
+| `Predicate<T>` | 単一引数の述語関数 |
+| `BiPredicate<T, U>` | 二引数の述語関数 |
+| `TriPredicate<T, U, V>` | 三引数の述語関数 |
+| `Consumer<T>` | 単一引数の消費関数 |
+| `BiConsumer<T, U>` | 二引数の消費関数 |
+| `TriConsumer<T, U, V>` | 三引数の消費関数 |
+| `Comparator<T>` | 二引数の比較関数 |
+| `Generator<T>` | ジェネレーター関数（コアおよび基盤） |
 
 ```typescript
 // 型使用例
@@ -136,15 +142,34 @@ console.log(emptyOpt.orElse(100)); // 100を出力
 | `Collector.shortable(identity, interruptor, accumulator, finisher)` | 中断可能なコレクターを作成 | O(1) | O(1) |
 
 ```typescript
-// Collector使用例
-const sumCollector = Collector.full(
-    () => 0,
-    (sum, num) => sum + num,
-    result => result
-);
+// コレクター変換の例
+const numbers = from([3, 1, 4, 1, 5, 9, 2, 6, 5]);
 
-const numbers = from([1, 2, 3, 4, 5]);
-const total = numbers.toUnoredered().collect(sumCollector); // 15
+// パフォーマンス優先：非順序コレクターを使用
+const unordered = numbers
+    .filter(n => n > 3)
+    .toUnoredered();
+
+// ソートが必要：順序付きコレクターを使用  
+const ordered = numbers.sorted();
+
+// 要素数をカウント
+let count = Collector.full(
+    () => 0, // 初期値
+    (accumulator, element) => accumulator + element, // 蓄積
+    (accumulator) => accumulator // 完了
+);
+count.collect(from([1,2,3,4,5])); // ストリームからカウント
+count.collect([1,2,3,4,5]); // イテラブルオブジェクトからカウント
+
+let find = Collector.shortable(
+    () => Optional.empty(), // 初期値
+    (element, index, accumulator) => accumulator.isPresent(), // 中断
+    (accumulator, element, index) => Optional.of(element), // 蓄積
+    (accumulator) => accumulator // 完了
+);
+find.collect(from([1,2,3,4,5])); // 最初の要素を検索
+find.collect([1,2,3,4,5]); // 最初の要素を検索
 ```
 
 ### Semanticファクトリメソッド
@@ -155,6 +180,7 @@ const total = numbers.toUnoredered().collect(sumCollector); // 15
 | `empty<E>()` | 空のストリームを生成 | O(1) | O(1) |
 | `fill<E>(element, count)` | 埋め尽くされたストリームを生成 | O(n) | O(1) |
 | `from<E>(iterable)` | 反復可能オブジェクトからストリームを生成 | O(1) | O(1) |
+| `generate<E>(element, interrupt)` | ジェネレータからストリームを生成 | O(1) | O(1) |
 | `interval(period, delay?)` | 定期的なインターバルストリームを生成 | O(1)* | O(1) |
 | `iterate<E>(generator)` | ジェネレータからストリームを生成 | O(1) | O(1) |
 | `range(start, end, step)` | 数値範囲ストリームを生成 | O(n) | O(1) |
@@ -230,6 +256,7 @@ const result = from([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
     .map(n => n * 2)                 // 2倍に変換
     .skip(1)                         // 最初の要素をスキップ
     .limit(3)                        // 3要素に制限
+    .toUnordered()                    // 非順序コレクターに変換
     .toArray();                      // 配列に変換
 // 結果: [8, 12, 20]
 
@@ -243,47 +270,65 @@ const complexResult = range(1, 100, 1)
     .toArray();                      // 配列に変換
 ```
 
-## コレクター変換メソッド
+## 意味論的変換メソッド
 
 | メソッド | 説明 | 時間計算量 | 空間計算量 |
-|---------|------|------------|------------|
-| `toUnoredered()` | 非順序コレクターに変換（パフォーマンス優先） | O(1) | O(1) |
+|------------|------------|------------|------------|
+| `sorted()` | 順序付きコレクターに変換 | O(n log n) | O(n) |
+| `toUnordered()` | 順序なしコレクターに変換 | O(1) | O(1) |
 | `toOrdered()` | 順序付きコレクターに変換 | O(1) | O(1) |
-| `sorted()` | ソートして順序付きコレクターに変換 | O(n log n) | O(n) |
+| `toNumericStatistics()` | 数値統計に変換 | O(n) | O(1) |
+| `toBigintStatistics()` | bigint 統計に変換 | O(n) | O(1) |
 | `toWindow()` | ウィンドウコレクターに変換 | O(1) | O(1) |
-| `toNumericStatistics()` | 数値統計に変換 | O(1) | O(1) |
-| `toBigintStatistics()` | BigInt統計に変換 | O(1) | O(1) |
+| `toCollectable()` | `UnorderdCollectable` に変換 | O(n) | O(1) |
+| `toCollectable(mapper)` | カスタムコレクターに変換 | O(n) | O(1) |
 
 ```typescript
-// コレクター変換例
-const numbers = from([3, 1, 4, 1, 5, 9, 2, 6, 5]);
+// 昇順ソート配列に変換
+from([6,4,3,5,2]) // ストリーム作成
+    .sorted() // ストリームを昇順でソート
+    .toArray(); // [2, 3, 4, 5, 6]
 
-// パフォーマンス優先：非順序コレクターを使用
-const unordered = numbers
-    .filter(n => n > 3)
-    .toUnoredered();
+// 降順ソート配列に変換
+from([6,4,3,5,2]) // ストリーム作成
+    .soted((a, b) => b - a) // ストリームを降順でソート
+    .toArray(); // [6, 5, 4, 3, 2]
 
-// ソート必要：順序付きコレクターを使用  
-const ordered = numbers
-    .sorted()
-    .toOrdered();
+// 反転配列へリダイレクト
+from([6,4,3,5,2])
+    .redirect((element, index) => -index) // 反転順にリダイレクト
+    .toOrderd() // リダイレクト後の順序を保持
+    .toArray(); // [2, 5, 3, 4, 6]
 
-// 統計分析：統計コレクターを使用
-const stats = numbers
-    .toNumericStatistics();
+// 反転配列へのリダイレクトを無視
+from([6,4,3,5,2])
+    .redirect((element, index) => -index) // 反転順にリダイレクト
+    .toUnorderd() // リダイレクト順を破棄。この操作は `redirect`、`reverse`、`shuffle`、`translate` を無視する
+    .toArray(); // [2, 5, 3, 4, 6]
 
-console.log(stats.mean());        // 平均値
-console.log(stats.median());      // 中央値
-console.log(stats.standardDeviation()); // 標準偏差
+// ストリームを反転して配列化
+from([6, 4, 3, 5, 2])
+    .reverse() // ストリームを反転
+    .toOrdered() // 反転順を保証
+    .toArray(); // [2, 5, 3, 4, 6]
 
-// ウィンドウ操作
-const windowed = numbers
-    .toWindow()
-    .tumble(3n); // 3要素ごとのウィンドウ
+// シャッフルしたストリームを上書きして配列化
+from([6, 4, 3, 5, 2])
+    .shuffle() // ストリームをシャッフル
+    .sorted() // シャッフル順を上書き。この操作は `redirect`、`reverse`、`shuffle`、`translate` を上書きする
+    .toArray(); // [2, 5, 3, 4, 6]
 
-windowed.forEach(window => {
-    console.log(window.toArray()); // 各ウィンドウの内容
-});
+// ウィンドウコレクターに変換
+from([6, 4, 3, 5, 2]).toWindow();
+
+// 数値統計に変換
+from([6, 4, 3, 5, 2]).toNumericStatistics();
+
+// bigint 統計に変換
+from([6n, 4n, 3n, 5n, 2n]).toBigintStatistics();
+
+// データ収集用のカスタムコレクターを定義
+let customizedCollector = from([1, 2, 3, 4, 5]).toCollectable((generator: Generator<E>) => new CustomizedCollector(generator));
 ```
 
 ## Collectable収集メソッド

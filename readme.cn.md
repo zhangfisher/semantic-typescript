@@ -31,18 +31,24 @@ npm install semantic-typescript
 | `NumericStatisticsSymbol` | NumericStatistics 类的符号标识 |
 | `BigIntStatisticsSymbol` | BigIntStatistics 类的符号标识 |
 | `UnorderedCollectableSymbol` | UnorderedCollectable 类的符号标识 |
-| `Runnable` | 无参数无返回值的函数 |
-| `Supplier<R>` | 无参数返回 R 的函数 |
+
+## 函数式接口
+
+| 接口 | 描述 |
+|------|------|
+| `Runnable` | 无参数无返回值的函数 |  
+| `Supplier<R>` | 无参数返回 R 的函数 |  
 | `Functional<T, R>` | 单参数转换函数 |
-| `Predicate<T>` | 单参数判断函数 |
 | `BiFunctional<T, U, R>` | 双参数转换函数 |
-| `BiPredicate<T, U>` | 双参数判断函数 |
-| `Comparator<T>` | 比较函数 |
 | `TriFunctional<T, U, V, R>` | 三参数转换函数 |
+| `Predicate<T>` | 单参数断言函数 |
+| `BiPredicate<T, U>` | 双参数断言函数 |
+| `TriPredicate<T, U, V>` | 三参数断言函数 |
 | `Consumer<T>` | 单参数消费函数 |
 | `BiConsumer<T, U>` | 双参数消费函数 |
 | `TriConsumer<T, U, V>` | 三参数消费函数 |
-| `Generator<T>` | 生成器函数 |
+| `Comparator<T>` | 双参数比较函数 |
+| `Generator<T>` | 生成器函数(核心与基础) |
 
 ```typescript
 // 类型使用示例
@@ -136,15 +142,34 @@ console.log(emptyOpt.orElse(100)); // 输出 100
 | `Collector.shortable(identity, interruptor, accumulator, finisher)` | 创建可中断收集器 | O(1) | O(1) |
 
 ```typescript
-// Collector 使用示例
-const sumCollector = Collector.full(
-    () => 0,
-    (sum, num) => sum + num,
-    result => result
-);
+// 收集器转换示例
+const numbers = from([3, 1, 4, 1, 5, 9, 2, 6, 5]);
 
-const numbers = from([1, 2, 3, 4, 5]);
-const total = numbers.toUnoredered().collect(sumCollector); // 15
+// 优先考虑性能：使用无序收集器
+const unordered = numbers
+    .filter(n => n > 3)
+    .toUnoredered();
+
+// 需要排序：使用有序收集器  
+const ordered = numbers.sorted();
+
+// 计算元素数量
+let count = Collector.full(
+    () => 0, // 初始值
+    (accumulator, element) => accumulator + element, // 累加
+    (accumulator) => accumulator // 完成
+);
+count.collect(from([1,2,3,4,5])); // 从流中计数
+count.collect([1,2,3,4,5]); // 从可迭代对象中计数
+
+let find = Collector.shortable(
+    () => Optional.empty(), // 初始值
+    (element, index, accumulator) => accumulator.isPresent(), // 中断
+    (accumulator, element, index) => Optional.of(element), // 累加
+    (accumulator) => accumulator // 完成
+);
+find.collect(from([1,2,3,4,5])); // 查找第一个元素
+find.collect([1,2,3,4,5]); // 查找第一个元素
 ```
 
 ### Semantic 工厂方法
@@ -155,30 +180,31 @@ const total = numbers.toUnoredered().collect(sumCollector); // 15
 | `empty<E>()` | 创建空流 | O(1) | O(1) |
 | `fill<E>(element, count)` | 创建填充流 | O(n) | O(1) |
 | `from<E>(iterable)` | 从可迭代对象创建流 | O(1) | O(1) |
+| `generate<E>(element, interrupt)` | 创建生成器流 | O(1) | O(1) |
 | `interval(period, delay?)` | 创建定时间隔流 | O(1)* | O(1) |
 | `iterate<E>(generator)` | 从生成器创建流 | O(1) | O(1) |
 | `range(start, end, step)` | 创建数值范围流 | O(n) | O(1) |
 | `websocket(websocket)` | 从 WebSocket 创建流 | O(1) | O(1) |
 
 ```typescript
-// Semantic 工厂方法使用示例
+// 语义工厂方法使用示例
 
 // 从 Blob 创建流（分块读取）
 blob(someBlob, 1024n)
   .toUnordered()
   .write(WritableStream)
   .then(callback) // 写入流成功
-  .catch(writeFi); // 写入流失败
+  .catch(callback); // 写入流失败
 
-// 创建空流，在拼接其它流之前不会执行
+// 创建空流，只有与其他流拼接后才会执行
 empty<string>()
   .toUnordered()
-  .join(); //[]
+  .join(); // []
 
 // 创建填充流
 const filledStream = fill("hello", 3); // "hello", "hello", "hello"
 
-// 创建初始延迟2秒、执行周期5秒的时序流，基于计时器机制实现，因系统调度精度限制可能存在时间漂移。
+// 创建定时流，初始延迟 2 秒，执行周期 5 秒，基于定时器机制实现；可能因系统调度精度限制产生时间漂移。
 const intervalStream = interval(5000, 2000);
 
 // 从可迭代对象创建流
@@ -191,9 +217,9 @@ const rangeStream = range(1, 10, 2); // 1, 3, 5, 7, 9
 // WebSocket 事件流
 const ws = new WebSocket("ws://localhost:8080");
 websocket(ws)
-  .filter((event)=> event.type === "message"); //只监听消息事件
-  .toUnordered() // 对于事件一般不排序
-  .forEach((event)=> receive(event)); //接收消息
+  .filter((event)=> event.type === "message"); // 只监听消息事件
+  .toUnordered() // 事件通常无序
+  .forEach((event)=> receive(event)); // 接收消息
 ```
 
 ## Semantic 类方法
@@ -229,6 +255,7 @@ const result = from([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
     .map(n => n * 2)                 // 乘以2
     .skip(1)                         // 跳过第一个
     .limit(3)                        // 限制3个元素
+    .toUnOrdered()                    // 转换为无序收集器
     .toArray();                      // 转换为数组
 // 结果: [8, 12, 20]
 
@@ -242,47 +269,65 @@ const complexResult = range(1, 100, 1)
     .toArray();                      // 转换为数组
 ```
 
-## 收集器转换方法
+## Semantic转换方法
 
 | 方法 | 描述 | 时间复杂度 | 空间复杂度 |
-|------|------|------------|------------|
-| `toUnoredered()` | 转换为无序收集器（性能优先） | O(1) | O(1) |
+|------------|------------|------------|------------|
+| `sorted()` | 转换为有序收集器 | O(n log n) | O(n) |
+| `toUnordered()` | 转换为无序收集器 | O(1) | O(1) |
 | `toOrdered()` | 转换为有序收集器 | O(1) | O(1) |
-| `sorted()` | 排序并转换为有序收集器 | O(n log n) | O(n) |
+| `toNumericStatistics()` | 转换为数值统计 | O(n) | O(1) |
+| `toBigintStatistics()` | 转换为 bigint 统计 | O(n) | O(1) |
 | `toWindow()` | 转换为窗口收集器 | O(1) | O(1) |
-| `toNumericStatistics()` | 转换为数值统计 | O(1) | O(1) |
-| `toBigintStatistics()` | 转换为大数统计 | O(1) | O(1) |
+| `toCollectable()` | 转换为 `UnorderedCollectable` | O(n) | O(1) |
+| `toCollectable(mapper)` | 转换为自定义收集器 | O(n) | O(1) |
 
 ```typescript
-// 收集器转换示例
-const numbers = from([3, 1, 4, 1, 5, 9, 2, 6, 5]);
+// 转换为升序数组
+from([6,4,3,5,2]) // 创建流
+    .sorted() // 按升序排序流
+    .toArray(); // [2, 3, 4, 5, 6]
 
-// 性能优先：使用无序收集器
-const unordered = numbers
-    .filter(n => n > 3)
-    .toUnoredered();
+// 转换为降序数组
+from([6,4,3,5,2]) // 创建流
+    .soted((a, b) => b - a) // 按降序排序流
+    .toArray(); // [6, 5, 4, 3, 2]
 
-// 需要排序：使用有序收集器  
-const ordered = numbers
-    .sorted()
-    .toOrdered();
+// 重定向为反转数组
+from([6,4,3,5,2])
+    .redirect((element, index) => -index) // 重定向为反转顺序
+    .toOrderd() // 保持重定向后的顺序
+    .toArray(); // [2, 5, 3, 4, 6]
 
-// 统计分析：使用统计收集器
-const stats = numbers
-    .toNumericStatistics();
+// 忽略反转数组的重定向
+from([6,4,3,5,2])
+    .redirect((element, index) => -index) // 重定向为反转顺序
+    .toUnorderd() // 丢弃重定向的顺序。此操作会忽略 `redirect`、`reverse`、`shuffle` 和 `translate` 操作
+    .toArray(); // [2, 5, 3, 4, 6]
 
-console.log(stats.mean());        // 平均值
-console.log(stats.median());      // 中位数
-console.log(stats.standardDeviation()); // 标准差
+// 将流反转为数组
+from([6, 4, 3, 5, 2])
+    .reverse() // 反转流
+    .toOrdered() // 保证反转后的顺序
+    .toArray(); // [2, 5, 3, 4, 6]
 
-// 窗口操作
-const windowed = numbers
-    .toWindow()
-    .tumble(3n); // 每3个元素一个窗口
+// 覆盖打乱后的流为数组
+from([6, 4, 3, 5, 2])
+    .shuffle() // 打乱流
+    .sorted() // 覆盖打乱的顺序。此操作会覆盖 `redirect`、`reverse`、`shuffle` 和 `translate` 操作
+    .toArray(); // [2, 5, 3, 4, 6]
 
-windowed.forEach(window => {
-    console.log(window.toArray()); // 每个窗口的内容
-});
+// 转换为窗口收集器
+from([6, 4, 3, 5, 2]).toWindow();
+
+// 转换为数值统计
+from([6, 4, 3, 5, 2]).toNumericStatistics();
+
+// 转换为 bigint 统计
+from([6n, 4n, 3n, 5n, 2n]).toBigintStatistics();
+
+// 定义一个自定义收集器来收集数据
+let customizedCollector = from([1, 2, 3, 4, 5]).toCollectable((generator: Generator<E>) => new CustomizedCollector(generator));
 ```
 
 ## Collectable 收集方法
