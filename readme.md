@@ -229,6 +229,7 @@ const result = from([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
     .map(n => n * 2)                 // Multiply by 2
     .skip(1)                         // Skip the first
     .limit(3)                        // Limit to 3 elements
+    .toUnordered()                  
     .toArray();                      // Convert to array
 // Result: [8, 12, 20]
 
@@ -266,8 +267,7 @@ const unordered = numbers
 const ordered = numbers.sorted();
 
 // Statistical analysis: use statistical collector
-const stats = numbers
-    .toNumericStatistics();
+const stats = numbers.toNumericStatistics();
 
 console.log(stats.mean());        // Average value
 console.log(stats.median());      // Median value
@@ -334,7 +334,7 @@ const grouped = data.groupBy(
 const sum = data.reduce(0, (acc, n) => acc + n); // 30
 
 // Output operations
-data.join(", "); // "2, 4, 6, 8, 10"
+data.join(", "); // "[2, 4, 6, 8, 10]"
 ```
 
 ## Statistical Analysis Methods
@@ -423,3 +423,4 @@ const bigIntStats = data
 
 
 This library provides TypeScript developers with powerful and flexible streaming capabilities, combining the benefits of functional programming with type safety guarantees.
+
