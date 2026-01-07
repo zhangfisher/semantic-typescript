@@ -1,6 +1,6 @@
 import { Collectable, OrderedCollectable, UnorderedCollectable, WindowCollectable } from "./collectable";
 import { isBigInt, isCollectable, isFunction, isIterable, isNumber, isSemantic } from "./guard";
-import { useRandom } from "./hook";
+import { useCompare, useRandom } from "./hook";
 import { BigIntStatistics, NumericStatistics } from "./statistics";
 import { SemanticSymbol } from "./symbol";
 import { validate } from "./utility";
@@ -258,7 +258,7 @@ export class Semantic {
         if (isFunction(comparator)) {
             return new OrderedCollectable(this.generator, comparator);
         }
-        return new OrderedCollectable(this.generator);
+        return new OrderedCollectable(this.generator, (a, b) => useCompare(a, b));
     }
     sub(start, end) {
         return new Semantic((accept, interrupt) => {

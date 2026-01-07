@@ -409,25 +409,6 @@ export class OrderedCollectable extends Collectable {
         else {
             throw new TypeError("Invalid arguments.");
         }
-        if (isFunction(argument2)) {
-            let comparator = argument2;
-            this.ordered = this.ordered.sort((a, b) => comparator(a.value, b.value)).map((indexed, index) => {
-                return {
-                    index: BigInt(index),
-                    value: indexed.value
-                };
-            });
-        }
-        else {
-            this.ordered = this.ordered.sort((a, b) => {
-                return useCompare(a.value, b.value);
-            }).map((indexed, index) => {
-                return {
-                    index: BigInt(index),
-                    value: indexed.value
-                };
-            });
-        }
         buffer.map((indexed, _index, array) => {
             let length = BigInt(array.length);
             return {
@@ -435,15 +416,18 @@ export class OrderedCollectable extends Collectable {
                 value: indexed.value
             };
         }).sort((a, b) => {
-            return useCompare(a.index, b.index);
+            if (isFunction(argument2)) {
+                let comparator = argument2;
+                return comparator(a.value, b.value);
+            }
+            else {
+                return useCompare(a.index, b.index);
+            }
         }).forEach((indexed) => {
             this.ordered.push(indexed);
         });
     }
     source() {
-        this.ordered.forEach((indexed) => {
-            console.log(indexed.index, indexed.value);
-        });
         return this.ordered.map((indexed) => indexed.value);
     }
 }
