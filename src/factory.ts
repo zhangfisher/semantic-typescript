@@ -6,8 +6,8 @@ import type { BiFunctional, BiPredicate, Functional, Predicate, Supplier, TriFun
 
 export let blob: Functional<Blob, Semantic<Uint8Array>> & BiFunctional<Blob, bigint, Semantic<Uint8Array>> = (blob: Blob, chunk: bigint = 64n * 1024n): Semantic<Uint8Array> => {
     let size: number = Number(chunk);
-    if (size <= 0) {
-        throw new RangeError("Chunk size must be positive.");
+    if (size <= 0 || !Number.isSafeInteger(size)) {
+        throw new RangeError("Chunk size must be a safe positive integer.");
     }
     if (invalidate(blob)) {
         throw new TypeError("Blob is invalid.");
@@ -15,82 +15,56 @@ export let blob: Functional<Blob, Semantic<Uint8Array>> & BiFunctional<Blob, big
     return new Semantic<Uint8Array>((accept, interrupt) => {
         let index: bigint = 0n;
         let stoppable: boolean = false;
-        let stream: ReadableStream<Uint8Array<ArrayBuffer>> = blob.stream();
-        let reader: ReadableStreamDefaultReader<Uint8Array<ArrayBuffer>> = stream.getReader();
+        let stream: ReadableStream<Uint8Array> = blob.stream();
+        let reader: ReadableStreamDefaultReader<Uint8Array> = stream.getReader();
         let buffer: Uint8Array = new Uint8Array(size);
         let offset: number = 0;
-        let read: Functional<ReadableStreamDefaultReader<Uint8Array<ArrayBuffer>>, Promise<void>> = async (reader: ReadableStreamDefaultReader<Uint8Array<ArrayBuffer>>): Promise<void> => {
-            if (stoppable) {
-                return reader.cancel().finally((): void => reader.releaseLock());
-            }
-            return reader.read().then((result: ReadableStreamReadResult<Uint8Array<ArrayBuffer>>) => {
-                if (result.done) {
-                    if (offset > 0) {
-                        const element: Uint8Array = buffer.subarray(0, offset);
-                        if (interrupt(element, index)) {
-                            stoppable = true;
-                        } else {
-                            accept(element, index);
-                            index++;
+
+        (async () => {
+            try {
+                while (!stoppable) {
+                    const { done, value } = await reader.read();
+                    if (done) {
+                        if (offset > 0) {
+                            const element: Uint8Array = buffer.subarray(0, offset);
+                            if (interrupt(element, index)) {
+                                stoppable = true;
+                            } else {
+                                accept(element, index);
+                                index++;
+                            }
                         }
+                        break;
                     }
-                    reader.releaseLock();
-                    return;
-                }
+                    let chunkData: Uint8Array = value;
+                    let position: number = 0;
+                    while (position < chunkData.length && !stoppable) {
+                        const space: number = size - offset;
+                        const toCopy: number = Math.min(space, chunkData.length - position);
+                        buffer.set(chunkData.subarray(position, position + toCopy), offset);
+                        offset += toCopy;
+                        position += toCopy;
 
-                let chunkData: Uint8Array = result.value;
-                let length: number = chunkData.length;
-                let remaining: number = size - offset;
-                if (length > remaining) {
-                    buffer.set(chunkData.subarray(0, remaining), offset);
-
-                    if (interrupt(buffer, index)) {
-                        stoppable = true;
-                    } else {
-                        accept(buffer, index);
-                        index++;
-                    }
-                    offset = 0;
-                    const leftover = chunkData.subarray(remaining);
-                    if (leftover.length > 0) {
-                        buffer.set(leftover, offset);
-                        offset += leftover.length;
                         if (offset === size) {
                             if (interrupt(buffer, index)) {
                                 stoppable = true;
                             } else {
                                 accept(buffer, index);
                                 index++;
-                                offset = 0;
                             }
-                        }
-                    }
-                } else {
-                    buffer.set(chunkData, offset);
-                    offset += length;
-                    if (offset === size) {
-                        if (interrupt(buffer, index)) {
-                            stoppable = true;
-                        } else {
-                            accept(buffer, index);
-                            index++;
                             offset = 0;
                         }
                     }
                 }
-                if (!stoppable) {
-                    return read(reader);
-                } else {
-                    return reader.cancel().finally(() => reader.releaseLock());
+            } catch (error) {
+                // Handle error
+            } finally {
+                if (stoppable) {
+                    await reader.cancel();
                 }
-            }).catch((error: any) => {
                 reader.releaseLock();
-                throw error;
-            });
-        };
-        read(reader).catch((): void => {
-            reader.releaseLock();
-        });
+            }
+        })();
     });
 };
 

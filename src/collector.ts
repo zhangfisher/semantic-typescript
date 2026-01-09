@@ -1,4 +1,4 @@
-import { isFunction, isIterable, isSemantic } from "./guard";
+import { isBigInt, isFunction, isIterable, isNumber, isSemantic } from "./guard";
 import type { Semantic } from "./semantic";
 import { CollectableSymbol } from "./symbol";
 import type { BiFunctional, BiPredicate, Functional, Predicate, Supplier, TriFunctional, Generator, TriPredicate } from "./utility";
@@ -33,16 +33,19 @@ export class Collector<E, A, R> {
     public collect(generator: Generator<E>): R;
     public collect(iterable: Iterable<E>): R;
     public collect(semantic: Semantic<E>): R;
-    public collect(parameter: Generator<E> | Iterable<E> | Semantic<E>): R {
+    public collect(start: number, end: number): R;
+    public collect(start: bigint, end: bigint): R;
+    public collect(argument1: Generator<E> | Iterable<E> | Semantic<E> | number | bigint, argument2?: number | bigint): R {
         let accumulator: A = this.identity();
         let count: bigint = 0n;
-        if (isFunction(parameter)) {
-            parameter((element: E, index: bigint): void => {
+        if (isFunction(argument1)) {
+            let generator: Generator<E> = argument1;
+            generator((element: E, index: bigint): void => {
                 accumulator = this.accumulator(accumulator, element, index);
                 count++;
             }, (element: E, index: bigint): boolean => this.interrupt(element, index, accumulator));
-        } else if (isIterable(parameter)) {
-            let iterable: Iterable<E> = parameter;
+        } else if (isIterable(argument1)) {
+            let iterable: Iterable<E> = argument1;
             let index: bigint = 0n;
             for (let element of iterable) {
                 if (this.interrupt(element, index, accumulator)) {
@@ -52,8 +55,8 @@ export class Collector<E, A, R> {
                 count++;
                 index++;
             }
-        }else if (isSemantic(parameter)) {
-            let semantic: Semantic<E> = parameter;
+        }else if (isSemantic(argument1)) {
+            let semantic: Semantic<E> = argument1;
             let generator: Generator<E> = Reflect.get(semantic, "generator");
             if(isFunction(generator)){
                 generator((element: E, index: bigint): void => {
@@ -62,6 +65,26 @@ export class Collector<E, A, R> {
                 }, (element: E, index: bigint): boolean => this.interrupt(element, index, accumulator));
             }else{
                 throw new TypeError("Invalid arguments");
+            }
+        }else if(isNumber(argument1) && isNumber(argument2)){
+            let start: number = argument1 < argument2? argument1 : argument2;
+            let end: number = argument1 > argument2? argument1 : argument2;
+            for(let i: number = start; i < end; i++){
+                if(this.interrupt(i as E, count, accumulator)){
+                    break;
+                }
+                accumulator = this.accumulator(accumulator, i as E, count);
+                count++;
+            }
+        }else if(isBigInt(argument1) && isBigInt(argument2)){
+            let start: bigint = argument1 < argument2? argument1 : argument2;
+            let end: bigint = argument1 > argument2? argument1 : argument2;
+            for(let i: bigint = start; i < end; i++){
+                if(this.interrupt(i as E, count, accumulator)){
+                    break;
+                }
+                accumulator = this.accumulator(accumulator, i as E, count);
+                count++;
             }
         }
         return this.finisher(accumulator);

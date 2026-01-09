@@ -1,7 +1,7 @@
 import { Collectable, OrderedCollectable, UnorderedCollectable, WindowCollectable } from "./collectable";
 import { isBigInt, isCollectable, isFunction, isIterable, isNumber, isSemantic } from "./guard";
 import { useCompare, useRandom } from "./hook";
-import { BigIntStatistics, NumericStatistics, type Statistics } from "./statistics";
+import { BigIntStatistics, NumericStatistics } from "./statistics";
 import { SemanticSymbol } from "./symbol";
 import { validate, type Predicate } from "./utility";
 import type { Generator, Functional, BiFunctional, Consumer, BiConsumer, Comparator, } from "./utility";
@@ -329,11 +329,11 @@ export class Semantic<E> {
         return new UnorderedCollectable(this.generator);
     }
 
-    public toBigintStatistics(): Statistics<E, bigint> {
+    public toBigintStatistics(): BigIntStatistics<E> {
         return new BigIntStatistics(this.generator);
     }
 
-    public toNumericStatistics(): Statistics<E, number> {
+    public toNumericStatistics(): NumericStatistics<E> {
         return new NumericStatistics(this.generator);
     }
 

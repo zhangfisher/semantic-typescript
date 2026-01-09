@@ -19,8 +19,8 @@ export abstract class Collectable<E> {
     public anyMatch(predicate: Predicate<E>): boolean {
         return this.collect<boolean, boolean>((): boolean => {
             return false;
-        }, (element: E): boolean => {
-            return predicate(element);
+        }, (_element: E, _index: bigint, accumulator: boolean): boolean => {
+            return accumulator;
         }, (result: boolean, element: E): boolean => {
             return result || predicate(element);
         }, (result: boolean): boolean => {
@@ -31,8 +31,8 @@ export abstract class Collectable<E> {
     public allMatch(predicate: Predicate<E>): boolean {
         return this.collect<boolean, boolean>((): boolean => {
             return true;
-        }, (element: E): boolean => {
-            return !predicate(element);
+        }, (_element: E, _index: bigint, accumulator: boolean): boolean => {
+            return !accumulator;
         }, (result: boolean, element: E): boolean => {
             return result && predicate(element);
         }, (result: boolean): boolean => {
@@ -90,11 +90,14 @@ export abstract class Collectable<E> {
     public findAny(): Optional<E> {
         return this.collect<Optional<E>, Optional<E>>(
             (): Optional<E> => {
-                return Optional.ofNullable<E>();
-            }, (): boolean => {
-                return true;
+                return Optional.empty<E>();
+            }, (_element: E, _index: bigint, accumulator: Optional<E>): boolean => {
+                return accumulator.isPresent();
             }, (result: Optional<E>, element: E): Optional<E> => {
-                return result.isPresent() && Math.random() > 0.5 ? result : Optional.of(element);
+                if(Math.random() < 0.5){
+                    return Optional.of(element);
+                }
+                return result;
             }, (result: Optional<E>): Optional<E> => {
                 return result;
             });
@@ -103,9 +106,9 @@ export abstract class Collectable<E> {
     public findFirst(): Optional<E> {
         return this.collect<Optional<E>, Optional<E>>(
             (): Optional<E> => {
-                return Optional.ofNullable<E>();
-            }, (): boolean => {
-                return true;
+                return Optional.empty<E>();
+            }, (_element: E, _index: bigint, accumulator: Optional<E>): boolean => {
+                return accumulator.isPresent();
             }, (result: Optional<E>, element: E): Optional<E> => {
                 return result.isPresent() ? result : Optional.of(element);
             }, (result: Optional<E>): Optional<E> => {
@@ -116,9 +119,9 @@ export abstract class Collectable<E> {
     public findLast(): Optional<E> {
         return this.collect<Optional<E>, Optional<E>>(
             (): Optional<E> => {
-                return Optional.ofNullable<E>();
+                return Optional.empty<E>();
             }, (): boolean => {
-                return true;
+                return false;
             }, (result: Optional<E>, element: E): Optional<E> => {
                 return result.isPresent() ? result : Optional.of(element);
             }, (result: Optional<E>): Optional<E> => {
@@ -247,10 +250,10 @@ export abstract class Collectable<E> {
     public nonMatch(predicate: Predicate<E>): boolean {
         return this.collect<boolean, boolean>((): boolean => {
             return true;
-        }, (element: E): boolean => {
-            return predicate(element);
+        }, (_element: E, _index: bigint, accumulator: boolean): boolean => {
+            return !accumulator;
         }, (result: boolean, element: E) => {
-            return result || predicate(element);
+            return result || !predicate(element);
         }, (result: boolean): boolean => {
             return result;
         });
