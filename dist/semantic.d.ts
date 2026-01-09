@@ -1,5 +1,5 @@
 import { Collectable, OrderedCollectable, UnorderedCollectable, WindowCollectable } from "./collectable";
-import { type Statistics } from "./statistics";
+import { BigIntStatistics, NumericStatistics } from "./statistics";
 import { type Predicate } from "./utility";
 import type { Generator, Functional, BiFunctional, Consumer, BiConsumer, Comparator } from "./utility";
 export declare class Semantic<E> {
@@ -31,8 +31,8 @@ export declare class Semantic<E> {
     takeWhile(predicate: Predicate<E>): Semantic<E>;
     toCollectable(): Collectable<E>;
     toCollectable<C extends Collectable<E>>(mapper: Functional<Generator<E>, C>): C;
-    toBigintStatistics(): Statistics<E, bigint>;
-    toNumericStatistics(): Statistics<E, number>;
+    toBigintStatistics(): BigIntStatistics<E>;
+    toNumericStatistics(): NumericStatistics<E>;
     toOrdered(): OrderedCollectable<E>;
     toUnoredered(): UnorderedCollectable<E>;
     toWindow(): WindowCollectable<E>;

@@ -13,6 +13,8 @@ export declare class Collector<E, A, R> {
     collect(generator: Generator<E>): R;
     collect(iterable: Iterable<E>): R;
     collect(semantic: Semantic<E>): R;
+    collect(start: number, end: number): R;
+    collect(start: bigint, end: bigint): R;
     static full<E, A, R>(identity: Supplier<A>, accumulator: BiFunctional<A, E, A>, finisher: Functional<A, R>): Collector<E, A, R>;
     static full<E, A, R>(identity: Supplier<A>, accumulator: TriFunctional<A, E, bigint, A>, finisher: Functional<A, R>): Collector<E, A, R>;
     static shortable<E, A, R>(identity: Supplier<A>, interruptor: Predicate<E>, accumulator: BiFunctional<A, E, A>, finisher: Functional<A, R>): Collector<E, A, R>;

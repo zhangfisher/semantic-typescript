@@ -13,8 +13,8 @@ export class Collectable {
     anyMatch(predicate) {
         return this.collect(() => {
             return false;
-        }, (element) => {
-            return predicate(element);
+        }, (_element, _index, accumulator) => {
+            return accumulator;
         }, (result, element) => {
             return result || predicate(element);
         }, (result) => {
@@ -24,8 +24,8 @@ export class Collectable {
     allMatch(predicate) {
         return this.collect(() => {
             return true;
-        }, (element) => {
-            return !predicate(element);
+        }, (_element, _index, accumulator) => {
+            return !accumulator;
         }, (result, element) => {
             return result && predicate(element);
         }, (result) => {
@@ -69,20 +69,23 @@ export class Collectable {
     }
     findAny() {
         return this.collect(() => {
-            return Optional.ofNullable();
-        }, () => {
-            return true;
+            return Optional.empty();
+        }, (_element, _index, accumulator) => {
+            return accumulator.isPresent();
         }, (result, element) => {
-            return result.isPresent() && Math.random() > 0.5 ? result : Optional.of(element);
+            if (Math.random() < 0.5) {
+                return Optional.of(element);
+            }
+            return result;
         }, (result) => {
             return result;
         });
     }
     findFirst() {
         return this.collect(() => {
-            return Optional.ofNullable();
-        }, () => {
-            return true;
+            return Optional.empty();
+        }, (_element, _index, accumulator) => {
+            return accumulator.isPresent();
         }, (result, element) => {
             return result.isPresent() ? result : Optional.of(element);
         }, (result) => {
@@ -91,9 +94,9 @@ export class Collectable {
     }
     findLast() {
         return this.collect(() => {
-            return Optional.ofNullable();
+            return Optional.empty();
         }, () => {
-            return true;
+            return false;
         }, (result, element) => {
             return result.isPresent() ? result : Optional.of(element);
         }, (result) => {
@@ -206,10 +209,10 @@ export class Collectable {
     nonMatch(predicate) {
         return this.collect(() => {
             return true;
-        }, (element) => {
-            return predicate(element);
+        }, (_element, _index, accumulator) => {
+            return !accumulator;
         }, (result, element) => {
-            return result || predicate(element);
+            return result || !predicate(element);
         }, (result) => {
             return result;
         });

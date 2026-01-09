@@ -4,8 +4,8 @@ import { Semantic } from "./semantic";
 import { invalidate, validate } from "./utility";
 export let blob = (blob, chunk = 64n * 1024n) => {
     let size = Number(chunk);
-    if (size <= 0) {
-        throw new RangeError("Chunk size must be positive.");
+    if (size <= 0 || !Number.isSafeInteger(size)) {
+        throw new RangeError("Chunk size must be a safe positive integer.");
     }
     if (invalidate(blob)) {
         throw new TypeError("Blob is invalid.");
@@ -17,42 +17,31 @@ export let blob = (blob, chunk = 64n * 1024n) => {
         let reader = stream.getReader();
         let buffer = new Uint8Array(size);
         let offset = 0;
-        let read = async (reader) => {
-            if (stoppable) {
-                return reader.cancel().finally(() => reader.releaseLock());
-            }
-            return reader.read().then((result) => {
-                if (result.done) {
-                    if (offset > 0) {
-                        const element = buffer.subarray(0, offset);
-                        if (interrupt(element, index)) {
-                            stoppable = true;
+        (async () => {
+            try {
+                while (!stoppable) {
+                    const { done, value } = await reader.read();
+                    if (done) {
+                        if (offset > 0) {
+                            const element = buffer.subarray(0, offset);
+                            if (interrupt(element, index)) {
+                                stoppable = true;
+                            }
+                            else {
+                                accept(element, index);
+                                index++;
+                            }
                         }
-                        else {
-                            accept(element, index);
-                            index++;
-                        }
+                        break;
                     }
-                    reader.releaseLock();
-                    return;
-                }
-                let chunkData = result.value;
-                let length = chunkData.length;
-                let remaining = size - offset;
-                if (length > remaining) {
-                    buffer.set(chunkData.subarray(0, remaining), offset);
-                    if (interrupt(buffer, index)) {
-                        stoppable = true;
-                    }
-                    else {
-                        accept(buffer, index);
-                        index++;
-                    }
-                    offset = 0;
-                    const leftover = chunkData.subarray(remaining);
-                    if (leftover.length > 0) {
-                        buffer.set(leftover, offset);
-                        offset += leftover.length;
+                    let chunkData = value;
+                    let position = 0;
+                    while (position < chunkData.length && !stoppable) {
+                        const space = size - offset;
+                        const toCopy = Math.min(space, chunkData.length - position);
+                        buffer.set(chunkData.subarray(position, position + toCopy), offset);
+                        offset += toCopy;
+                        position += toCopy;
                         if (offset === size) {
                             if (interrupt(buffer, index)) {
                                 stoppable = true;
@@ -60,43 +49,46 @@ export let blob = (blob, chunk = 64n * 1024n) => {
                             else {
                                 accept(buffer, index);
                                 index++;
-                                offset = 0;
                             }
-                        }
-                    }
-                }
-                else {
-                    buffer.set(chunkData, offset);
-                    offset += length;
-                    if (offset === size) {
-                        if (interrupt(buffer, index)) {
-                            stoppable = true;
-                        }
-                        else {
-                            accept(buffer, index);
-                            index++;
                             offset = 0;
                         }
                     }
                 }
-                if (!stoppable) {
-                    return read(reader);
+            }
+            catch (error) {
+                // Handle error
+            }
+            finally {
+                if (stoppable) {
+                    await reader.cancel();
                 }
-                else {
-                    return reader.cancel().finally(() => reader.releaseLock());
-                }
-            }).catch((error) => {
                 reader.releaseLock();
-                throw error;
-            });
-        };
-        read(reader).catch(() => {
-            reader.releaseLock();
-        });
+            }
+        })();
     });
 };
 export let empty = () => {
     return new Semantic(() => { });
+};
+export let event = (element, events) => {
+    if (validate(element) && isIterable(events)) {
+        return new Semantic((accept, interrupt) => {
+            let index = 0n;
+            let stop = false;
+            for (let name of events) {
+                if (!stop) {
+                    element.addEventListener(name, (event) => {
+                        if (interrupt(event, index)) {
+                            stop = true;
+                        }
+                        accept(event, index);
+                        index++;
+                    });
+                }
+            }
+        });
+    }
+    throw new TypeError("Invalid arguments.");
 };
 export let fill = (element, count) => {
     if (validate(element) && count > 0n) {

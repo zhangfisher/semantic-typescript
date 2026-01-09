@@ -2,6 +2,7 @@ import { Semantic } from "./semantic";
 import type { BiFunctional, BiPredicate, Functional, Predicate, Supplier, TriFunctional, Generator } from "./utility";
 export declare let blob: Functional<Blob, Semantic<Uint8Array>> & BiFunctional<Blob, bigint, Semantic<Uint8Array>>;
 export declare let empty: <E>() => Semantic<E>;
+export declare let event: BiFunctional<HTMLElement, Array<keyof HTMLElementEventMap>, Semantic<Event>>;
 export declare let fill: (<E>(element: E, count: bigint) => Semantic<E>) & (<E>(supplier: Supplier<E>, count: bigint) => Semantic<E>);
 export declare let from: <E>(iterable: Iterable<E>) => Semantic<E>;
 export declare let generate: (<E>(supplier: Supplier<E>, interrupt: Predicate<E>) => Semantic<E>) & (<E>(supplier: Supplier<E>, interrupt: BiPredicate<E, bigint>) => Semantic<E>);
