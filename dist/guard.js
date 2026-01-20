@@ -83,3 +83,15 @@ export let isBigIntStatistics = (t) => {
     }
     return false;
 };
+export let isPromise = (t) => {
+    if (isObject(t)) {
+        return isFunction(Reflect.get(t, "then")) && isFunction(Reflect.get(t, "catch"));
+    }
+    return false;
+};
+export let isAsync = (t) => {
+    if (isFunction(t)) {
+        return Reflect.get(t, Symbol.toStringTag) === "AsyncFunction" && t.constructor.name === "AsyncFunction";
+    }
+    return false;
+};

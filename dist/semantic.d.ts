@@ -34,7 +34,7 @@ export declare class Semantic<E> {
     toBigintStatistics(): BigIntStatistics<E>;
     toNumericStatistics(): NumericStatistics<E>;
     toOrdered(): OrderedCollectable<E>;
-    toUnoredered(): UnorderedCollectable<E>;
+    toUnordered(): UnorderedCollectable<E>;
     toWindow(): WindowCollectable<E>;
     translate(offset: number): Semantic<E>;
     translate(offset: bigint): Semantic<E>;

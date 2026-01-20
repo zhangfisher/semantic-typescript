@@ -1,3 +1,4 @@
+import type { Semantic } from "./semantic";
 import { type Consumer, type Functional, type MaybeInvalid, type Predicate, type Runnable } from "./utility";
 export declare class Optional<T> {
     protected value: MaybeInvalid<T>;
@@ -11,6 +12,7 @@ export declare class Optional<T> {
     isEmpty(): boolean;
     isPresent(): boolean;
     map<R>(mapper: Functional<T, R>): Optional<R>;
+    semantic(): Semantic<T>;
     static empty<T>(): Optional<T>;
     static of<T>(value: MaybeInvalid<T>): Optional<T>;
     static ofNullable<T>(value?: MaybeInvalid<T>): Optional<T>;

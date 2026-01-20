@@ -302,7 +302,7 @@ export class Semantic {
     toOrdered() {
         return new OrderedCollectable(this.generator);
     }
-    toUnoredered() {
+    toUnordered() {
         return new UnorderedCollectable(this.generator);
     }
     toWindow() {

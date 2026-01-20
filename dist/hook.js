@@ -1,4 +1,5 @@
-import { isFunction, isNumber, isPrimitive } from "./guard";
+import { isFunction, isIterable, isNumber, isObject, isPrimitive } from "./guard";
+import { validate } from "./utility";
 export let useCompare = (t1, t2) => {
     if (t1 === t2 || Object.is(t1, t2)) {
         return 0;
@@ -61,4 +62,38 @@ export let useRandom = (index) => {
         return (mixed * 1000000);
     }
     throw new TypeError("Invalid input type");
+};
+export let useTraverse = (t, callback) => {
+    if (isObject(t)) {
+        let seen = new WeakSet();
+        let traverse = (target) => {
+            if (!seen.has(target)) {
+                seen.add(target);
+                let properties = Reflect.ownKeys(target);
+                for (let property of properties) {
+                    let value = target[property];
+                    if (validate(value)) {
+                        if (isObject(value)) {
+                            if (isIterable(value)) {
+                                for (let item of value) {
+                                    if (validate(item)) {
+                                        if (isObject(item)) {
+                                            traverse(item);
+                                        }
+                                        else {
+                                            callback(property, item);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        else {
+                            callback(property, value);
+                        }
+                    }
+                }
+            }
+        };
+        traverse(t);
+    }
 };

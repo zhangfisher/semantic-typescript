@@ -1,7 +1,30 @@
-import { isBigInt, isFunction, isIterable, isNumber } from "./guard";
+import { isBigInt, isFunction, isIterable, isNumber, isPromise } from "./guard";
 import { useCompare } from "./hook";
 import { Semantic } from "./semantic";
 import { invalidate, validate } from "./utility";
+export let animationFrame = (period, delay = 0) => {
+    if (period <= 0 || !Number.isFinite(period) || delay < 0 || !Number.isFinite(delay)) {
+        throw new TypeError("Period must be positive finite number and delay must be non-negative finite number.");
+    }
+    return new Semantic((accept, interrupt) => {
+        let start = performance.now();
+        let index = 0n;
+        let animate = () => {
+            if (performance.now() - start >= delay) {
+                requestAnimationFrame(animate);
+            }
+            else if (performance.now() - start < period) {
+                requestAnimationFrame(animate);
+            }
+            else {
+                if (interrupt(start, index)) {
+                    return;
+                }
+                accept(performance.now(), index);
+            }
+        };
+    });
+};
 export let blob = (blob, chunk = 64n * 1024n) => {
     let size = Number(chunk);
     if (size <= 0 || !Number.isSafeInteger(size)) {
@@ -20,10 +43,10 @@ export let blob = (blob, chunk = 64n * 1024n) => {
         (async () => {
             try {
                 while (!stoppable) {
-                    const { done, value } = await reader.read();
+                    let { done, value } = await reader.read();
                     if (done) {
                         if (offset > 0) {
-                            const element = buffer.subarray(0, offset);
+                            let element = buffer.subarray(0, offset);
                             if (interrupt(element, index)) {
                                 stoppable = true;
                             }
@@ -37,8 +60,8 @@ export let blob = (blob, chunk = 64n * 1024n) => {
                     let chunkData = value;
                     let position = 0;
                     while (position < chunkData.length && !stoppable) {
-                        const space = size - offset;
-                        const toCopy = Math.min(space, chunkData.length - position);
+                        let space = size - offset;
+                        let toCopy = Math.min(space, chunkData.length - position);
                         buffer.set(chunkData.subarray(position, position + toCopy), offset);
                         offset += toCopy;
                         position += toCopy;
@@ -56,7 +79,7 @@ export let blob = (blob, chunk = 64n * 1024n) => {
                 }
             }
             catch (error) {
-                // Handle error
+                console.error(error);
             }
             finally {
                 if (stoppable) {
@@ -69,26 +92,6 @@ export let blob = (blob, chunk = 64n * 1024n) => {
 };
 export let empty = () => {
     return new Semantic(() => { });
-};
-export let event = (element, events) => {
-    if (validate(element) && isIterable(events)) {
-        return new Semantic((accept, interrupt) => {
-            let index = 0n;
-            let stop = false;
-            for (let name of events) {
-                if (!stop) {
-                    element.addEventListener(name, (event) => {
-                        if (interrupt(event, index)) {
-                            stop = true;
-                        }
-                        accept(event, index);
-                        index++;
-                    });
-                }
-            }
-        });
-    }
-    throw new TypeError("Invalid arguments.");
 };
 export let fill = (element, count) => {
     if (validate(element) && count > 0n) {
@@ -173,6 +176,23 @@ export let iterate = (generator) => {
         return new Semantic(generator);
     }
     throw new TypeError("Invalid arguments.");
+};
+export let promise = (promise) => {
+    if (isPromise(promise)) {
+        return new Semantic((accept, interrupt) => {
+            promise.then((value) => {
+                if (interrupt(value, 0n)) {
+                    return;
+                }
+                accept(value, 0n);
+            }).catch((error) => {
+                console.error(error);
+            });
+        });
+    }
+    else {
+        throw new TypeError("Invalid arguments.");
+    }
 };
 export let range = (start, end, step = 1) => {
     if ((!isNumber(step) && !isBigInt(step)) || (isNumber(step) && useCompare(step, 0) === 0) || (isBigInt(step) && useCompare(step, 0n) === 0)) {

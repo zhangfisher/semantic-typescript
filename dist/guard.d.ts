@@ -2,7 +2,7 @@ import type { Collectable, OrderedCollectable, UnorderedCollectable } from "./co
 import type { Collector } from "./collector";
 import type { Semantic } from "./semantic";
 import type { Statistics } from "./statistics";
-import type { MaybePrimitive, Primitive } from "./utility";
+import type { AsyncFunction, MaybePrimitive, Primitive } from "./utility";
 export declare let isBoolean: (t: unknown) => t is boolean;
 export declare let isString: (t: unknown) => t is string;
 export declare let isNumber: (t: unknown) => t is number;
@@ -21,3 +21,5 @@ export declare let isUnorderedCollectable: (t: unknown) => t is UnorderedCollect
 export declare let isStatistics: (t: unknown) => t is Statistics<unknown, number | bigint>;
 export declare let isNumericStatistics: (t: unknown) => t is Statistics<unknown, number | bigint>;
 export declare let isBigIntStatistics: (t: unknown) => t is Statistics<unknown, number | bigint>;
+export declare let isPromise: (t: unknown) => t is Promise<unknown>;
+export declare let isAsync: (t: unknown) => t is AsyncFunction;

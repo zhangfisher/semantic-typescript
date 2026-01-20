@@ -5,6 +5,13 @@ export declare let validate: <T>(t: MaybeInvalid<T>) => t is T;
 export declare let invalidate: <T>(t: MaybeInvalid<T>) => t is (null | undefined);
 export type Primitive = string | number | boolean | symbol | bigint | Function | ((...args: any[]) => any);
 export type MaybePrimitive<T> = T | Primitive;
+export type AsyncFunction = (...args: any[]) => Promise<unknown>;
+export type DeepPropertyKey<T extends object> = {
+    [K in keyof T]: T[K] extends object ? DeepPropertyKey<T[K]> : K;
+};
+export type DeepPropertyValue<T extends object> = {
+    [K in keyof T]: T[K] extends object ? DeepPropertyValue<T[K]> : T[K];
+};
 export interface Runnable {
     (): void;
 }

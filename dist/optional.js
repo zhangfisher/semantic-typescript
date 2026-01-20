@@ -1,3 +1,4 @@
+import { empty, generate } from "./factory";
 import { isFunction } from "./guard";
 import { OptionalSymbol } from "./symbol";
 import { invalidate, validate } from "./utility";
@@ -45,6 +46,16 @@ export class Optional {
             return new Optional(mapper(this.value));
         }
         return new Optional(null);
+    }
+    semantic() {
+        if (this.isPresent()) {
+            return generate(() => {
+                return this.value;
+            }, () => {
+                return this.isEmpty();
+            });
+        }
+        return empty();
     }
     static empty() {
         return new Optional(null);
