@@ -52,9 +52,9 @@ npm install semantic-typescript
 
 ```typescript
 // Type usage examples
-const predicate: Predicate<number> = (n) => n > 0;
-const mapper: Functional<string, number> = (str) => str.length;
-const comparator: Comparator<number> = (a, b) => a - b;
+let predicate: Predicate<number> = (n: number): boolean => n > 0;
+let mapper: Functional<string, number> = (text: string): number => text.length;
+let comparator: Comparator<number> = (a: number, b: number): number => a - b;
 ```
 
 ## Type Guards
@@ -82,17 +82,26 @@ const comparator: Comparator<number> = (a, b) => a - b;
 | `isStatistics(t: unknown): t is Statistics<unknown, number \| bigint>` | Check if it is a Statistics instance | O(1) | O(1) |
 | `isNumericStatistics(t: unknown): t is NumericStatistics<unknown>` | Check if it is a NumericStatistics instance | O(1) | O(1) |
 | `isBigIntStatistics(t: unknown): t is BigIntStatistics<unknown>` | Check if it is a BigIntStatistics instance | O(1) | O(1) |
+| `isPromise(t: unknown): t is Promise<unknown>` | Check if it is a Promise object  | O(1) | O(1) |
+| `isAsync(t: unknown): t is AsyncFunction` | Check if it is an AsyncFunction | O(1) | O(1) |
 
 ```typescript
 // Type guard usage examples
-const value: unknown = "hello";
+let value: unknown = "hello";
 
 if (isString(value)) {
     console.log(value.length); // Type-safe, value inferred as string
 }
 
 if (isOptional(someValue)) {
-    someValue.ifPresent(val => console.log(val));
+    someValue.ifPresent((value): void => console.log(val));
+}
+
+if(isIterable(value)){
+    // Type-safe, now it's an iterable object.
+    for(let item of value){
+        console.log(item);
+    }
 }
 ```
 
@@ -105,11 +114,10 @@ if (isOptional(someValue)) {
 
 ```typescript
 // Utility function usage examples
-const numbers = [3, 1, 4, 1, 5];
+let numbers: Array<number> = [3, 1, 4, 1, 5];
 numbers.sort(useCompare); // [1, 1, 3, 4, 5]
 
-const randomNum = useRandom(42); // Seed-based random number
-const randomBigInt = useRandom(1000n); // BigInt random number
+let randomNum = useRandom(42); // Seed-based random number
 ```
 
 ## Factory Methods
@@ -125,13 +133,13 @@ const randomBigInt = useRandom(1000n); // BigInt random number
 
 ```typescript
 // Optional usage examples
-const emptyOpt = Optional.empty<number>();
-const presentOpt = Optional.of(42);
-const nullableOpt = Optional.ofNullable<string>(null);
-const nonNullOpt = Optional.ofNonNull("hello");
+let empty: Optional<number> = Optional.empty();
+let present: Optional<number> = Optional.of(42);
+let nullable: Optional<string> = Optional.ofNullable<string>(null);
+let nonNull: Optional<string> = Optional.ofNonNull("hello");
 
-presentOpt.ifPresent(val => console.log(val)); // Outputs 42
-console.log(emptyOpt.get(100)); // Outputs 100
+presentO.ifPresent((value: number): void => console.log(value)); // Outputs 42
+console.log(empty.get(100)); // Outputs 100
 ```
 
 ### Collector Factory Methods
@@ -143,30 +151,31 @@ console.log(emptyOpt.get(100)); // Outputs 100
 
 ```typescript
 // Collector conversion examples
-const numbers = from([3, 1, 4, 1, 5, 9, 2, 6, 5]);
+let numbers: Semantic<number> = from([3, 1, 4, 1, 5, 9, 2, 6, 5]);
 
 // Performance first: use unordered collector
-const unordered = numbers
-    .filter(n => n > 3)
+let unordered: UnorderedCollectable<number> = from([3, 1, 4, 1, 5, 9, 2, 6, 5])
+    .filter((n: number): boolean => n > 3)
     .toUnoredered();
 
 // Sorting needed: use ordered collector  
-const ordered = numbers.sorted();
+let ordered: OrderedCollectable<number> = from([3, 1, 4, 1, 5, 9, 2, 6, 5])
+    .sorted();
 
 // Counts the number of elements
-let count = Collector.full(
-    () => 0, // Initial value
-    (accumulator, element) => accumulator + element, // Accumulate
-    (accumulator) => accumulator // Finish
+let count: Collector<number, number, number> = Collector.full(
+    (): number => 0, // Initial value
+    (accumulator: number, element: number): number => accumulator + element, // Accumulate
+    (accumulator: number): number => accumulator // Finish
 );
 count.collect(from([1,2,3,4,5])); // Counts from a stream
 count.collect([1,2,3,4,5]); // Counts from an iterable object
 
-let find = Collector.shortable(
-    () => Optional.empty(), // Initial value
-    (element, index, accumulator) => accumulator.isPresent(), // Interrupt
-    (accumulator, element, index) => Optional.of(element), // Accumulate
-    (accumulator) => accumulator // Finish
+let find: Optional<number> = Collector.shortable(
+    (): Optional<number> => Optional.empty(), // Initial value
+    (element: number, index: bigint, accumulator: Optional<number>): Optional<number> => accumulator.isPresent(), // Interrupt
+    (accumulator: Optional<number>, element: number, index: bigint): Optional<number> => Optional.of(element), // Accumulate
+    (accumulator: Optional<number>): Optional<number> => accumulator // Finish
 );
 find.collect(from([1,2,3,4,5])); // Finds the first element
 find.collect([1,2,3,4,5]); // Finds the first element
@@ -176,6 +185,7 @@ find.collect([1,2,3,4,5]); // Finds the first element
 
 | Method | Description | Time Complexity | Space Complexity |
 |------|------|------------|------------|
+| `animationFrame(period: number, delay: number = 0)` | Create a timed animation frame stream | O(1)* | O(1) |
 | `blob(blob, chunkSize)` | Create a stream from a Blob | O(n) | O(chunkSize) |
 | `empty<E>()` | Create an empty stream | O(1) | O(1) |
 | `fill<E>(element, count)` | Create a filled stream | O(n) | O(1) |
@@ -188,37 +198,45 @@ find.collect([1,2,3,4,5]); // Finds the first element
 ```typescript
 // Semantic factory method usage examples
 
+// Create a stream from a timed animation frame
+animationFrame(1000)
+    .toUnordered()
+    .forEach(frame => console.log(frame));
+
 // Create a stream from a Blob (chunked reading)
 blob(someBlob, 1024n)
-  .toUnordered()
-  .write(WritableStream)
-  .then(callback) // Write stream successful
-  .catch(callback); // Write stream failed
+    .toUnordered()
+    .write(WritableStream)
+    .then(callback) // Write stream successful
+    .catch(callback); // Write stream failed
 
 // Create an empty stream, won't execute until concatenated with other streams
 empty<string>()
-  .toUnordered()
-  .join(); //[]
+    .toUnordered()
+    .join(); //[]
 
 // Create a filled stream
-const filledStream = fill("hello", 3); // "hello", "hello", "hello"
+let filledStream = fill("hello", 3); // "hello", "hello", "hello"
 
 // Create a timed stream with initial 2-second delay and 5-second execution period, implemented based on timer mechanism; may experience time drift due to system scheduling precision limitations.
-const intervalStream = interval(5000, 2000);
+let intervalStream = interval(5000, 2000);
 
 // Create a stream from an iterable object
-const numberStream = from([1, 2, 3, 4, 5]);
-const stringStream = from(new Set(["Alex", "Bob"]));
+let numberStream = from([1, 2, 3, 4, 5]);
+let stringStream = from(new Set(["Alex", "Bob"]));
+
+// Create a stream from a resolved Promise
+let promisedStream: Semantic<Array<number>> = Promise.resolve([1, 2, 3, 4, 5]);
 
 // Create a range stream
-const rangeStream = range(1, 10, 2); // 1, 3, 5, 7, 9
+let rangeStream = range(1, 10, 2); // 1, 3, 5, 7, 9
 
 // WebSocket event stream
-const ws = new WebSocket("ws://localhost:8080");
+let ws = new WebSocket("ws://localhost:8080");
 websocket(ws)
-  .filter((event)=> event.type === "message"); // Only listen to message events
+  .filter((event): boolean => event.type === "message"); // Only listen to message events
   .toUnordered() // Generally not ordered for events
-  .forEach((event)=> receive(event)); // Receive messages
+  .forEach((event): void => receive(event)); // Receive messages
 ```
 
 ## Semantic Class Methods
@@ -249,9 +267,9 @@ websocket(ws)
 
 ```typescript
 // Semantic operation examples
-const result = from([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
-    .filter(n => n % 2 === 0)        // Filter even numbers
-    .map(n => n * 2)                 // Multiply by 2
+let result = from([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
+    .filter((n: number): boolean => n % 2 === 0)        // Filter even numbers
+    .map((n: number): number => n * 2)                 // Multiply by 2
     .skip(1)                         // Skip the first
     .limit(3)                        // Limit to 3 elements
     .toUnordered()                   // Convert to unordered collector
@@ -259,11 +277,11 @@ const result = from([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
 // Result: [8, 12, 20]
 
 // Complex operation example
-const complexResult = range(1, 100, 1)
-    .flatMap(n => from([n, n * 2])) // Map each element to two
+let complexResult = range(1, 100, 1)
+    .flatMap((n: number): Semantics<number> => from([n, n * 2])) // Map each element to two
     .distinct()                      // Remove duplicates
     .shuffle()                       // Shuffle order
-    .takeWhile(n => n < 50)         // Take elements less than 50
+    .takeWhile((n: number): boolean => n < 50)         // Take elements less than 50
     .toOrdered()                     // Convert to ordered collector
     .toArray();                      // Convert to array
 ```
@@ -289,18 +307,18 @@ from([6,4,3,5,2]) // Creates a stream
 
 // Convert to a descending sorted array
 from([6,4,3,5,2]) // Creates a stream
-    .soted((a, b) => b - a) // Sorts the stream in descending order
+    .soted((a: number, b: number): number => b - a) // Sorts the stream in descending order
     .toArray(); // [6, 5, 4, 3, 2]
 
 // Redirect to a reversed array
 from([6,4,3,5,2])
-    .redirect((element, index) => -index) // Redirects to reversed order
+    .redirect((element, index): bigint => -index) // Redirects to reversed order
     .toOrderd() // Keeps the redirected order
     .toArray(); // [2, 5, 3, 4, 6]
 
 // Ignore redirections to reverse array
 from([6,4,3,5,2])
-    .redirect((element, index) => -index) // Redirects to reversed order
+    .redirect((element: number, index: bigint) => -index) // Redirects to reversed order
     .toUnorderd() // Drops the redirected order. This operation will ignore `redirect`, `reverse`, `shuffle` and `translate` operations
     .toArray(); // [2, 5, 3, 4, 6]
 
@@ -357,27 +375,27 @@ let customizedCollector = from([1, 2, 3, 4, 5]).toCollectable((generator: Genera
 
 ```typescript
 // Collectable operation examples
-const data = from([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
-    .filter(n => n % 2 === 0)
+let data = from([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
+    .filter((n: number): boolean => n % 2 === 0)
     .toOrdered();
 
 // Match checks
-console.log(data.anyMatch(n => n > 5)); // true
-console.log(data.allMatch(n => n < 20)); // true
+console.log(data.anyMatch((n: number): boolean => n > 5)); // true
+console.log(data.allMatch((n: number): boolean => n < 20)); // true
 
 // Find operations
-data.findFirst().ifPresent(n => console.log(n)); // 2
-data.findAny().ifPresent(n => console.log(n)); // Any element
+data.findFirst().ifPresent((n: number): void => console.log(n)); // 2
+data.findAny().ifPresent((n: number): void => console.log(n)); // Any element
 
 // Grouping operations
-const grouped = data.groupBy(
-    n => n > 5 ? "large" : "small",
-    n => n * 2
+let grouped = data.groupBy(
+    (n: number): string => n > 5 ? "large" : "small",
+    (n: number): number => n * 2
 );
 // {small: [4, 8], large: [12, 16, 20]}
 
 // Reduction operations
-const sum = data.reduce(0, (acc, n) => acc + n); // 30
+let sum = data.reduce(0, (accumulator: number, n: number): number => accumulator + n); // 30
 
 // Output operations
 data.join(", "); // "[2, 4, 6, 8, 10]"
@@ -404,7 +422,7 @@ data.join(", "); // "[2, 4, 6, 8, 10]"
 
 ```typescript
 // Statistical analysis examples
-const numbers = from([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
+let numbers = from([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
     .toNumericStatistics();
 
 console.log("Mean:", numbers.mean()); // 5.5
@@ -413,7 +431,7 @@ console.log("Standard deviation:", numbers.standardDeviation()); // ~2.87
 console.log("Sum:", numbers.summate()); // 55
 
 // Statistical analysis using mappers
-const objects = from([
+let objects = from([
     { value: 10 },
     { value: 20 }, 
     { value: 30 }
@@ -427,7 +445,7 @@ console.log("Mapped mean:", objects.mean(obj => obj.value)); // 20
 ### Choose Unordered Collector (Performance First)
 ```typescript
 // When order guarantee is not needed, use unordered collector for best performance
-const highPerformance = data
+let highPerformance = data
     .filter(predicate)
     .map(mapper)
     .toUnoredered(); // Best performance
@@ -436,13 +454,13 @@ const highPerformance = data
 ### Choose Ordered Collector (Order Required)
 ```typescript
 // When element order needs to be maintained, use ordered collector
-const ordered = data.sorted(comparator);
+let ordered = data.sorted(comparator);
 ```
 
 ### Choose Window Collector (Window Operations)
 ```typescript  
 // When window operations are needed
-const windowed = data
+let window: WindowCollectable<number> = data
     .toWindow()
     .slide(5n, 2n); // Sliding window
 ```
@@ -450,10 +468,10 @@ const windowed = data
 ### Choose Statistical Analysis (Numerical Calculations)
 ```typescript  
 // When statistical analysis is needed
-const stats = data
+let statistics: NumericStatistics<number> = data
     .toNumericStatistics(); // Numerical statistics
 
-const bigIntStats = data
+let bigIntStatistics: BigintStatistics<bigint> = data
     .toBigintStatistics(); // Big integer statistics
 ```
 
