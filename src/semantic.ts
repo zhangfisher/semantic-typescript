@@ -341,7 +341,7 @@ export class Semantic<E> {
         return new OrderedCollectable(this.generator);
     }
 
-    public toUnoredered(): UnorderedCollectable<E> {
+    public toUnordered(): UnorderedCollectable<E> {
         return new UnorderedCollectable(this.generator);
     }
 

@@ -3,7 +3,7 @@ import type { Collector } from "./collector";
 import type { Semantic } from "./semantic";
 import type { Statistics } from "./statistics";
 import { BigIntStatisticsSymbol, CollectableSymbol, CollectorsSymbol, NumericStatisticsSymbol, OrderedCollectableSymbol, SemanticSymbol, StatisticsSymbol, UnorderedCollectableSymbol } from "./symbol";
-import type { MaybePrimitive, Primitive } from "./utility";
+import type { AsyncFunction, MaybePrimitive, Primitive } from "./utility";
 
 export let isBoolean: (t: unknown) => t is boolean = (t: unknown): t is boolean => {
     return typeof t === "boolean";
@@ -87,6 +87,19 @@ export let isNumericStatistics: (t: unknown) => t is Statistics<unknown, number 
 export let isBigIntStatistics: (t: unknown) => t is Statistics<unknown, number | bigint> = (t: unknown): t is Statistics<unknown, number | bigint> => {
     if (isObject(t)) {
         return Reflect.get(t, "BigIntStatistics") === BigIntStatisticsSymbol;
+    }
+    return false;
+};
+export let isPromise: (t: unknown) => t is Promise<unknown> = (t: unknown): t is Promise<unknown> => {
+    if(isObject(t)){
+        return isFunction(Reflect.get(t, "then")) && isFunction(Reflect.get(t, "catch"));
+    }
+    return false;
+};
+
+export let isAsync: (t: unknown) => t is AsyncFunction = (t: unknown): t is AsyncFunction => {
+    if(isFunction(t)){
+        return Reflect.get(t, Symbol.toStringTag) === "AsyncFunction" && t.constructor.name === "AsyncFunction";
     }
     return false;
 };

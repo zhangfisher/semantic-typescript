@@ -1,8 +1,30 @@
-import { isBigInt, isFunction, isIterable, isNumber } from "./guard";
+import { isBigInt, isFunction, isIterable, isNumber, isPromise } from "./guard";
 import { useCompare } from "./hook";
 import { Semantic } from "./semantic";
 import { invalidate, validate } from "./utility";
-import type { BiFunctional, BiPredicate, Functional, Predicate, Supplier, TriFunctional, Generator } from "./utility";
+import type { BiFunctional, BiPredicate, Functional, Predicate, Supplier, TriFunctional, Generator, Consumer } from "./utility";
+
+export let animationFrame: Functional<number, Semantic<number>> & BiFunctional<number, number, Semantic<number>> = (period: number, delay: number = 0): Semantic<number> => {
+    if (period <= 0 || !Number.isFinite(period) || delay < 0 || !Number.isFinite(delay)) {
+        throw new TypeError("Period must be positive finite number and delay must be non-negative finite number.");
+    }
+    return new Semantic<number>((accept, interrupt): void => {
+        let start = performance.now();
+        let index: bigint = 0n;
+        let animate: Consumer<number> = (): void => {
+            if(performance.now() - start >= delay){
+                requestAnimationFrame(animate);
+            }else if(performance.now() - start < period){
+                requestAnimationFrame(animate);
+            }else{
+                if(interrupt(start, index)){
+                    return;
+                }
+                accept(performance.now(), index);
+            }
+        };
+    });
+};
 
 export let blob: Functional<Blob, Semantic<Uint8Array>> & BiFunctional<Blob, bigint, Semantic<Uint8Array>> = (blob: Blob, chunk: bigint = 64n * 1024n): Semantic<Uint8Array> => {
     let size: number = Number(chunk);
@@ -23,10 +45,10 @@ export let blob: Functional<Blob, Semantic<Uint8Array>> & BiFunctional<Blob, big
         (async () => {
             try {
                 while (!stoppable) {
-                    const { done, value } = await reader.read();
+                    let { done, value } = await reader.read();
                     if (done) {
                         if (offset > 0) {
-                            const element: Uint8Array = buffer.subarray(0, offset);
+                            let element: Uint8Array = buffer.subarray(0, offset);
                             if (interrupt(element, index)) {
                                 stoppable = true;
                             } else {
@@ -36,11 +58,11 @@ export let blob: Functional<Blob, Semantic<Uint8Array>> & BiFunctional<Blob, big
                         }
                         break;
                     }
-                    let chunkData: Uint8Array = value;
+                    let chunkData: Uint8Array = value as Uint8Array;
                     let position: number = 0;
                     while (position < chunkData.length && !stoppable) {
-                        const space: number = size - offset;
-                        const toCopy: number = Math.min(space, chunkData.length - position);
+                        let space: number = size - offset;
+                        let toCopy: number = Math.min(space, chunkData.length - position);
                         buffer.set(chunkData.subarray(position, position + toCopy), offset);
                         offset += toCopy;
                         position += toCopy;
@@ -57,7 +79,7 @@ export let blob: Functional<Blob, Semantic<Uint8Array>> & BiFunctional<Blob, big
                     }
                 }
             } catch (error) {
-                // Handle error
+                console.error(error);
             } finally {
                 if (stoppable) {
                     await reader.cancel();
@@ -158,6 +180,23 @@ export let iterate: <E>(generator: Generator<E>) => Semantic<E> = <E>(generator:
         return new Semantic(generator);
     }
     throw new TypeError("Invalid arguments.");
+};
+
+export let promise: (<T>(promise: Promise<T>) => Semantic<T>) = <T>(promise: Promise<T>): Semantic<T> => {
+    if(isPromise(promise)){
+        return new Semantic<T>((accept, interrupt) => {
+            promise.then((value: T) => {
+                if (interrupt(value, 0n)) {
+                    return;
+                }
+                accept(value, 0n);
+            }).catch((error: any) => {
+                console.error(error);
+            });
+        });
+    }else{
+        throw new TypeError("Invalid arguments.");
+    }
 };
 
 export let range: BiFunctional<number, number, Semantic<number>> & TriFunctional<number, number, number, Semantic<number>> = (start: number, end: number, step: number = 1): Semantic<number> => {

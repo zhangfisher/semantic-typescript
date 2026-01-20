@@ -1,4 +1,6 @@
+import { empty, generate } from "./factory";
 import { isFunction } from "./guard";
+import type { Semantic } from "./semantic";
 import { OptionalSymbol } from "./symbol";
 import { invalidate, validate, type Consumer, type Functional, type MaybeInvalid, type Predicate, type Runnable } from "./utility";
 
@@ -56,6 +58,17 @@ export class Optional<T> {
             return new Optional<R>(mapper(this.value as T));
         }
         return new Optional<R>(null);
+    }
+
+    public semantic(): Semantic<T> {
+        if(this.isPresent()){
+            return generate((): T => {
+                return this.value as T;
+            }, (): boolean => {
+                return this.isEmpty();
+            });
+        }
+        return empty();
     }
 
     public static empty<T>() {
