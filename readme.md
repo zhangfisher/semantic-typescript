@@ -126,7 +126,9 @@ let o = {
         c: 2,
         d: o
     },
-    c: [1, 3, 5, o]
+    c: [1, 3, 5, o],
+    e: undefined,
+    f: null
 };
 useTraverse(o, (value, key): boolean => {
     console.log(key, value); 
@@ -134,7 +136,7 @@ useTraverse(o, (value, key): boolean => {
     a 1
     c 2
     1 3 5
-    Cyclic references are not traversed.
+    Cyclic references, undefined and null values are not traversed.
     */
     return true; // Returns true to continue traversing.
 });
