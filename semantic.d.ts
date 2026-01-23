@@ -1,0 +1,47 @@
+import { Collectable, OrderedCollectable, UnorderedCollectable, WindowCollectable } from "./collectable";
+import { BigIntStatistics, NumericStatistics } from "./statistics";
+import { type Predicate } from "./utility";
+import type { Generator, Functional, BiFunctional, Consumer, BiConsumer, Comparator } from "./utility";
+export declare class Semantic<E> {
+    protected generator: Generator<E>;
+    protected readonly Semantic: Symbol;
+    constructor(generator: Generator<E>);
+    concat(other: Semantic<E>): Semantic<E>;
+    concat(other: Iterable<E>): Semantic<E>;
+    distinct(): Semantic<E>;
+    distinct(comparator: Comparator<E>): Semantic<E>;
+    dropWhile(predicate: Predicate<E>): Semantic<E>;
+    filter(predicate: Predicate<E>): Semantic<E>;
+    flat(mapper: Functional<E, Iterable<E> | Semantic<E>>): Semantic<E>;
+    flatMap<R>(mapper: Functional<E, Iterable<R> | Semantic<R>>): Semantic<R>;
+    limit(n: number): Semantic<E>;
+    limit(n: bigint): Semantic<E>;
+    map<R>(mapper: Functional<E, R>): Semantic<R>;
+    peek(consumer: Consumer<E>): Semantic<E>;
+    peek(consumer: BiConsumer<E, bigint>): Semantic<E>;
+    redirect(redirector: BiFunctional<E, bigint, bigint>): Semantic<E>;
+    reverse(): Semantic<E>;
+    shuffle(): Semantic<E>;
+    shuffle(mapper: BiFunctional<E, bigint, bigint>): Semantic<E>;
+    skip(n: number): Semantic<E>;
+    skip(n: bigint): Semantic<E>;
+    sorted(): OrderedCollectable<E>;
+    sorted(comparator: Comparator<E>): OrderedCollectable<E>;
+    sub(start: bigint, end: bigint): Semantic<E>;
+    takeWhile(predicate: Predicate<E>): Semantic<E>;
+    toCollectable(): Collectable<E>;
+    toCollectable<C extends Collectable<E>>(mapper: Functional<Generator<E>, C>): C;
+    toBigintStatistics(): BigIntStatistics<E>;
+    toNumericStatistics(): NumericStatistics<E>;
+    toOrdered(): OrderedCollectable<E>;
+    toUnordered(): UnorderedCollectable<E>;
+    toWindow(): WindowCollectable<E>;
+    translate(offset: number): Semantic<E>;
+    translate(offset: bigint): Semantic<E>;
+    translate(translator: BiFunctional<E, bigint, bigint>): Semantic<E>;
+}
+export interface UseTransform {
+    <E, R>(generator: Generator<E>, mapper: Functional<E, R>): Generator<R>;
+    <E, R>(generator: Generator<E>, mapper: BiFunctional<E, bigint, R>): Generator<R>;
+}
+export declare let useTransform: UseTransform;
