@@ -118,7 +118,26 @@ if(isIterable(value)){
 let numbers: Array<number> = [3, 1, 4, 1, 5];
 numbers.sort(useCompare); // [1, 1, 3, 4, 5]
 
-let randomNum = useRandom(42); // Seed-based random number
+let randomNum: number = useRandom(42); // Seed-based random number
+
+let o = {
+    a: 1,
+    b: {
+        c: 2,
+        d: o
+    },
+    c: [1, 3, 5, o]
+};
+useTraverse(o, (value, key): boolean => {
+    console.log(key, value); 
+    /*
+    a 1
+    c 2
+    1 3 5
+    Cyclic references are not traversed.
+    */
+    return true; // Returns true to continue traversing.
+});
 ```
 
 ## Factory Methods
@@ -210,15 +229,26 @@ find.collect(from([1,2,3,4,5])); // Finds the first element
 find.collect([1,2,3,4,5]); // Finds the first element
 
 // Calculates the sum of elements
-let sum: Collector<number, number, number> = useSummate();
-sum.collect(from([1,2,3,4,5])); // Sums from a stream
-sum.collect([1,2,3,4,5]); // Sums from an iterable object
+let summate: Collector<number, number, number> = useSummate();
+summate.collect(from([1,2,3,4,5])); // Sums from a stream
+summate.collect([1,2,3,4,5]); // Sums from an iterable object
 
 // Calculates the average of elements
 let average: Collector<number, number, number> = useNumericAverage();
 average.collect(from([1,2,3,4,5])); // Averages from a stream
 average.collect([1,2,3,4,5]); // Averages from an iterable object
 ```
+
+## Collector Class Methods
+
+| Method | Description | Time Complexity | Space Complexity |
+|------------|------------|------------|------------|
+| `collect(stream)` | Collect elements from a stream | O(n) | O(1) |
+| `collect(iterable)` | Collect elements from an iterable object | O(n) | O(1) |
+| `collect(generator)` | Collect elements from a generator | O(n) | O(1) |
+| `collect(semantic)` | Collect elements from a semantic stream | O(n) | O(1) |
+| `collect(collectable)` | Collect elements from a collectable stream | O(n) | O(1) |
+| `collect(start, endExelusive)` | Collect elements from a range | O(n) | O(1) |
 
 ### Semantic Factory Methods
 
@@ -283,7 +313,8 @@ websocket(ws)
 
 | Method | Description | Time Complexity | Space Complexity |
 |------|------|------------|------------|
-| `concat(other)` | Concatenate two streams | O(n) | O(1) |
+| `concat(semantic)` | Concatenate two streams | O(n) | O(1) |
+| `concat(iterable)` | Concatenate from an iterable object | O(n) | O(1) |
 | `distinct()` | Remove duplicates | O(n) | O(n) |
 | `distinct(comparator)` | Remove duplicates using a comparator | O(n²) | O(n) |
 | `dropWhile(predicate)` | Discard elements satisfying condition | O(n) | O(1) |
