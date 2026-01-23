@@ -40,11 +40,11 @@ export let attribute: <T extends object>(target: T) => Semantic<Attribute<T>> = 
                     value: value as T[keyof T]
                 } as Attribute<T>;
                 if (interrupt(attribute, index)) {
-                    return true;
+                    return false;
                 }
                 accept(attribute, index);
                 index++;
-                return false;
+                return true;
             });
         });
     }

@@ -88,7 +88,7 @@ export let useTraverse: <T extends object>(t: T, callback: BiPredicate<DeepPrope
                                         if (isObject(item)) {
                                             traverse(item);
                                         } else {
-                                            if(callback(index as DeepPropertyKey<T>, item as DeepPropertyValue<T>)){
+                                            if(!callback(index as DeepPropertyKey<T>, item as DeepPropertyValue<T>)){
                                                 stop = true;
                                                 break;
                                             }
@@ -98,7 +98,7 @@ export let useTraverse: <T extends object>(t: T, callback: BiPredicate<DeepPrope
                                 }
                             }
                         } else {
-                            if(callback(property as DeepPropertyKey<T>, value as DeepPropertyValue<T>)){
+                            if(!callback(property as DeepPropertyKey<T>, value as DeepPropertyValue<T>)){
                                 stop = true;
                                 break;
                             }
