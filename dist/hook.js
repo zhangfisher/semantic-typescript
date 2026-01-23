@@ -86,7 +86,7 @@ export let useTraverse = (t, callback) => {
                                             traverse(item);
                                         }
                                         else {
-                                            if (callback(index, item)) {
+                                            if (!callback(index, item)) {
                                                 stop = true;
                                                 break;
                                             }
@@ -97,7 +97,7 @@ export let useTraverse = (t, callback) => {
                             }
                         }
                         else {
-                            if (callback(property, value)) {
+                            if (!callback(property, value)) {
                                 stop = true;
                                 break;
                             }

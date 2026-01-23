@@ -36,11 +36,11 @@ export let attribute = (target) => {
                     value: value
                 };
                 if (interrupt(attribute, index)) {
-                    return true;
+                    return false;
                 }
                 accept(attribute, index);
                 index++;
-                return false;
+                return true;
             });
         });
     }
