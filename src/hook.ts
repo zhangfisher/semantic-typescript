@@ -75,7 +75,7 @@ export let useTraverse: <T extends object>(t: T, callback: BiPredicate<DeepPrope
                 let stop: boolean = false;
                 let properties: Array<string | symbol> = Reflect.ownKeys(target);
                 for (let property of properties) {
-                    let value: T[keyof T] = (target as T)[property as keyof T];
+                    let value: T[keyof T] = Reflect.get(target, property) as T[keyof T];
                     if(stop){
                         break;
                     }
