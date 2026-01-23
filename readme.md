@@ -111,6 +111,7 @@ if(isIterable(value)){
 |------|------|------------|------------|
 | `useCompare<T>(t1: T, t2: T): number` | Generic comparison function | O(1) | O(1) |
 | `useRandom<T = number \| bigint>(index: T): T` | Pseudo-random number generator | O(log n) | O(1) |
+| `useTraverse(t, callback)` | Deep traverse an object without cyclic references | O(n) | O(1) |
 
 ```typescript
 // Utility function usage examples
@@ -148,6 +149,42 @@ console.log(empty.get(100)); // Outputs 100
 |------|------|------------|------------|
 | `Collector.full(identity, accumulator, finisher)` | Create a full collector | O(1) | O(1) |
 | `Collector.shortable(identity, interruptor, accumulator, finisher)` | Create an interruptible collector | O(1) | O(1) |
+| `useAnyMatch<E>(predicate)` | Create a shortable collector returning true if any element matches the predicate | O(n) | O(1) |
+| `useAllMatch<E>(predicate)` | Create a shortable collector returning true if all elements match the predicate | O(n) | O(1) |
+| `useCollect<E, A, R>(identity, accumulator, finisher)` | Create a full collector with identity, accumulator, finisher | O(1) | O(1) |
+| `useCollect<E, A, R>(identity, interruptor, accumulator, finisher)` | Create a shortable collector with identity, interruptor, accumulator, finisher | O(1) | O(1) |
+| `useCount<E>()` | Create a full collector counting elements | O(n) | O(1) |
+| `useFindFirst<E>()` | Create a shortable collector returning the first element | O(n) | O(1) |
+| `useFindAny<E>()` | Create a shortable collector returning any element | O(n) | O(1) |
+| `useFindLast<E>()` | Create a full collector returning the last element | O(n) | O(1) |
+| `useForEach<E>(action)` | Create a full collector executing an action for each element | O(n) | O(1) |
+| `useNoneMatch<E>(predicate)` | Create a shortable collector returning true if no element matches the predicate | O(n) | O(1) |
+| `useGroup<E, K>(classifier)` | Create a full collector grouping elements by classifier key | O(n) | O(n) |
+| `useGroupBy<E, K, V>(keyExtractor, valueExtractor)` | Create a full collector grouping elements by key with extracted values | O(n) | O(n) |
+| `useJoin<E>()` | Create a full collector joining elements into a string with default format | O(n) | O(1) |
+| `useJoin<E>(delimiter)` | Create a full collector joining elements with delimiter | O(n) | O(1) |
+| `useJoin<E>(prefix, delimiter, suffix)` | Create a full collector joining elements with prefix, delimiter, suffix | O(n) | O(1) |
+| `useJoin<E>(prefix, accumulator, suffix)` | Create a full collector joining elements via custom accumulator | O(n) | O(1) |
+| `useLog<E>()` | Create a full collector logging elements to console with default format | O(n) | O(1) |
+| `useLog<E>(accumulator)` | Create a full collector logging elements via custom accumulator | O(n) | O(1) |
+| `useLog<E>(prefix, accumulator, suffix)` | Create a full collector logging elements with prefix/suffix via accumulator | O(n) | O(1) |
+| `usePartition<E>(count)` | Create a full collector partitioning elements into chunks of specified size | O(n) | O(n) |
+| `usePartitionBy<E>(classifier)` | Create a full collector partitioning elements by classifier result | O(n) | O(n) |
+| `useReduce<E>(accumulator)` | Create a full collector reducing elements without identity | O(n) | O(1) |
+| `useReduce<E>(identity, accumulator)` | Create a full collector reducing elements with identity | O(n) | O(1) |
+| `useReduce<E, R>(identity, accumulator, finisher)` | Create a full collector reducing elements with identity, accumulator, finisher | O(n) | O(1) |
+| `useToArray<E>()` | Create a full collector gathering elements into an array | O(n) | O(n) |
+| `useToMap<E, K, V>(keyExtractor, valueExtractor)` | Create a full collector gathering elements into a Map | O(n) | O(n) |
+| `useToSet<E>()` | Create a full collector gathering elements into a Set | O(n) | O(n) |
+| `useWrite<E, S>(stream)` | Create a full collector writing elements to a stream | O(n) | O(1) |
+| `useWrite<E, S>(stream, accumulator)` | Create a full collector writing elements via custom accumulator | O(n) | O(1) |
+| `useNumericAverage<E>(mapper)` | Create a full collector computing numeric average with mapper | O(n) | O(1) |
+| `useNumericAverage<E>()` | Create a full collector computing numeric average | O(n) | O(1) |
+| `useBigIntAverage<E>(mapper)` | Create a full collector computing bigint average with mapper | O(n) | O(1) |
+| `useBigIntAverage<E>()` | Create a full collector computing bigint average | O(n) | O(1) |
+| `useFrequency<E>()` | Create a full collector counting element frequencies | O(n) | O(n) |
+| `useSummate<E>(mapper)` | Create a full collector summing mapped numeric values | O(n) | O(1) |
+| `useSummate<E>()` | Create a full collector summing numeric elements | O(n) | O(1) |
 
 ```typescript
 // Collector conversion examples
@@ -163,22 +200,24 @@ let ordered: OrderedCollectable<number> = from([3, 1, 4, 1, 5, 9, 2, 6, 5])
     .sorted();
 
 // Counts the number of elements
-let count: Collector<number, number, number> = Collector.full(
-    (): number => 0, // Initial value
-    (accumulator: number, element: number): number => accumulator + element, // Accumulate
-    (accumulator: number): number => accumulator // Finish
-);
+let count: Collector<number, number, number> = useCount();
 count.collect(from([1,2,3,4,5])); // Counts from a stream
 count.collect([1,2,3,4,5]); // Counts from an iterable object
 
-let find: Optional<number> = Collector.shortable(
-    (): Optional<number> => Optional.empty(), // Initial value
-    (element: number, index: bigint, accumulator: Optional<number>): Optional<number> => accumulator.isPresent(), // Interrupt
-    (accumulator: Optional<number>, element: number, index: bigint): Optional<number> => Optional.of(element), // Accumulate
-    (accumulator: Optional<number>): Optional<number> => accumulator // Finish
-);
+// Finds the first element
+let findFirst: Collector<number, number, number> = useFindFirst();
 find.collect(from([1,2,3,4,5])); // Finds the first element
 find.collect([1,2,3,4,5]); // Finds the first element
+
+// Calculates the sum of elements
+let sum: Collector<number, number, number> = useSummate();
+sum.collect(from([1,2,3,4,5])); // Sums from a stream
+sum.collect([1,2,3,4,5]); // Sums from an iterable object
+
+// Calculates the average of elements
+let average: Collector<number, number, number> = useNumericAverage();
+average.collect(from([1,2,3,4,5])); // Averages from a stream
+average.collect([1,2,3,4,5]); // Averages from an iterable object
 ```
 
 ### Semantic Factory Methods
@@ -186,6 +225,7 @@ find.collect([1,2,3,4,5]); // Finds the first element
 | Method | Description | Time Complexity | Space Complexity |
 |------|------|------------|------------|
 | `animationFrame(period: number, delay: number = 0)` | Create a timed animation frame stream | O(1)* | O(1) |
+| `attribute(target)` | Create a stream from an object deep attributes | O(n) | O(1) |
 | `blob(blob, chunkSize)` | Create a stream from a Blob | O(n) | O(chunkSize) |
 | `empty<E>()` | Create an empty stream | O(1) | O(1) |
 | `fill<E>(element, count)` | Create a filled stream | O(n) | O(1) |
@@ -351,27 +391,41 @@ let customizedCollector = from([1, 2, 3, 4, 5]).toCollectable((generator: Genera
 
 | Method | Description | Time Complexity | Space Complexity |
 |------|------|------------|------------|
-| `anyMatch(predicate)` | Whether any element matches | O(n) | O(1) |
-| `allMatch(predicate)` | Whether all elements match | O(n) | O(1) |
-| `count()` | Element count | O(n) | O(1) |
-| `isEmpty()` | Whether it is empty | O(1) | O(1) |
-| `findAny()` | Find any element | O(n) | O(1) |
-| `findFirst()` | Find the first element | O(n) | O(1) |
-| `findLast()` | Find the last element | O(n) | O(1) |
-| `forEach(action)` | Iterate over all elements | O(n) | O(1) |
-| `group(classifier)` | Group by classifier | O(n) | O(n) |
-| `groupBy(keyExtractor, valueExtractor)` | Group by key-value extractor | O(n) | O(n) |
-| `join()` | Join as string | O(n) | O(n) |
-| `join(delimiter)` | Join using a delimiter | O(n) | O(n) |
-| `nonMatch(predicate)` | Whether no elements match | O(n) | O(1) |
-| `partition(count)` | Partition by count | O(n) | O(n) |
-| `partitionBy(classifier)` | Partition by classifier | O(n) | O(n) |
-| `reduce(accumulator)` | Reduction operation | O(n) | O(1) |
-| `reduce(identity, accumulator)` | Reduction with initial value | O(n) | O(1) |
-| `toArray()` | Convert to array | O(n) | O(n) |
-| `toMap(keyExtractor, valueExtractor)` | Convert to Map | O(n) | O(n) |
-| `toSet()` | Convert to Set | O(n) | O(n) |
-| `write(stream)` | Write to stream | O(n) | O(1) |
+| `anyMatch(predicate)` | Whether any element matches the predicate | O(n) | O(1) |
+| `allMatch(predicate)` | Whether all elements match the predicate | O(n) | O(1) |
+| `collect(collector)` | Collect elements using the given collector | O(n) | O(1) |
+| `collect(identity, accumulator, finisher)` | Collect elements with identity, accumulator, and finisher | O(n) | O(1) |
+| `collect(identity, interruptor, accumulator, finisher)` | Collect elements with identity, interruptor, accumulator, and finisher | O(n) | O(1) |
+| `count()` | Count the number of elements | O(n) | O(1) |
+| `error()` | Log elements to console with default error format | O(n) | O(1) |
+| `error(accumulator)` | Log elements via custom accumulator error format | O(n) | O(1) |
+| `error(prefix, accumulator, suffix)` | Log elements with prefix, custom accumulator, and suffix | O(n) | O(1) |
+| `isEmpty()` | Check whether the collectable is empty | O(n) | O(1) |
+| `findAny()` | Find any element in the collectable | O(n) | O(1) |
+| `findFirst()` | Find the first element in the collectable | O(n) | O(1) |
+| `findLast()` | Find the last element in the collectable | O(n) | O(1) |
+| `forEach(action)` | Iterate over all elements with a consumer or bi-consumer | O(n) | O(1) |
+| `group(classifier)` | Group elements by a classifier function | O(n) | O(n) |
+| `groupBy(keyExtractor, valueExtractor)` | Group elements by key and value extractors | O(n) | O(n) |
+| `join()` | Join elements into a string with default format | O(n) | O(n) |
+| `join(delimiter)` | Join elements into a string with a delimiter | O(n) | O(n) |
+| `join(prefix, delimiter, suffix)` | Join elements with prefix, delimiter, and suffix | O(n) | O(n) |
+| `join(prefix, accumulator, suffix)` | Join elements via custom accumulator with prefix and suffix | O(n) | O(n) |
+| `log()` | Log elements to console with default format | O(n) | O(1) |
+| `log(accumulator)` | Log elements via custom accumulator | O(n) | O(1) |
+| `log(prefix, accumulator, suffix)` | Log elements with prefix, custom accumulator, and suffix | O(n) | O(1) |
+| `nonMatch(predicate)` | Whether no elements match the predicate | O(n) | O(1) |
+| `partition(count)` | Partition elements into chunks of specified size | O(n) | O(n) |
+| `partitionBy(classifier)` | Partition elements by a classifier function | O(n) | O(n) |
+| `reduce(accumulator)` | Reduce elements using an accumulator (no initial value) | O(n) | O(1) |
+| `reduce(identity, accumulator)` | Reduce elements with an initial value and accumulator | O(n) | O(1) |
+| `reduce(identity, accumulator, finisher)` | Reduce elements with initial value, accumulator, and finisher | O(n) | O(1) |
+| `semantic()` | Convert the collectable to a semantic object | O(1) | O(1) |
+| `toArray()` | Convert elements to an array | O(n) | O(n) |
+| `toMap(keyExtractor, valueExtractor)` | Convert elements to a Map via key and value extractors | O(n) | O(n) |
+| `toSet()` | Convert elements to a Set | O(n) | O(n) |
+| `write(stream)` | Write elements to a stream (default format) | O(n) | O(1) |
+| `write(stream, accumulator)` | Write elements to a stream via custom accumulator | O(n) | O(1) |
 
 ```typescript
 // Collectable operation examples
