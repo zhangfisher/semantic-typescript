@@ -1,12 +1,12 @@
-import { Collector } from "./collector";
+import { Collector, useAllMatch, useAnyMatch, useCollect, useCount, useError, useFindAny, useFindFirst, useFindLast, useForEach, useGroup, useGroupBy, useJoin, useLog, useNoneMatch, usePartition, useReduce, useToArray, useToMap, useToSet, useWrite } from "./collector";
 import { from } from "./factory";
-import { isCollector, isFunction, isIterable, isObject, isString } from "./guard";
+import { isBigInt, isCollector, isFunction, isIterable, isObject, isString } from "./guard";
 import { useCompare } from "./hook";
 import { Optional } from "./optional";
 import { Semantic } from "./semantic";
 import { CollectableSymbol, OrderedCollectableSymbol, UnorderedCollectableSymbol, WindowCollectableSymbol } from "./symbol";
 import { invalidate, validate } from "./utility";
-import type { BiConsumer, BiFunctional, Comparator, Consumer, Functional, Predicate, Supplier, TriConsumer, TriFunctional, MaybeInvalid, Generator, BiPredicate, TriPredicate } from "./utility";
+import type { BiConsumer, BiFunctional, Comparator, Consumer, Functional, Predicate, Supplier, TriFunctional, Generator, BiPredicate, TriPredicate } from "./utility";
 
 export abstract class Collectable<E> {
 
@@ -17,27 +17,14 @@ export abstract class Collectable<E> {
     }
 
     public anyMatch(predicate: Predicate<E>): boolean {
-        return this.collect<boolean, boolean>((): boolean => {
-            return false;
-        }, (_element: E, _index: bigint, accumulator: boolean): boolean => {
-            return accumulator;
-        }, (result: boolean, element: E): boolean => {
-            return result || predicate(element);
-        }, (result: boolean): boolean => {
-            return result;
-        });
+        if(isFunction(predicate)){
+            return useAnyMatch(predicate).collect(this);
+        }
+        throw new TypeError("Predicate must be a function.");
     }
 
     public allMatch(predicate: Predicate<E>): boolean {
-        return this.collect<boolean, boolean>((): boolean => {
-            return true;
-        }, (_element: E, _index: bigint, accumulator: boolean): boolean => {
-            return !accumulator;
-        }, (result: boolean, element: E): boolean => {
-            return result && predicate(element);
-        }, (result: boolean): boolean => {
-            return result;
-        });
+        return useAllMatch(predicate).collect(this);
     }
 
     public collect<A, R>(collector: Collector<E, A, R>): R;
@@ -50,37 +37,49 @@ export abstract class Collectable<E> {
     public collect<A, R>(identity: Supplier<A>, interruptor: BiPredicate<E, bigint>, accumulator: TriFunctional<A, E, bigint, A>, finisher: Functional<A, R>): R;
     public collect<A, R>(identity: Supplier<A>, interruptor: TriPredicate<E, bigint, A>, accumulator: TriFunctional<A, E, bigint, A>, finisher: Functional<A, R>): R;
     public collect<A, R>(argument1: Supplier<A> | Collector<E, A, R>, argument2?: BiFunctional<A, E, A> | TriFunctional<A, E, bigint, A> | Predicate<E> | BiPredicate<E, bigint> | TriPredicate<E, bigint, A>, argument3?: BiFunctional<A, E, A> | TriFunctional<A, E, bigint, A> | Functional<A, R>, argument4?: Functional<A, R>): R {
-        let source: Generator<E> | Iterable<E> = this.source();
-        if(isCollector(argument1)){
+        if (isCollector(argument1)) {
             let collector: Collector<E, A, R> = argument1 as Collector<E, A, R>;
-            return collector.collect(source as Generator<E>);
+            return collector.collect(this);
         }
-        if(isFunction(argument1) && isFunction(argument2) && isFunction(argument3)){
+        if (isFunction(argument1) && isFunction(argument2) && isFunction(argument3)) {
             let identity: Supplier<A> = argument1 as Supplier<A>;
-            let accumulator: BiFunctional<A, E, A> | TriFunctional<A, E, bigint, A> = argument2 as BiFunctional<A, E, A> | TriFunctional<A, E, bigint, A>;
+            let accumulator: BiFunctional<A, E, A> & TriFunctional<A, E, bigint, A> = argument2 as BiFunctional<A, E, A> & TriFunctional<A, E, bigint, A>;
             let finisher: Functional<A, R> = argument3 as Functional<A, R>;
-            let collector: Collector<E, A, R> = Collector.full(identity, accumulator, finisher);
-            return collector.collect(source as Generator<E>);
+            return useCollect(identity, accumulator, finisher).collect(this);
         }
-        if(isFunction(argument1) && isFunction(argument2) && isFunction(argument3) && isFunction(argument4)){
+        if (isFunction(argument1) && isFunction(argument2) && isFunction(argument3) && isFunction(argument4)) {
             let identity: Supplier<A> = argument1 as Supplier<A>;
-            let interrupt: Predicate<E> | BiPredicate<E, bigint> | TriPredicate<E, bigint, A> = argument2 as Predicate<E> | BiPredicate<E, bigint> | TriPredicate<E, bigint, A>;
-            let accumulator: BiFunctional<A, E, A> | TriFunctional<A, E, bigint, A> = argument3 as BiFunctional<A, E, A> | TriFunctional<A, E, bigint, A>;
+            let interrupt: Predicate<E> & BiPredicate<E, bigint> & TriPredicate<E, bigint, A> = argument2 as Predicate<E> & BiPredicate<E, bigint> & TriPredicate<E, bigint, A>;
+            let accumulator: BiFunctional<A, E, A> & TriFunctional<A, E, bigint, A> = argument3 as BiFunctional<A, E, A> & TriFunctional<A, E, bigint, A>;
             let finisher: Functional<A, R> = argument4 as Functional<A, R>;
-            let collector: Collector<E, A, R> = Collector.shortable(identity, interrupt, accumulator, finisher);
-            return collector.collect(source as Generator<E>);
+            return useCollect(identity, interrupt, accumulator, finisher).collect(this);
         }
         throw new TypeError("Invalid arguments.");
     }
 
     public count(): bigint {
-        return this.collect<bigint, bigint>((): bigint => {
-            return 0n;
-        }, (count: bigint): bigint => {
-            return count + 1n;
-        }, (count: bigint): bigint => {
-            return count;
-        });
+        return useCount<E>().collect(this);
+    }
+
+    public error(): void;
+    public error(accumulator: BiFunctional<string, E, string>): void;
+    public error(accumulator: TriFunctional<string, E, bigint, string>): void;
+    public error(prefix: string, accumulator: BiFunctional<string, E, string>, suffix: string): void
+    public error(prefix: string, accumulator: TriFunctional<string, E, bigint, string>, suffix: string): void
+    public error(argument1?: string | BiFunctional<string, E, string> | TriFunctional<string, E, bigint, string>, argument2?: BiFunctional<string, E, string> | TriFunctional<string, E, bigint, string>, argument3?: string): void {
+        if (invalidate(argument1) && invalidate(argument2) && invalidate(argument3)) {
+            useError<E>().collect(this);
+        } else if (isFunction(argument1) && invalidate(argument2) && invalidate(argument3)) {
+            let accumulator: BiFunctional<string, E, string> & TriFunctional<string, E, bigint, string> = argument1 as BiFunctional<string, E, string> & TriFunctional<string, E, bigint, string>;
+            useError<E>(accumulator).collect(this);
+        } else if(isString(argument1) && isFunction(argument2) && isString(argument3)){
+            let prefix: string = argument1;
+            let accumulator: BiFunctional<string, E, string> & TriFunctional<string, E, bigint, string> = argument2 as BiFunctional<string, E, string> & TriFunctional<string, E, bigint, string>;
+            let suffix: string = argument3;
+            useError<E>(prefix, accumulator, suffix).collect(this);
+        } {
+            throw new TypeError("Invalid arguments.");
+        }
     }
 
     public isEmpty(): boolean {
@@ -88,93 +87,39 @@ export abstract class Collectable<E> {
     }
 
     public findAny(): Optional<E> {
-        return this.collect<Optional<E>, Optional<E>>(
-            (): Optional<E> => {
-                return Optional.empty<E>();
-            }, (_element: E, _index: bigint, accumulator: Optional<E>): boolean => {
-                return accumulator.isPresent();
-            }, (result: Optional<E>, element: E): Optional<E> => {
-                if(Math.random() < 0.5){
-                    return Optional.of(element);
-                }
-                return result;
-            }, (result: Optional<E>): Optional<E> => {
-                return result;
-            });
+        return useFindAny<E>().collect(this);
     }
 
     public findFirst(): Optional<E> {
-        return this.collect<Optional<E>, Optional<E>>(
-            (): Optional<E> => {
-                return Optional.empty<E>();
-            }, (_element: E, _index: bigint, accumulator: Optional<E>): boolean => {
-                return accumulator.isPresent();
-            }, (result: Optional<E>, element: E): Optional<E> => {
-                return result.isPresent() ? result : Optional.of(element);
-            }, (result: Optional<E>): Optional<E> => {
-                return result;
-            });
+        return useFindFirst<E>().collect(this);
     }
 
     public findLast(): Optional<E> {
-        return this.collect<Optional<E>, Optional<E>>(
-            (): Optional<E> => {
-                return Optional.empty<E>();
-            }, (): boolean => {
-                return false;
-            }, (result: Optional<E>, element: E): Optional<E> => {
-                return result.isPresent() ? result : Optional.of(element);
-            }, (result: Optional<E>): Optional<E> => {
-                return result;
-            });
+        return useFindLast<E>().collect(this);
     }
 
     public forEach(action: Consumer<E>): void
     public forEach(action: BiConsumer<E, bigint>): void
     public forEach(action: Consumer<E> | BiConsumer<E, bigint>): void {
         if (isFunction(action)) {
-            this.collect<bigint, bigint>((): bigint => {
-                return 0n;
-            }, (count: bigint, element: E): bigint => {
-                action(element, count);
-                return count + 1n;
-            }, (count: bigint): bigint => {
-                return count;
-            });
+            useForEach(action).collect(this);
+        }else{
+            throw new TypeError("Action must be a function.");
         }
     }
 
     public group<K>(classifier: Functional<E, K>): Map<K, Array<E>> {
-        if (isFunction(classifier)) {
-            return this.collect<Map<K, Array<E>>, Map<K, Array<E>>>((): Map<K, Array<E>> => {
-                return new Map<K, Array<E>>();
-            }, (map: Map<K, Array<E>>, element: E): Map<K, Array<E>> => {
-                let key: K = classifier(element);
-                let raw: MaybeInvalid<Array<E>> = map.get(key);
-                let array: Array<E> = validate(raw) ? raw : [];
-                array.push(element);
-                map.set(key, array);
-                return map;
-            }, (map: Map<K, Array<E>>): Map<K, Array<E>> => {
-                return map;
-            });
+        if(isFunction(classifier)){
+            return useGroup(classifier).collect(this);
         }
-        throw new TypeError("Invalid arguments.");
+        throw new TypeError("Classifier must be a function.");
     }
 
     public groupBy<K, V>(keyExtractor: Functional<E, K>, valueExtractor: Functional<E, V>): Map<K, Array<V>> {
-        return this.collect<Map<K, Array<V>>, Map<K, Array<V>>>((): Map<K, Array<V>> => {
-            return new Map<K, Array<V>>();
-        }, (map: Map<K, Array<V>>, element: E): Map<K, Array<V>> => {
-            let key: K = keyExtractor(element);
-            let value: V = valueExtractor(element);
-            let group: Array<V> = (validate(map.get(key)) ? map.get(key) : []) as Array<V>;
-            group.push(value);
-            map.set(key, group);
-            return map;
-        }, (map: Map<K, Array<V>>): Map<K, Array<V>> => {
-            return map;
-        });
+        if(isFunction(keyExtractor) && isFunction(valueExtractor)){
+            return useGroupBy(keyExtractor, valueExtractor).collect(this);
+        }
+        throw new TypeError("Key and value extractors must be functions.");
     }
 
     public join(): string;
@@ -184,95 +129,60 @@ export abstract class Collectable<E> {
     public join(prefiex: string, accumulator: TriFunctional<string, E, bigint, string>, suffix: string): string;
     public join(argument1?: string, argument2?: string | BiFunctional<string, E, string> | TriFunctional<string, E, bigint, string>, argument3?: string): string {
         if (invalidate(argument1) && invalidate(argument2) && invalidate(argument3)) {
-            return this.collect<string, string>((): string => {
-                return "[";
-            }, (text: string, element: E): string => {
-                return text + element + ",";
-            }, (text: string): string => {
-                return text.substring(0, text.length - 1) + "]";
-            });
+            return useJoin<E>().collect(this);
         }
         if (isString(argument1) && invalidate(argument2) && invalidate(argument3)) {
             let delimiter: string = argument1;
-            return this.collect<string, string>((): string => {
-                return "[";
-            }, (text: string, element: E): string => {
-                return text + element + delimiter;
-            }, (text: string): string => {
-                return text.substring(0, text.length - 1) + "]";
-            });
+            return useJoin<E>(delimiter).collect(this);
         }
         if (isString(argument1) && isFunction(argument2) && isString(argument3)) {
             let prefix: string = argument1;
-            let accumulator: BiFunctional<string, E, string> | TriFunctional<string, E, bigint, string> = argument2 as BiFunctional<string, E, string> | TriFunctional<string, E, bigint, string>;
+            let accumulator: BiFunctional<string, E, string> & TriFunctional<string, E, bigint, string> = argument2 as BiFunctional<string, E, string> & TriFunctional<string, E, bigint, string>;
             let suffix: string = argument3;
-            return this.collect<string, string>((): string => {
-                return prefix;
-            }, (text: string, element: E, index: bigint): string => {
-                return text + accumulator(text, element, index);
-            }, (text: string): string => {
-                return text + suffix;
-            });
+            return useJoin<E>(prefix, accumulator, suffix).collect(this);
         }
         if (isString(argument1) && isString(argument2) && isString(argument3)) {
             let prefix: string = argument1;
             let delimiter: string = argument2;
             let suffix: string = argument3;
-            return this.collect<string, string>((): string => {
-                return prefix;
-            }, (text: string, element: E): string => {
-                return text + element + delimiter;
-            }, (text: string): string => {
-                return text + suffix;
-            });
+            return useJoin<E>(prefix, delimiter, suffix).collect(this);
         }
         throw new TypeError("Invalid arguments.");
     }
 
     public log(): void;
     public log(accumulator: BiFunctional<string, E, string>): void;
-    public log(accumulator: BiFunctional<string, E, string> | TriFunctional<string, E, bigint, string>): void;
+    public log(accumulator: TriFunctional<string, E, bigint, string>): void;
     public log(prefix: string, accumulator: BiFunctional<string, E, string>, suffix: string): void
     public log(prefix: string, accumulator: TriFunctional<string, E, bigint, string>, suffix: string): void
-    public log(argument1?: string | BiConsumer<string, E> | TriConsumer<string, E, bigint>, argument2?: BiConsumer<string, E> | TriConsumer<string, E, bigint>, argument3?: string): void {
+    public log(argument1?: string | BiFunctional<string, E, string> | TriFunctional<string, E, bigint, string>, argument2?: BiFunctional<string, E, string> | TriFunctional<string, E, bigint, string>, argument3?: string): void {
         if (invalidate(argument1) && invalidate(argument2) && invalidate(argument3)) {
-            let text: string = this.join();
-            console.log(text);
+            useLog<E>().collect(this);
         } else if (isFunction(argument1) && invalidate(argument2) && invalidate(argument3)) {
-            let accumulator: BiFunctional<string, E, string> | TriFunctional<string, E, bigint, string> = argument1 as BiFunctional<string, E, string> | TriFunctional<string, E, bigint, string>;
-            let text: string = this.join("[", accumulator, "]");
-            console.log(text);
-        } else {
+            let accumulator: BiFunctional<string, E, string> & TriFunctional<string, E, bigint, string> = argument1 as BiFunctional<string, E, string> & TriFunctional<string, E, bigint, string>;
+            useLog<E>(accumulator).collect(this);
+        } else if(isString(argument1) && isFunction(argument2) && isString(argument3)){
+            let prefix: string = argument1;
+            let accumulator: BiFunctional<string, E, string> & TriFunctional<string, E, bigint, string> = argument2 as BiFunctional<string, E, string> & TriFunctional<string, E, bigint, string>;
+            let suffix: string = argument3;
+            useLog<E>(prefix, accumulator, suffix).collect(this);
+        } {
             throw new TypeError("Invalid arguments.");
         }
     }
 
     public nonMatch(predicate: Predicate<E>): boolean {
-        return this.collect<boolean, boolean>((): boolean => {
-            return true;
-        }, (_element: E, _index: bigint, accumulator: boolean): boolean => {
-            return !accumulator;
-        }, (result: boolean, element: E) => {
-            return result || !predicate(element);
-        }, (result: boolean): boolean => {
-            return result;
-        });
+        if(isFunction(predicate)){
+            return useNoneMatch(predicate).collect(this);
+        }
+        throw new TypeError("Predicate must be a function.");
     }
 
     public partition(count: bigint): Array<Array<E>> {
-        let limited = count > 1n ? count : 1n;
-        return this.collect<Array<Array<E>>, Array<Array<E>>>((): Array<Array<E>> => {
-            return [];
-        }, (array: Array<Array<E>>, element: E): Array<Array<E>> => {
-            let index: bigint = limited % BigInt(array.length);
-            if (index === 0n) {
-                array.push([]);
-            }
-            array[Number(index)].push(element);
-            return array;
-        }, (result: Array<Array<E>>,): Array<Array<E>> => {
-            return result;
-        });
+        if(isBigInt(count)){
+            return usePartition<E>(count).collect(this);
+        }
+        throw new TypeError("Count must be a BigInt.");
     }
 
     public partitionBy(classifier: Functional<E, bigint>): Array<Array<E>> {
@@ -294,41 +204,21 @@ export abstract class Collectable<E> {
     public reduce(accumulator: TriFunctional<E, E, bigint, E>): Optional<E>;
     public reduce(identity: E, accumulator: BiFunctional<E, E, E>): E;
     public reduce(identity: E, accumulator: TriFunctional<E, E, bigint, E>): E;
-    public reduce<R>(identity: R, accumulator: BiFunctional<R, E, R>, finisher: BiFunctional<R, R, R>): R;
-    public reduce<R>(identity: R, accumulator: TriFunctional<R, E, bigint, R>, finisher: BiFunctional<R, R, R>): R;
-    reduce<R>(argument1?: R | E | BiFunctional<E, E, E> | TriFunctional<E, E, bigint, E>, argument2?: BiFunctional<E, E, E> | TriFunctional<E, E, bigint, E> | BiFunctional<R, E, R> | TriFunctional<R, E, bigint, R>, argument3?: BiFunctional<R, R, R>): R | E | Optional<E> {
+    public reduce<R>(identity: R, accumulator: BiFunctional<R, E, R>, finisher: Functional<R, R>): R;
+    public reduce<R>(identity: R, accumulator: TriFunctional<R, E, bigint, R>, finisher: Functional<R, R>): R;
+    public reduce<R>(argument1?: R | E | BiFunctional<E, E, E> | TriFunctional<E, E, bigint, E>, argument2?: BiFunctional<E, E, E> | TriFunctional<E, E, bigint, E> | BiFunctional<R, E, R> | TriFunctional<R, E, bigint, R>, argument3?: Functional<R, R>): R | E | Optional<E> {
         if (isFunction(argument1) && invalidate(argument2) && invalidate(argument3)) {
             let accumulator = argument1 as BiFunctional<E, E, E> | TriFunctional<E, E, bigint, E>;
-            return this.collect<Optional<E>, Optional<E>>((): Optional<E> => Optional.ofNullable<E>(),
-                (result: Optional<E>, element: E, index: bigint): Optional<E> => {
-                    if (result.isEmpty()) {
-                        return Optional.of(element);
-                    } else {
-                        let current: E = result.get();
-                        return Optional.of(accumulator(current, element, index));
-                    }
-                },
-                (result: Optional<E>): Optional<E> => result
-            );
+            return useReduce(accumulator).collect(this);
         } else if (validate(argument1) && isFunction(argument2) && invalidate(argument3)) {
             let identity = argument1 as E;
-            let accumulator = argument2 as BiFunctional<E, E, E> | TriFunctional<E, E, bigint, E>;
-            return this.collect<E, E>(() => identity,
-                (result: E, element: E, index: bigint): E => {
-                    return accumulator(result, element, index);
-                },
-                (result: E): E => result
-            );
+            let accumulator = argument2 as BiFunctional<E, E, E> & TriFunctional<E, E, bigint, E>;
+            return useReduce(identity, accumulator).collect(this);
         } else if (validate(argument1) && isFunction(argument2) && isFunction(argument3)) {
             let identity = argument1 as R;
-            let accumulator = argument2 as BiFunctional<R, E, R> | TriFunctional<R, E, bigint, R>;
-            let finisher = argument3 as BiFunctional<R, R, R>;
-            return this.collect<R, R>(() => identity,
-                (result: R, element: E, index: bigint): R => {
-                    return accumulator(result, element, index);
-                },
-                (result: R): R => finisher(result, result)
-            );
+            let accumulator = argument2 as BiFunctional<R, E, R> & TriFunctional<R, E, bigint, R>;
+            let finisher = argument3 as Functional<R, R>;
+            return useReduce(identity, accumulator, finisher).collect(this);
         } else {
             throw new TypeError("Invalid arguments.");
         }
@@ -345,88 +235,34 @@ export abstract class Collectable<E> {
         }
     }
 
-    protected abstract source(): Generator<E> | Iterable<E>;
+    public abstract source(): Generator<E> | Iterable<E>;
 
     public toArray(): Array<E> {
-        return this.collect<Array<E>, Array<E>>((): Array<E> => {
-            return [];
-        }, (array: Array<E>, element: E): Array<E> => {
-            array.push(element);
-            return array;
-        }, (result: Array<E>): Array<E> => {
-            return result;
-        });
+        return useToArray<E>().collect(this);
     }
 
     public toMap<K, V>(keyExtractor: Functional<E, K>, valueExtractor: Functional<E, V>): Map<K, V> {
-        return this.collect<Map<K, V>, Map<K, V>>((): Map<K, V> => {
-            return new Map<K, V>();
-        }, (map: Map<K, V>, element: E): Map<K, V> => {
-            let key: K = keyExtractor(element);
-            let value: V = valueExtractor(element);
-            map.set(key, value);
-            return map;
-        }, (map: Map<K, V>): Map<K, V> => {
-            return map;
-        });
+        return useToMap<E, K, V>(keyExtractor, valueExtractor).collect(this);
     }
 
     public toSet(): Set<E> {
-        return this.collect<Set<E>, Set<E>>((): Set<E> => {
-            return new Set<E>();
-        }, (set: Set<E>, element: E): Set<E> => {
-            set.add(element);
-            return set;
-        }, (result: Set<E>): Set<E> => {
-            return result;
-        });
+        return useToSet<E>().collect(this);
     }
 
-    public write(stream: WritableStream<string>): Promise<WritableStream<string>>;
-    public write(stream: WritableStream<string>, accumulator: BiFunctional<E, bigint, string>): Promise<WritableStream<string>>;
-    public write(stream: WritableStream<Uint8Array>, accumulator: BiFunctional<E, bigint, Uint8Array>): Promise<WritableStream<Uint8Array>>;
-    public write(stream: WritableStream<string | Uint8Array | string>, accumulator?: BiFunctional<E, bigint, Uint8Array | string>): Promise<WritableStream<string>> | Promise<WritableStream<Uint8Array | string>> {
-        if (isObject(stream) && invalidate(accumulator)) {
-            let optional: Optional<WritableStream<string>> = this.collect<Optional<WritableStream<string>>, Optional<WritableStream<string>>>((): Optional<WritableStream<string>> => {
-                return Optional.ofNonNull<WritableStream<string>>(stream);
-            }, (result: Optional<WritableStream<string>>, element: E): Optional<WritableStream<string>> => {
-                try {
-                    return result.map((stream: WritableStream<string>): WritableStream<string> => {
-                        let writer: WritableStreamDefaultWriter<string> = stream.getWriter();
-                        writer.write(String(element));
-                        return stream;
-                    });
-                } catch (reason) {
-                    return Optional.empty();
-                }
-            }, (a: Optional<WritableStream<string>>): Optional<WritableStream<string>> => {
-                return a;
-            });
-            return new Promise<WritableStream<string>>((resolve, reject) => {
-                optional.ifPresent(resolve, reject);
-            });
-        } else if (isObject(stream) && isFunction(accumulator)) {
-            let optional: Optional<WritableStream<Uint8Array | string>> = this.collect<Optional<WritableStream<Uint8Array | string>>, Optional<WritableStream<Uint8Array | string>>>((): Optional<WritableStream<Uint8Array | string>> => {
-                return Optional.ofNonNull<WritableStream<Uint8Array | string>>(stream);
-            }, (result: Optional<WritableStream<Uint8Array | string>>, element: E, index: bigint): Optional<WritableStream<Uint8Array | string>> => {
-                try {
-                    return result.map((stream: WritableStream<Uint8Array | string>): WritableStream<Uint8Array | string> => {
-                        let writer: WritableStreamDefaultWriter<Uint8Array | string> = stream.getWriter();
-                        writer.write(accumulator(element, index));
-                        return stream;
-                    });
-                } catch (reason) {
-                    return Optional.empty();
-                }
-            }, (a: Optional<WritableStream<Uint8Array | string>>): Optional<WritableStream<Uint8Array | string>> => {
-                return a;
-            });
-            return new Promise<WritableStream<Uint8Array | string>>((resolve, reject) => {
-                optional.ifPresent(resolve, reject);
-            });
-        } else {
-            throw new TypeError("Invalid arguments.");
+    public write<S = string>(stream: WritableStream<S>): Collector<E, Promise<WritableStream<S>>, Promise<WritableStream<S>>>;
+    public write<S = string>(stream: WritableStream<S>, accumulator: BiFunctional<WritableStream<S>, E, WritableStream<S>>): Collector<E, Promise<WritableStream<S>>, Promise<WritableStream<S>>>;
+    public write<S = string>(stream: WritableStream<S>, accumulator: TriFunctional<WritableStream<S>, E, bigint, WritableStream<S>>): Collector<E, Promise<WritableStream<S>>, Promise<WritableStream<S>>>;
+    public write<S = string>(argument1: WritableStream<S>, argument2?: BiFunctional<WritableStream<S>, E, WritableStream<S>> | TriFunctional<WritableStream<S>, E, bigint, WritableStream<S>>): Collector<E, Promise<WritableStream<S>>, Promise<WritableStream<S>>> {
+        if(isObject(argument1)){
+            let stream: WritableStream<S> = argument1 as WritableStream<S>;
+            if(isFunction(argument2)){
+                let accumulator: BiFunctional<WritableStream<S>, E, WritableStream<S>> & TriFunctional<WritableStream<S>, E, bigint, WritableStream<S>> = argument2 as BiFunctional<WritableStream<S>, E, WritableStream<S>> & TriFunctional<WritableStream<S>, E, bigint, WritableStream<S>>;
+                return useWrite(stream, accumulator);
+            }else{
+                return useWrite(stream);
+            }
         }
+        throw new TypeError("Invalid arguments.");
     }
 };
 
@@ -492,10 +328,10 @@ export class OrderedCollectable<E> extends Collectable<E> {
                 value: indexed.value
             }
         }).sort((a: Indexed<bigint, E>, b: Indexed<bigint, E>): number => {
-            if(isFunction(argument2)){
+            if (isFunction(argument2)) {
                 let comparator: Comparator<E> = argument2;
                 return comparator(a.value, b.value);
-            }else{
+            } else {
                 return useCompare(a.index, b.index);
             }
         }).forEach((indexed: Indexed<bigint, E>) => {

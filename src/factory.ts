@@ -1,29 +1,54 @@
-import { isBigInt, isFunction, isIterable, isNumber, isPromise } from "./guard";
-import { useCompare } from "./hook";
+import { isBigInt, isFunction, isIterable, isNumber, isObject, isPromise } from "./guard";
+import { useCompare, useTraverse } from "./hook";
 import { Semantic } from "./semantic";
 import { invalidate, validate } from "./utility";
-import type { BiFunctional, BiPredicate, Functional, Predicate, Supplier, TriFunctional, Generator, Consumer } from "./utility";
+import type { BiFunctional, BiPredicate, Functional, Predicate, Supplier, TriFunctional, Generator, Consumer, BiConsumer, DeepPropertyKey, DeepPropertyValue } from "./utility";
 
 export let animationFrame: Functional<number, Semantic<number>> & BiFunctional<number, number, Semantic<number>> = (period: number, delay: number = 0): Semantic<number> => {
     if (period <= 0 || !Number.isFinite(period) || delay < 0 || !Number.isFinite(delay)) {
         throw new TypeError("Period must be positive finite number and delay must be non-negative finite number.");
     }
-    return new Semantic<number>((accept, interrupt): void => {
+    return new Semantic<number>((accept: Consumer<number> | BiConsumer<number, bigint>, interrupt: Predicate<number> | BiPredicate<number, bigint>): void => {
         let start = performance.now();
         let index: bigint = 0n;
         let animate: Consumer<number> = (): void => {
-            if(performance.now() - start >= delay){
+            if (performance.now() - start >= delay) {
                 requestAnimationFrame(animate);
-            }else if(performance.now() - start < period){
+            } else if (performance.now() - start < period) {
                 requestAnimationFrame(animate);
-            }else{
-                if(interrupt(start, index)){
+            } else {
+                if (interrupt(start, index)) {
                     return;
                 }
                 accept(performance.now(), index);
             }
         };
     });
+};
+
+interface Attribute<T> {
+    key: keyof T;
+    value: T[keyof T];
+};
+export let attribute: <T extends object>(target: T) => Semantic<Attribute<T>> = <T extends object>(target: T): Semantic<Attribute<T>> => {
+    if (isObject(target)) {
+        return new Semantic<Attribute<T>>((accept: Consumer<Attribute<T>> | BiConsumer<Attribute<T>, bigint>, interrupt: Predicate<Attribute<T>> | BiPredicate<Attribute<T>, bigint>): void => {
+            let index: bigint = 0n;
+            useTraverse(target, (key: DeepPropertyKey<T>, value: DeepPropertyValue<T>): boolean => {
+                let attribute: Attribute<T> = {
+                    key: key as keyof T,
+                    value: value as T[keyof T]
+                } as Attribute<T>;
+                if (interrupt(attribute, index)) {
+                    return true;
+                }
+                accept(attribute, index);
+                index++;
+                return false;
+            });
+        });
+    }
+    throw new TypeError("Target must be an object.");
 };
 
 export let blob: Functional<Blob, Semantic<Uint8Array>> & BiFunctional<Blob, bigint, Semantic<Uint8Array>> = (blob: Blob, chunk: bigint = 64n * 1024n): Semantic<Uint8Array> => {
@@ -34,7 +59,7 @@ export let blob: Functional<Blob, Semantic<Uint8Array>> & BiFunctional<Blob, big
     if (invalidate(blob)) {
         throw new TypeError("Blob is invalid.");
     }
-    return new Semantic<Uint8Array>((accept, interrupt) => {
+    return new Semantic<Uint8Array>((accept: Consumer<Uint8Array> | BiConsumer<Uint8Array, bigint>, interrupt: Predicate<Uint8Array> | BiPredicate<Uint8Array, bigint>) => {
         let index: bigint = 0n;
         let stoppable: boolean = false;
         let stream: ReadableStream<Uint8Array> = blob.stream();
@@ -96,7 +121,7 @@ export let empty: <E>() => Semantic<E> = <E>(): Semantic<E> => {
 
 export let fill: (<E>(element: E, count: bigint) => Semantic<E>) & (<E>(supplier: Supplier<E>, count: bigint) => Semantic<E>) = <E>(element: E | Supplier<E>, count: bigint): Semantic<E> => {
     if (validate(element) && count > 0n) {
-        return new Semantic<E>((accept, interrupt) => {
+        return new Semantic<E>((accept: Consumer<E> | BiConsumer<E, bigint>, interrupt: Predicate<E> | BiPredicate<E, bigint>) => {
             for (let i = 0n; i < count; i++) {
                 let item: E = isFunction(element) ? element() : element;
                 if (interrupt(item, i)) {
@@ -111,7 +136,7 @@ export let fill: (<E>(element: E, count: bigint) => Semantic<E>) & (<E>(supplier
 
 export let from: <E>(iterable: Iterable<E>) => Semantic<E> = <E>(iterable: Iterable<E>): Semantic<E> => {
     if (isIterable(iterable)) {
-        return new Semantic<E>((accept, interrupt) => {
+        return new Semantic<E>((accept: Consumer<E> | BiConsumer<E, bigint>, interrupt: Predicate<E> | BiPredicate<E, bigint>) => {
             let index: bigint = 0n;
             for (let element of iterable) {
                 if (interrupt(element, index)) {
@@ -127,7 +152,7 @@ export let from: <E>(iterable: Iterable<E>) => Semantic<E> = <E>(iterable: Itera
 
 export let generate: (<E>(supplier: Supplier<E>, interrupt: Predicate<E>) => Semantic<E>) & (<E>(supplier: Supplier<E>, interrupt: BiPredicate<E, bigint>) => Semantic<E>) = <E>(supplier: Supplier<E>, interrupt: Predicate<E> | BiPredicate<E, bigint>): Semantic<E> => {
     if (isFunction(supplier) && isFunction(interrupt)) {
-        return new Semantic<E>((accept, interrupt): void => {
+        return new Semantic<E>((accept: Consumer<E> | BiConsumer<E, bigint>, interrupt: Predicate<E> | BiPredicate<E, bigint>): void => {
             let index: bigint = 0n;
             while (true) {
                 let element: E = supplier();
@@ -144,7 +169,7 @@ export let generate: (<E>(supplier: Supplier<E>, interrupt: Predicate<E>) => Sem
 
 export let interval: Functional<number, Semantic<number>> & BiFunctional<number, number, Semantic<number>> = (period: number, delay: number = 0): Semantic<number> => {
     if (period > 0 && delay >= 0) {
-        return new Semantic<number>((accept, interrupt): void => {
+        return new Semantic<number>((accept: Consumer<number> | BiConsumer<number, bigint>, interrupt: Predicate<number> | BiPredicate<number, bigint>): void => {
             if (delay > 0) {
                 setTimeout((): void => {
                     let count: number = 0;
@@ -183,8 +208,8 @@ export let iterate: <E>(generator: Generator<E>) => Semantic<E> = <E>(generator:
 };
 
 export let promise: (<T>(promise: Promise<T>) => Semantic<T>) = <T>(promise: Promise<T>): Semantic<T> => {
-    if(isPromise(promise)){
-        return new Semantic<T>((accept, interrupt) => {
+    if (isPromise(promise)) {
+        return new Semantic<T>((accept: Consumer<T> | BiConsumer<T, bigint>, interrupt: Predicate<T> | BiPredicate<T, bigint>) => {
             promise.then((value: T) => {
                 if (interrupt(value, 0n)) {
                     return;
@@ -194,7 +219,7 @@ export let promise: (<T>(promise: Promise<T>) => Semantic<T>) = <T>(promise: Pro
                 console.error(error);
             });
         });
-    }else{
+    } else {
         throw new TypeError("Invalid arguments.");
     }
 };
@@ -206,7 +231,7 @@ export let range: BiFunctional<number, number, Semantic<number>> & TriFunctional
     if (isNumber(start) && isNumber(end)) {
         let minimum: number = start, maximum: number = end, limit: number = Number(step);
         let condition: Predicate<number> = limit > 0 ? (i: number) => i < maximum : (i: number) => i > maximum;
-        return new Semantic<number>((accept, interrupt) => {
+        return new Semantic<number>((accept: Consumer<number> | BiConsumer<number, bigint>, interrupt: Predicate<number> | BiPredicate<number, bigint>) => {
             for (let i = minimum; condition(i); i += limit) {
                 let value: number = i;
                 if (interrupt(value, BigInt(i))) {
@@ -223,7 +248,7 @@ export let websocket: Functional<WebSocket, Semantic<MessageEvent | CloseEvent |
     if (invalidate(websocket)) {
         throw new TypeError("WebSocket is invalid.");
     }
-    return new Semantic<MessageEvent | CloseEvent | Event>((accept, interrupt) => {
+    return new Semantic<MessageEvent | CloseEvent | Event>((accept: Consumer<MessageEvent | CloseEvent | Event> | BiConsumer<MessageEvent | CloseEvent | Event, bigint>, interrupt: Predicate<MessageEvent | CloseEvent | Event> | BiPredicate<MessageEvent | CloseEvent | Event, bigint>) => {
         let index: bigint = 0n;
         let stop: boolean = false;
         websocket.addEventListener("open", (event: Event): void => {

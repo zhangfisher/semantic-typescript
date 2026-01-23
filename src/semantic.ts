@@ -4,7 +4,7 @@ import { useCompare, useRandom } from "./hook";
 import { BigIntStatistics, NumericStatistics } from "./statistics";
 import { SemanticSymbol } from "./symbol";
 import { validate, type Predicate } from "./utility";
-import type { Generator, Functional, BiFunctional, Consumer, BiConsumer, Comparator, } from "./utility";
+import type { Generator, Functional, BiFunctional, Consumer, BiConsumer, Comparator, BiPredicate, } from "./utility";
 
 export class Semantic<E> {
 
@@ -20,19 +20,20 @@ export class Semantic<E> {
     public concat(other: Iterable<E>): Semantic<E>;
     public concat(other: Semantic<E> | Iterable<E>): Semantic<E> {
         if (isSemantic(other)) {
-            return new Semantic<E>((accept, interrupt) => {
+            return new Semantic<E>((accept: Consumer<E> | BiConsumer<E, bigint>, interrupt: Predicate<E> | BiPredicate<E, bigint>): void => {
                 let count: bigint = 0n;
                 this.generator((element: E, index: bigint) => {
                     accept(element, index);
                     count++;
                 }, interrupt);
-                other.generator((element: E, index: bigint) => {
+                let otherGenerator: Generator<E> = Reflect.has(other, "generator")? Reflect.get(other, "generator") : (): void => {};
+                otherGenerator((element: E, index: bigint) => {
                     accept(element, index + count);
                 }, interrupt);
             });
         }
         if (isIterable(other)) {
-            return new Semantic<E>((accept, interrupt) => {
+            return new Semantic<E>((accept: Consumer<E> | BiConsumer<E, bigint>, interrupt: Predicate<E> | BiPredicate<E, bigint>): void => {
                 let count: bigint = 0n;
                 this.generator((element: E, index: bigint) => {
                     accept(element, index);
@@ -51,7 +52,7 @@ export class Semantic<E> {
     public distinct(comparator: Comparator<E>): Semantic<E>;
     public distinct(comparator?: Comparator<E>): Semantic<E> {
         if (validate(comparator)) {
-            return new Semantic<E>((accept, interrupt) => {
+            return new Semantic<E>((accept: Consumer<E> | BiConsumer<E, bigint>, interrupt: Predicate<E> | BiPredicate<E, bigint>): void => {
                 let array: Array<E> = [];
                 this.generator((element: E, index: bigint) => {
                     if (!array.some((e: E) => comparator(e, element))) {
@@ -74,7 +75,7 @@ export class Semantic<E> {
 
     public dropWhile(predicate: Predicate<E>): Semantic<E> {
         if (isFunction(predicate)) {
-            return new Semantic<E>((accept, interrupt): void => {
+            return new Semantic<E>((accept: Consumer<E> | BiConsumer<E, bigint>, interrupt: Predicate<E> | BiPredicate<E, bigint>): void => {
                 let dropping: boolean = true;
                 this.generator((element: E, index: bigint): void => {
                     if (dropping) {
@@ -93,7 +94,7 @@ export class Semantic<E> {
 
     public filter(predicate: Predicate<E>): Semantic<E> {
         if (isFunction(predicate)) {
-            return new Semantic<E>((accept, interrupt): void => {
+            return new Semantic<E>((accept: Consumer<E> | BiConsumer<E, bigint>, interrupt: Predicate<E> | BiPredicate<E, bigint>): void => {
                 this.generator((element: E, index: bigint): void => {
                     if (predicate(element)) {
                         accept(element, index);
@@ -106,7 +107,7 @@ export class Semantic<E> {
 
     public flat(mapper: Functional<E, Iterable<E> | Semantic<E>>): Semantic<E> {
         if (isFunction(mapper)) {
-            return new Semantic<E>((accept, interrupt): void => {
+            return new Semantic<E>((accept: Consumer<E> | BiConsumer<E, bigint>, interrupt: Predicate<E> | BiPredicate<E, bigint>): void => {
                 let count: bigint = 0n;
                 let stop: boolean = false;
                 this.generator((element: E): void => {
@@ -132,7 +133,7 @@ export class Semantic<E> {
 
     public flatMap<R>(mapper: Functional<E, Iterable<R> | Semantic<R>>): Semantic<R> {
         if (isFunction(mapper)) {
-            return new Semantic<R>((accept, interrupt): void => {
+            return new Semantic<R>((accept: Consumer<R> | BiConsumer<R, bigint>, interrupt: Predicate<R> | BiPredicate<R, bigint>): void => {
                 let count: bigint = 0n;
                 let stop: boolean = false;
                 this.generator((element: E): void => {
@@ -161,7 +162,7 @@ export class Semantic<E> {
     public limit(n: bigint | number): Semantic<E> {
         if (isNumber(n)) {
             let limit: bigint = BigInt(n);
-            return new Semantic<E>((accept, interrupt): void => {
+            return new Semantic<E>((accept: Consumer<E> | BiConsumer<E, bigint>, interrupt: Predicate<E> | BiPredicate<E, bigint>): void => {
                 let count: bigint = 0n;
                 this.generator((element: E, index: bigint): void => {
                     if (count < limit) {
@@ -173,7 +174,7 @@ export class Semantic<E> {
         }
         if (isBigInt(n)) {
             let limit: bigint = n;
-            return new Semantic<E>((accept, interrupt): void => {
+            return new Semantic<E>((accept: Consumer<E> | BiConsumer<E, bigint>, interrupt: Predicate<E> | BiPredicate<E, bigint>): void => {
                 let count: bigint = 0n;
                 this.generator((element: E, index: bigint): void => {
                     if (count < limit) {
@@ -188,7 +189,7 @@ export class Semantic<E> {
 
     public map<R>(mapper: Functional<E, R>): Semantic<R> {
         if (isFunction(mapper)) {
-            return new Semantic<R>((accept, interrupt): void => {
+            return new Semantic<R>((accept: Consumer<R> | BiConsumer<R, bigint>, interrupt: Predicate<R> | BiPredicate<R, bigint>): void => {
                 let stop: boolean = false;
                 this.generator((element: E, index: bigint): void => {
                     let resolved: R = mapper(element);
@@ -204,7 +205,7 @@ export class Semantic<E> {
     public peek(consumer: BiConsumer<E, bigint>): Semantic<E>;
     public peek(consumer: Consumer<E> | BiConsumer<E, bigint>): Semantic<E> {
         if (isFunction(consumer)) {
-            return new Semantic<E>((accept, interrupt): void => {
+            return new Semantic<E>((accept: Consumer<E> | BiConsumer<E, bigint>, interrupt: Predicate<E> | BiPredicate<E, bigint>): void => {
                 this.generator((element: E, index: bigint): void => {
                     accept(element, index);
                     consumer(element, index);
@@ -216,7 +217,7 @@ export class Semantic<E> {
 
     public redirect(redirector: BiFunctional<E, bigint, bigint>): Semantic<E> {
         if (isFunction(redirector)) {
-            return new Semantic<E>((accept, interrupt): void => {
+            return new Semantic<E>((accept: Consumer<E> | BiConsumer<E, bigint>, interrupt: Predicate<E> | BiPredicate<E, bigint>): void => {
                 this.generator((element: E, index: bigint): void => {
                     accept(element, redirector(element, index));
                 }, interrupt);
@@ -226,7 +227,7 @@ export class Semantic<E> {
     }
 
     public reverse(): Semantic<E> {
-        return new Semantic<E>((accept, interrupt): void => {
+        return new Semantic<E>((accept: Consumer<E> | BiConsumer<E, bigint>, interrupt: Predicate<E> | BiPredicate<E, bigint>): void => {
             this.generator((element: E, index: bigint): void => {
                 accept(element, -index);
             }, interrupt);
@@ -237,13 +238,13 @@ export class Semantic<E> {
     public shuffle(mapper: BiFunctional<E, bigint, bigint>): Semantic<E>;
     public shuffle(mapper?: BiFunctional<E, bigint, bigint>): Semantic<E> {
         if (isFunction(mapper)) {
-            return new Semantic<E>((accept, interrupt): void => {
+            return new Semantic<E>((accept: Consumer<E> | BiConsumer<E, bigint>, interrupt: Predicate<E> | BiPredicate<E, bigint>): void => {
                 this.generator((element: E, index: bigint): void => {
                     accept(element, mapper(element, index));
                 }, interrupt);
             });
         }
-        return new Semantic<E>((accept, interrupt): void => {
+        return new Semantic<E>((accept: Consumer<E> | BiConsumer<E, bigint>, interrupt: Predicate<E> | BiPredicate<E, bigint>): void => {
             this.generator((element: E, index: bigint): void => {
                 accept(element, useRandom(index));
             }, interrupt);
@@ -254,7 +255,7 @@ export class Semantic<E> {
     public skip(n: bigint): Semantic<E>;
     public skip(n: number | bigint): Semantic<E> {
         if (isNumber(n)) {
-            return new Semantic<E>((accept, interrupt): void => {
+            return new Semantic<E>((accept: Consumer<E> | BiConsumer<E, bigint>, interrupt: Predicate<E> | BiPredicate<E, bigint>): void => {
                 let count: bigint = 0n;
                 let limit: bigint = BigInt(n);
                 this.generator((element: E, index: bigint): void => {
@@ -267,7 +268,7 @@ export class Semantic<E> {
             });
         }
         if (isBigInt(n)) {
-            return new Semantic<E>((accept, interrupt): void => {
+            return new Semantic<E>((accept: Consumer<E> | BiConsumer<E, bigint>, interrupt: Predicate<E> | BiPredicate<E, bigint>): void => {
                 let count: bigint = 0n;
                 this.generator((element: E, index: bigint): void => {
                     if (count < n) {
@@ -291,7 +292,7 @@ export class Semantic<E> {
     }
 
     public sub(start: bigint, end: bigint): Semantic<E> {
-        return new Semantic<E>((accept, interrupt): void => {
+        return new Semantic<E>((accept: Consumer<E> | BiConsumer<E, bigint>, interrupt: Predicate<E> | BiPredicate<E, bigint>): void => {
             let count: bigint = 0n;
             this.generator((element: E, index: bigint): void => {
                 if (count < end) {
@@ -306,7 +307,7 @@ export class Semantic<E> {
     }
 
     public takeWhile(predicate: Predicate<E>): Semantic<E> {
-        return new Semantic<E>((accept, interrupt) => {
+        return new Semantic<E>((accept: Consumer<E> | BiConsumer<E, bigint>, interrupt: Predicate<E> | BiPredicate<E, bigint>): void => {
             this.generator((element: E, index: bigint) => {
                 if (!predicate(element)) {
                     interrupt(element, index);
@@ -355,21 +356,21 @@ export class Semantic<E> {
     public translate(argument1: number | bigint | BiFunctional<E, bigint, bigint>): Semantic<E> {
         if (isNumber(argument1)) {
             let offset: number = argument1;
-            return new Semantic<E>((accept, interrupt): void => {
+            return new Semantic<E>((accept: Consumer<E> | BiConsumer<E, bigint>, interrupt: Predicate<E> | BiPredicate<E, bigint>): void => {
                 this.generator((element: E, index: bigint): void => {
                     accept(element, index + BigInt(offset));
                 }, interrupt);
             });
         } else if (isBigInt(argument1)) {
             let offset: bigint = argument1;
-            return new Semantic<E>((accept, interrupt): void => {
+            return new Semantic<E>((accept: Consumer<E> | BiConsumer<E, bigint>, interrupt: Predicate<E> | BiPredicate<E, bigint>): void => {
                 this.generator((element: E, index: bigint): void => {
                     accept(element, index + offset);
                 }, interrupt);
             });
         } else if (isFunction(argument1)) {
             let translator: BiFunctional<E, bigint, bigint> = argument1;
-            return new Semantic<E>((accept, interrupt): void => {
+            return new Semantic<E>((accept: Consumer<E> | BiConsumer<E, bigint>, interrupt: Predicate<E> | BiPredicate<E, bigint>): void => {
                 this.generator((element: E, index: bigint): void => {
                     accept(element, index + translator(element, index));
                 }, interrupt);
@@ -377,4 +378,19 @@ export class Semantic<E> {
         }
         throw new TypeError("Invalid arguments.");
     }
+};
+
+export interface UseTransform{
+    <E, R>(generator: Generator<E>, mapper: Functional<E, R>): Generator<R>;
+    <E, R>(generator: Generator<E>, mapper: BiFunctional<E, bigint, R>): Generator<R>;
+};
+export let useTransform: UseTransform = <E, R>(generator: Generator<E>, mapper: Functional<E, R> | BiFunctional<E, bigint, R>): Generator<R> => {
+    return (accept: Consumer<R> | BiConsumer<R, bigint>, interrupt: Predicate<R> | BiPredicate<R, bigint>): void => {
+        generator((element: E, index: bigint): void => {
+            let resolved: R = mapper(element, index);
+            accept(resolved, index);
+        }, (element: E, index: bigint): boolean => {
+            return interrupt(mapper(element, index), index);
+        });
+    };
 };
