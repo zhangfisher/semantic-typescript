@@ -1,5 +1,5 @@
-import { isBigInt, isFunction, isIterable, isNumber, isPromise } from "./guard";
-import { useCompare } from "./hook";
+import { isBigInt, isFunction, isIterable, isNumber, isObject, isPromise } from "./guard";
+import { useCompare, useTraverse } from "./hook";
 import { Semantic } from "./semantic";
 import { invalidate, validate } from "./utility";
 export let animationFrame = (period, delay = 0) => {
@@ -24,6 +24,27 @@ export let animationFrame = (period, delay = 0) => {
             }
         };
     });
+};
+;
+export let attribute = (target) => {
+    if (isObject(target)) {
+        return new Semantic((accept, interrupt) => {
+            let index = 0n;
+            useTraverse(target, (key, value) => {
+                let attribute = {
+                    key: key,
+                    value: value
+                };
+                if (interrupt(attribute, index)) {
+                    return true;
+                }
+                accept(attribute, index);
+                index++;
+                return false;
+            });
+        });
+    }
+    throw new TypeError("Target must be an object.");
 };
 export let blob = (blob, chunk = 64n * 1024n) => {
     let size = Number(chunk);

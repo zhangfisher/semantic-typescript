@@ -1,6 +1,6 @@
-import { Collector } from "./collector";
+import { Collector, useAllMatch, useAnyMatch, useCollect, useCount, useError, useFindAny, useFindFirst, useFindLast, useForEach, useGroup, useGroupBy, useJoin, useLog, useNoneMatch, usePartition, useReduce, useToArray, useToMap, useToSet, useWrite } from "./collector";
 import { from } from "./factory";
-import { isCollector, isFunction, isIterable, isObject, isString } from "./guard";
+import { isBigInt, isCollector, isFunction, isIterable, isObject, isString } from "./guard";
 import { useCompare } from "./hook";
 import { Optional } from "./optional";
 import { Semantic } from "./semantic";
@@ -11,226 +11,138 @@ export class Collectable {
     constructor() {
     }
     anyMatch(predicate) {
-        return this.collect(() => {
-            return false;
-        }, (_element, _index, accumulator) => {
-            return accumulator;
-        }, (result, element) => {
-            return result || predicate(element);
-        }, (result) => {
-            return result;
-        });
+        if (isFunction(predicate)) {
+            return useAnyMatch(predicate).collect(this);
+        }
+        throw new TypeError("Predicate must be a function.");
     }
     allMatch(predicate) {
-        return this.collect(() => {
-            return true;
-        }, (_element, _index, accumulator) => {
-            return !accumulator;
-        }, (result, element) => {
-            return result && predicate(element);
-        }, (result) => {
-            return result;
-        });
+        return useAllMatch(predicate).collect(this);
     }
     collect(argument1, argument2, argument3, argument4) {
-        let source = this.source();
         if (isCollector(argument1)) {
             let collector = argument1;
-            return collector.collect(source);
+            return collector.collect(this);
         }
         if (isFunction(argument1) && isFunction(argument2) && isFunction(argument3)) {
             let identity = argument1;
             let accumulator = argument2;
             let finisher = argument3;
-            let collector = Collector.full(identity, accumulator, finisher);
-            return collector.collect(source);
+            return useCollect(identity, accumulator, finisher).collect(this);
         }
         if (isFunction(argument1) && isFunction(argument2) && isFunction(argument3) && isFunction(argument4)) {
             let identity = argument1;
             let interrupt = argument2;
             let accumulator = argument3;
             let finisher = argument4;
-            let collector = Collector.shortable(identity, interrupt, accumulator, finisher);
-            return collector.collect(source);
+            return useCollect(identity, interrupt, accumulator, finisher).collect(this);
         }
         throw new TypeError("Invalid arguments.");
     }
     count() {
-        return this.collect(() => {
-            return 0n;
-        }, (count) => {
-            return count + 1n;
-        }, (count) => {
-            return count;
-        });
+        return useCount().collect(this);
+    }
+    error(argument1, argument2, argument3) {
+        if (invalidate(argument1) && invalidate(argument2) && invalidate(argument3)) {
+            useError().collect(this);
+        }
+        else if (isFunction(argument1) && invalidate(argument2) && invalidate(argument3)) {
+            let accumulator = argument1;
+            useError(accumulator).collect(this);
+        }
+        else if (isString(argument1) && isFunction(argument2) && isString(argument3)) {
+            let prefix = argument1;
+            let accumulator = argument2;
+            let suffix = argument3;
+            useError(prefix, accumulator, suffix).collect(this);
+        }
+        {
+            throw new TypeError("Invalid arguments.");
+        }
     }
     isEmpty() {
         return this.count() === 0n;
     }
     findAny() {
-        return this.collect(() => {
-            return Optional.empty();
-        }, (_element, _index, accumulator) => {
-            return accumulator.isPresent();
-        }, (result, element) => {
-            if (Math.random() < 0.5) {
-                return Optional.of(element);
-            }
-            return result;
-        }, (result) => {
-            return result;
-        });
+        return useFindAny().collect(this);
     }
     findFirst() {
-        return this.collect(() => {
-            return Optional.empty();
-        }, (_element, _index, accumulator) => {
-            return accumulator.isPresent();
-        }, (result, element) => {
-            return result.isPresent() ? result : Optional.of(element);
-        }, (result) => {
-            return result;
-        });
+        return useFindFirst().collect(this);
     }
     findLast() {
-        return this.collect(() => {
-            return Optional.empty();
-        }, () => {
-            return false;
-        }, (result, element) => {
-            return result.isPresent() ? result : Optional.of(element);
-        }, (result) => {
-            return result;
-        });
+        return useFindLast().collect(this);
     }
     forEach(action) {
         if (isFunction(action)) {
-            this.collect(() => {
-                return 0n;
-            }, (count, element) => {
-                action(element, count);
-                return count + 1n;
-            }, (count) => {
-                return count;
-            });
+            useForEach(action).collect(this);
+        }
+        else {
+            throw new TypeError("Action must be a function.");
         }
     }
     group(classifier) {
         if (isFunction(classifier)) {
-            return this.collect(() => {
-                return new Map();
-            }, (map, element) => {
-                let key = classifier(element);
-                let raw = map.get(key);
-                let array = validate(raw) ? raw : [];
-                array.push(element);
-                map.set(key, array);
-                return map;
-            }, (map) => {
-                return map;
-            });
+            return useGroup(classifier).collect(this);
         }
-        throw new TypeError("Invalid arguments.");
+        throw new TypeError("Classifier must be a function.");
     }
     groupBy(keyExtractor, valueExtractor) {
-        return this.collect(() => {
-            return new Map();
-        }, (map, element) => {
-            let key = keyExtractor(element);
-            let value = valueExtractor(element);
-            let group = (validate(map.get(key)) ? map.get(key) : []);
-            group.push(value);
-            map.set(key, group);
-            return map;
-        }, (map) => {
-            return map;
-        });
+        if (isFunction(keyExtractor) && isFunction(valueExtractor)) {
+            return useGroupBy(keyExtractor, valueExtractor).collect(this);
+        }
+        throw new TypeError("Key and value extractors must be functions.");
     }
     join(argument1, argument2, argument3) {
         if (invalidate(argument1) && invalidate(argument2) && invalidate(argument3)) {
-            return this.collect(() => {
-                return "[";
-            }, (text, element) => {
-                return text + element + ",";
-            }, (text) => {
-                return text.substring(0, text.length - 1) + "]";
-            });
+            return useJoin().collect(this);
         }
         if (isString(argument1) && invalidate(argument2) && invalidate(argument3)) {
             let delimiter = argument1;
-            return this.collect(() => {
-                return "[";
-            }, (text, element) => {
-                return text + element + delimiter;
-            }, (text) => {
-                return text.substring(0, text.length - 1) + "]";
-            });
+            return useJoin(delimiter).collect(this);
         }
         if (isString(argument1) && isFunction(argument2) && isString(argument3)) {
             let prefix = argument1;
             let accumulator = argument2;
             let suffix = argument3;
-            return this.collect(() => {
-                return prefix;
-            }, (text, element, index) => {
-                return text + accumulator(text, element, index);
-            }, (text) => {
-                return text + suffix;
-            });
+            return useJoin(prefix, accumulator, suffix).collect(this);
         }
         if (isString(argument1) && isString(argument2) && isString(argument3)) {
             let prefix = argument1;
             let delimiter = argument2;
             let suffix = argument3;
-            return this.collect(() => {
-                return prefix;
-            }, (text, element) => {
-                return text + element + delimiter;
-            }, (text) => {
-                return text + suffix;
-            });
+            return useJoin(prefix, delimiter, suffix).collect(this);
         }
         throw new TypeError("Invalid arguments.");
     }
     log(argument1, argument2, argument3) {
         if (invalidate(argument1) && invalidate(argument2) && invalidate(argument3)) {
-            let text = this.join();
-            console.log(text);
+            useLog().collect(this);
         }
         else if (isFunction(argument1) && invalidate(argument2) && invalidate(argument3)) {
             let accumulator = argument1;
-            let text = this.join("[", accumulator, "]");
-            console.log(text);
+            useLog(accumulator).collect(this);
         }
-        else {
+        else if (isString(argument1) && isFunction(argument2) && isString(argument3)) {
+            let prefix = argument1;
+            let accumulator = argument2;
+            let suffix = argument3;
+            useLog(prefix, accumulator, suffix).collect(this);
+        }
+        {
             throw new TypeError("Invalid arguments.");
         }
     }
     nonMatch(predicate) {
-        return this.collect(() => {
-            return true;
-        }, (_element, _index, accumulator) => {
-            return !accumulator;
-        }, (result, element) => {
-            return result || !predicate(element);
-        }, (result) => {
-            return result;
-        });
+        if (isFunction(predicate)) {
+            return useNoneMatch(predicate).collect(this);
+        }
+        throw new TypeError("Predicate must be a function.");
     }
     partition(count) {
-        let limited = count > 1n ? count : 1n;
-        return this.collect(() => {
-            return [];
-        }, (array, element) => {
-            let index = limited % BigInt(array.length);
-            if (index === 0n) {
-                array.push([]);
-            }
-            array[Number(index)].push(element);
-            return array;
-        }, (result) => {
-            return result;
-        });
+        if (isBigInt(count)) {
+            return usePartition(count).collect(this);
+        }
+        throw new TypeError("Count must be a BigInt.");
     }
     partitionBy(classifier) {
         return this.collect(() => {
@@ -249,30 +161,18 @@ export class Collectable {
     reduce(argument1, argument2, argument3) {
         if (isFunction(argument1) && invalidate(argument2) && invalidate(argument3)) {
             let accumulator = argument1;
-            return this.collect(() => Optional.ofNullable(), (result, element, index) => {
-                if (result.isEmpty()) {
-                    return Optional.of(element);
-                }
-                else {
-                    let current = result.get();
-                    return Optional.of(accumulator(current, element, index));
-                }
-            }, (result) => result);
+            return useReduce(accumulator).collect(this);
         }
         else if (validate(argument1) && isFunction(argument2) && invalidate(argument3)) {
             let identity = argument1;
             let accumulator = argument2;
-            return this.collect(() => identity, (result, element, index) => {
-                return accumulator(result, element, index);
-            }, (result) => result);
+            return useReduce(identity, accumulator).collect(this);
         }
         else if (validate(argument1) && isFunction(argument2) && isFunction(argument3)) {
             let identity = argument1;
             let accumulator = argument2;
             let finisher = argument3;
-            return this.collect(() => identity, (result, element, index) => {
-                return accumulator(result, element, index);
-            }, (result) => finisher(result, result));
+            return useReduce(identity, accumulator, finisher).collect(this);
         }
         else {
             throw new TypeError("Invalid arguments.");
@@ -291,83 +191,26 @@ export class Collectable {
         }
     }
     toArray() {
-        return this.collect(() => {
-            return [];
-        }, (array, element) => {
-            array.push(element);
-            return array;
-        }, (result) => {
-            return result;
-        });
+        return useToArray().collect(this);
     }
     toMap(keyExtractor, valueExtractor) {
-        return this.collect(() => {
-            return new Map();
-        }, (map, element) => {
-            let key = keyExtractor(element);
-            let value = valueExtractor(element);
-            map.set(key, value);
-            return map;
-        }, (map) => {
-            return map;
-        });
+        return useToMap(keyExtractor, valueExtractor).collect(this);
     }
     toSet() {
-        return this.collect(() => {
-            return new Set();
-        }, (set, element) => {
-            set.add(element);
-            return set;
-        }, (result) => {
-            return result;
-        });
+        return useToSet().collect(this);
     }
-    write(stream, accumulator) {
-        if (isObject(stream) && invalidate(accumulator)) {
-            let optional = this.collect(() => {
-                return Optional.ofNonNull(stream);
-            }, (result, element) => {
-                try {
-                    return result.map((stream) => {
-                        let writer = stream.getWriter();
-                        writer.write(String(element));
-                        return stream;
-                    });
-                }
-                catch (reason) {
-                    return Optional.empty();
-                }
-            }, (a) => {
-                return a;
-            });
-            return new Promise((resolve, reject) => {
-                optional.ifPresent(resolve, reject);
-            });
+    write(argument1, argument2) {
+        if (isObject(argument1)) {
+            let stream = argument1;
+            if (isFunction(argument2)) {
+                let accumulator = argument2;
+                return useWrite(stream, accumulator);
+            }
+            else {
+                return useWrite(stream);
+            }
         }
-        else if (isObject(stream) && isFunction(accumulator)) {
-            let optional = this.collect(() => {
-                return Optional.ofNonNull(stream);
-            }, (result, element, index) => {
-                try {
-                    return result.map((stream) => {
-                        let writer = stream.getWriter();
-                        writer.write(accumulator(element, index));
-                        return stream;
-                    });
-                }
-                catch (reason) {
-                    return Optional.empty();
-                }
-            }, (a) => {
-                return a;
-            });
-            return new Promise((resolve, reject) => {
-                optional.ifPresent(resolve, reject);
-            });
-        }
-        else {
-            throw new TypeError("Invalid arguments.");
-        }
+        throw new TypeError("Invalid arguments.");
     }
 }
 ;

@@ -17,6 +17,11 @@ export declare abstract class Collectable<E> {
     collect<A, R>(identity: Supplier<A>, interruptor: BiPredicate<E, bigint>, accumulator: TriFunctional<A, E, bigint, A>, finisher: Functional<A, R>): R;
     collect<A, R>(identity: Supplier<A>, interruptor: TriPredicate<E, bigint, A>, accumulator: TriFunctional<A, E, bigint, A>, finisher: Functional<A, R>): R;
     count(): bigint;
+    error(): void;
+    error(accumulator: BiFunctional<string, E, string>): void;
+    error(accumulator: TriFunctional<string, E, bigint, string>): void;
+    error(prefix: string, accumulator: BiFunctional<string, E, string>, suffix: string): void;
+    error(prefix: string, accumulator: TriFunctional<string, E, bigint, string>, suffix: string): void;
     isEmpty(): boolean;
     findAny(): Optional<E>;
     findFirst(): Optional<E>;
@@ -32,7 +37,7 @@ export declare abstract class Collectable<E> {
     join(prefiex: string, accumulator: TriFunctional<string, E, bigint, string>, suffix: string): string;
     log(): void;
     log(accumulator: BiFunctional<string, E, string>): void;
-    log(accumulator: BiFunctional<string, E, string> | TriFunctional<string, E, bigint, string>): void;
+    log(accumulator: TriFunctional<string, E, bigint, string>): void;
     log(prefix: string, accumulator: BiFunctional<string, E, string>, suffix: string): void;
     log(prefix: string, accumulator: TriFunctional<string, E, bigint, string>, suffix: string): void;
     nonMatch(predicate: Predicate<E>): boolean;
@@ -42,16 +47,16 @@ export declare abstract class Collectable<E> {
     reduce(accumulator: TriFunctional<E, E, bigint, E>): Optional<E>;
     reduce(identity: E, accumulator: BiFunctional<E, E, E>): E;
     reduce(identity: E, accumulator: TriFunctional<E, E, bigint, E>): E;
-    reduce<R>(identity: R, accumulator: BiFunctional<R, E, R>, finisher: BiFunctional<R, R, R>): R;
-    reduce<R>(identity: R, accumulator: TriFunctional<R, E, bigint, R>, finisher: BiFunctional<R, R, R>): R;
+    reduce<R>(identity: R, accumulator: BiFunctional<R, E, R>, finisher: Functional<R, R>): R;
+    reduce<R>(identity: R, accumulator: TriFunctional<R, E, bigint, R>, finisher: Functional<R, R>): R;
     semantic(): Semantic<E>;
-    protected abstract source(): Generator<E> | Iterable<E>;
+    abstract source(): Generator<E> | Iterable<E>;
     toArray(): Array<E>;
     toMap<K, V>(keyExtractor: Functional<E, K>, valueExtractor: Functional<E, V>): Map<K, V>;
     toSet(): Set<E>;
-    write(stream: WritableStream<string>): Promise<WritableStream<string>>;
-    write(stream: WritableStream<string>, accumulator: BiFunctional<E, bigint, string>): Promise<WritableStream<string>>;
-    write(stream: WritableStream<Uint8Array>, accumulator: BiFunctional<E, bigint, Uint8Array>): Promise<WritableStream<Uint8Array>>;
+    write<S = string>(stream: WritableStream<S>): Collector<E, Promise<WritableStream<S>>, Promise<WritableStream<S>>>;
+    write<S = string>(stream: WritableStream<S>, accumulator: BiFunctional<WritableStream<S>, E, WritableStream<S>>): Collector<E, Promise<WritableStream<S>>, Promise<WritableStream<S>>>;
+    write<S = string>(stream: WritableStream<S>, accumulator: TriFunctional<WritableStream<S>, E, bigint, WritableStream<S>>): Collector<E, Promise<WritableStream<S>>, Promise<WritableStream<S>>>;
 }
 export declare class UnorderedCollectable<E> extends Collectable<E> {
     protected readonly UnorderedCollectable: symbol;

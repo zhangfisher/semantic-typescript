@@ -18,7 +18,8 @@ export class Semantic {
                     accept(element, index);
                     count++;
                 }, interrupt);
-                other.generator((element, index) => {
+                let otherGenerator = Reflect.has(other, "generator") ? Reflect.get(other, "generator") : () => { };
+                otherGenerator((element, index) => {
                     accept(element, index + count);
                 }, interrupt);
             });
@@ -337,3 +338,14 @@ export class Semantic {
     }
 }
 ;
+;
+export let useTransform = (generator, mapper) => {
+    return (accept, interrupt) => {
+        generator((element, index) => {
+            let resolved = mapper(element, index);
+            accept(resolved, index);
+        }, (element, index) => {
+            return interrupt(mapper(element, index), index);
+        });
+    };
+};

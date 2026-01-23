@@ -69,26 +69,38 @@ export let useTraverse = (t, callback) => {
         let traverse = (target) => {
             if (!seen.has(target)) {
                 seen.add(target);
+                let stop = false;
                 let properties = Reflect.ownKeys(target);
                 for (let property of properties) {
                     let value = target[property];
+                    if (stop) {
+                        break;
+                    }
                     if (validate(value)) {
                         if (isObject(value)) {
                             if (isIterable(value)) {
+                                let index = 0;
                                 for (let item of value) {
                                     if (validate(item)) {
                                         if (isObject(item)) {
                                             traverse(item);
                                         }
                                         else {
-                                            callback(property, item);
+                                            if (callback(index, item)) {
+                                                stop = true;
+                                                break;
+                                            }
                                         }
                                     }
+                                    index++;
                                 }
                             }
                         }
                         else {
-                            callback(property, value);
+                            if (callback(property, value)) {
+                                stop = true;
+                                break;
+                            }
                         }
                     }
                 }
