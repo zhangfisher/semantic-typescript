@@ -4,7 +4,7 @@ import { isBigInt, isCollector, isFunction, isIterable, isObject, isString } fro
 import { useCompare } from "./hook";
 import { Optional } from "./optional";
 import { Semantic } from "./semantic";
-import { CollectableSymbol, OrderedCollectableSymbol, UnorderedCollectableSymbol, WindowCollectableSymbol } from "./symbol";
+import { CollectableSymbol, OrderedCollectableSymbol, UnorderedCollectableSymbol } from "./symbol";
 import { invalidate, validate } from "./utility";
 import type { BiConsumer, BiFunctional, Comparator, Consumer, Functional, Predicate, Supplier, TriFunctional, Generator, BiPredicate, TriPredicate } from "./utility";
 
@@ -341,52 +341,5 @@ export class OrderedCollectable<E> extends Collectable<E> {
 
     public override source(): Generator<E> | Iterable<E> {
         return this.ordered.map((indexed: Indexed<bigint, E>) => indexed.value);
-    }
-};
-
-export class WindowCollectable<E> extends OrderedCollectable<E> {
-
-    protected readonly WindowCollectable: symbol = WindowCollectableSymbol;
-
-    public constructor(iterable: Iterable<E>);
-    public constructor(iterable: Iterable<E>, comparator: Comparator<E>);
-    public constructor(generator: Generator<E>);
-    public constructor(generator: Generator<E>, comparator: Comparator<E>);
-    public constructor(parameter: Iterable<E> | Generator<E>, comparator?: Comparator<E>) {
-        if (isIterable(parameter)) {
-            if (isFunction(comparator)) {
-                super(parameter, comparator);
-            } else {
-                super(parameter);
-            }
-        } else if (isFunction(parameter)) {
-            if (isFunction(comparator)) {
-                super(parameter, comparator);
-            } else {
-                super(parameter);
-            }
-        }
-    }
-
-    public slide(size: bigint, step: bigint = 1n): Semantic<Semantic<E>> {
-        if (size > 0n && step > 0n) {
-            let source: Array<E> = this.toArray();
-            let windows: Array<Array<E>> = [];
-            let windowStartIndex: bigint = 0n;
-            while (windowStartIndex < BigInt(source.length)) {
-                let windowEnd = windowStartIndex + size;
-                let window = source.slice(Number(windowStartIndex), Number(windowEnd));
-                if (window.length > 0) {
-                    windows.push(window);
-                }
-                windowStartIndex += step;
-            }
-            return from(windows).map((window: Array<E>) => from(window));
-        }
-        throw new RangeError("Invalid arguments.");
-    }
-
-    public tumble(size: bigint): Semantic<Semantic<E>> {
-        return this.slide(size, size);
     }
 };
