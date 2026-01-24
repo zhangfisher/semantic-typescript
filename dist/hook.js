@@ -72,7 +72,7 @@ export let useTraverse = (t, callback) => {
                 let stop = false;
                 let properties = Reflect.ownKeys(target);
                 for (let property of properties) {
-                    let value = target[property];
+                    let value = Reflect.get(target, property);
                     if (stop) {
                         break;
                     }
