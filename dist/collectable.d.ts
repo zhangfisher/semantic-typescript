@@ -77,13 +77,4 @@ export declare class OrderedCollectable<E> extends Collectable<E> {
     constructor(generator: Generator<E>, comparator: Comparator<E>);
     source(): Generator<E> | Iterable<E>;
 }
-export declare class WindowCollectable<E> extends OrderedCollectable<E> {
-    protected readonly WindowCollectable: symbol;
-    constructor(iterable: Iterable<E>);
-    constructor(iterable: Iterable<E>, comparator: Comparator<E>);
-    constructor(generator: Generator<E>);
-    constructor(generator: Generator<E>, comparator: Comparator<E>);
-    slide(size: bigint, step?: bigint): Semantic<Semantic<E>>;
-    tumble(size: bigint): Semantic<Semantic<E>>;
-}
 export {};

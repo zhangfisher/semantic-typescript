@@ -1,9 +1,10 @@
-import { Collectable, OrderedCollectable, UnorderedCollectable, WindowCollectable } from "./collectable";
+import { Collectable, OrderedCollectable, UnorderedCollectable } from "./collectable";
 import { isBigInt, isCollectable, isFunction, isIterable, isNumber, isSemantic } from "./guard";
 import { useCompare, useRandom } from "./hook";
 import { BigIntStatistics, NumericStatistics } from "./statistics";
 import { SemanticSymbol } from "./symbol";
 import { validate } from "./utility";
+import { WindowCollectable } from "./window";
 export class Semantic {
     generator;
     Semantic = SemanticSymbol;

@@ -1,7 +1,8 @@
-import { Collectable, OrderedCollectable, UnorderedCollectable, WindowCollectable } from "./collectable";
+import { Collectable, OrderedCollectable, UnorderedCollectable } from "./collectable";
 import { BigIntStatistics, NumericStatistics } from "./statistics";
 import { type Predicate } from "./utility";
 import type { Generator, Functional, BiFunctional, Consumer, BiConsumer, Comparator } from "./utility";
+import { WindowCollectable } from "./window";
 export declare class Semantic<E> {
     protected generator: Generator<E>;
     protected readonly Semantic: Symbol;

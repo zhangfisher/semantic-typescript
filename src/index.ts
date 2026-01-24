@@ -8,3 +8,4 @@ export * from "./semantic";
 export * from "./symbol";
 export * from "./statistics";
 export * from "./utility";
+export * from "./window";
