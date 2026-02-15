@@ -264,6 +264,7 @@ average.collect([1,2,3,4,5]); // Averages from an iterable object
 | `from<E>(iterable)` | Create a stream from an iterable object | O(1) | O(1) |
 | `interval(period, delay?)` | Create a timed interval stream | O(1)* | O(1) |
 | `iterate<E>(generator)` | Create a stream from a generator | O(1) | O(1) |
+| `promise<E>(promise)` | Create a stream from a promise | O(1) | O(1) |
 | `range(start, end, step)` | Create a numerical range stream | O(n) | O(1) |
 | `websocket(websocket)` | Create a stream from a WebSocket | O(1) | O(1) |
 
@@ -298,7 +299,7 @@ let numberStream = from([1, 2, 3, 4, 5]);
 let stringStream = from(new Set(["Alex", "Bob"]));
 
 // Create a stream from a resolved Promise
-let promisedStream: Semantic<Array<number>> = Promise.resolve([1, 2, 3, 4, 5]);
+let promisedStream: Semantic<Array<number>> = promise(Promise.resolve([1, 2, 3, 4, 5]));
 
 // Create a range stream
 let rangeStream = range(1, 10, 2); // 1, 3, 5, 7, 9
