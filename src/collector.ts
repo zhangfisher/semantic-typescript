@@ -71,19 +71,8 @@ export class Collector<E, A, R> {
             }
         } else if (isCollectable(argument1)) {
             let collectable: Collectable<E> = argument1 as Collectable<E>;
-            let source: Generator<E> | Iterable<E> = collectable.source();
-            if (isIterable(source)) {
-                let iterable: Iterable<E> = source;
-                let index: bigint = 0n;
-                for (let element of iterable) {
-                    if (this.interrupt(element, index, accumulator)) {
-                        break;
-                    }
-                    accumulator = this.accumulator(accumulator, element, count);
-                    count++;
-                    index++;
-                }
-            }else if (isFunction(source)) {
+            let source: Generator<E> = collectable.source();
+            if (isFunction(source)) {
                 let generator: Generator<E> = source;
                 generator((element: E, index: bigint): void => {
                     accumulator = this.accumulator(accumulator, element, index);
@@ -166,6 +155,7 @@ interface UseCollect {
     <E, A, R>(identity: Supplier<A>, interruptor: TriPredicate<E, bigint, A>, accumulator: BiFunctional<A, E, A>, finisher: Functional<A, R>): Collector<E, A, R>;
     <E, A, R>(identity: Supplier<A>, interruptor: TriPredicate<E, bigint, A>, accumulator: TriFunctional<A, E, bigint, A>, finisher: Functional<A, R>): Collector<E, A, R>;
 };
+
 export let useCollect: UseCollect = <E, A, R>(argument1: Supplier<A> | Collector<E, A, R>, argument2?: BiFunctional<A, E, A> | TriFunctional<A, E, bigint, A> | Predicate<E> | BiPredicate<E, bigint> | TriPredicate<E, bigint, A>, argument3?: BiFunctional<A, E, A> | TriFunctional<A, E, bigint, A> | Functional<A, R>, argument4?: Functional<A, R>): Collector<E, A, R> => {
     if (isFunction(argument1) && isFunction(argument2) && isFunction(argument3) && isFunction(argument4)) {
         let identity: Supplier<A> = argument1 as Supplier<A>;

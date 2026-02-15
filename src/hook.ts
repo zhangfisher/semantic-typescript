@@ -1,5 +1,7 @@
+import { useToArray, type Collector } from "./collector";
 import { isFunction, isIterable, isNumber, isObject, isPrimitive } from "./guard";
 import { validate, type BiPredicate, type DeepPropertyKey, type DeepPropertyValue, type MaybePrimitive } from "./utility";
+import type { BiConsumer, Comparator, Consumer, Generator, Indexed, Predicate } from "./utility";
 
 export let useCompare: <T>(t1: T, t2: T) => number = <T>(t1: T, t2: T): number => {
     if (t1 === t2 || Object.is(t1, t2)) {
@@ -76,7 +78,7 @@ export let useTraverse: <T extends object>(t: T, callback: BiPredicate<DeepPrope
                 let properties: Array<string | symbol> = Reflect.ownKeys(target);
                 for (let property of properties) {
                     let value: T[keyof T] = Reflect.get(target, property) as T[keyof T];
-                    if(stop){
+                    if (stop) {
                         break;
                     }
                     if (validate(value)) {
@@ -88,7 +90,7 @@ export let useTraverse: <T extends object>(t: T, callback: BiPredicate<DeepPrope
                                         if (isObject(item)) {
                                             traverse(item);
                                         } else {
-                                            if(!callback(index as DeepPropertyKey<T>, item as DeepPropertyValue<T>)){
+                                            if (!callback(index as DeepPropertyKey<T>, item as DeepPropertyValue<T>)) {
                                                 stop = true;
                                                 break;
                                             }
@@ -98,7 +100,7 @@ export let useTraverse: <T extends object>(t: T, callback: BiPredicate<DeepPrope
                                 }
                             }
                         } else {
-                            if(!callback(property as DeepPropertyKey<T>, value as DeepPropertyValue<T>)){
+                            if (!callback(property as DeepPropertyKey<T>, value as DeepPropertyValue<T>)) {
                                 stop = true;
                                 break;
                             }
@@ -109,4 +111,64 @@ export let useTraverse: <T extends object>(t: T, callback: BiPredicate<DeepPrope
         }
         traverse(t);
     }
+};
+
+export let useGenerator: <E>(iterable: Iterable<E>) => Generator<E> = <E>(iterable: Iterable<E>): Generator<E> => {
+    if (isIterable(iterable)) {
+        return (accept: Consumer<E> | BiConsumer<E, bigint>, interrupt: Predicate<E> | BiPredicate<E, bigint>): void => {
+            let index: bigint = 0n;
+            for (let element of iterable) {
+                if(interrupt(element, index)){
+                    break;
+                }
+                accept(element, index);
+            }
+        };
+    }
+    return (): void => {};
+};
+
+interface UseArrange {
+    <E>(source: Iterable<E>): Generator<E>;
+    <E>(source: Iterable<E>, comparator: Comparator<E>): Generator<E>;
+    <E>(source: Generator<E>): Generator<E>;
+    <E>(source: Generator<E>, comparator: Comparator<E>): Generator<E>;
+};
+
+export let useArrange: UseArrange = <E>(source: Iterable<E> | Generator<E>, comparator?: Comparator<E>): Generator<E> => {
+    if (isIterable(source)) {
+        let buffer: Array<E> = [...source];
+        if (validate(comparator) && isFunction(comparator)) {
+            return useGenerator(buffer.sort(comparator));
+        } else {
+            return useGenerator(buffer.map((element: E, index: number): Indexed<E> => {
+                return {
+                    element: element,
+                    index: BigInt(((index % buffer.length) + buffer.length) % buffer.length)
+                };
+            }).sort((a: Indexed<E>, b: Indexed<E>): number => {
+                return Number(a.index - b.index);
+            }).map((indexed: Indexed<E>): E => {
+                return indexed.element;
+            }));
+        }
+    } else if (isFunction(source)) {
+        let collector: Collector<E, Array<E>, Array<E>> = useToArray();
+        let buffer: Array<E> = collector.collect(source);
+        if (validate(comparator) && isFunction(comparator)) {
+            return useGenerator(buffer.sort(comparator));
+        } else {
+            return useGenerator(buffer.map((element: E, index: number): Indexed<E> => {
+                return {
+                    element: element,
+                    index: BigInt(((index % buffer.length) + buffer.length) % buffer.length)
+                };
+            }).sort((a: Indexed<E>, b: Indexed<E>): number => {
+                return Number(a.index - b.index);
+            }).map((indexed: Indexed<E>): E => {
+                return indexed.element;
+            }));
+        }
+    }
+    return useGenerator([]);
 };

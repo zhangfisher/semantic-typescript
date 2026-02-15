@@ -190,10 +190,10 @@ export class NumericStatistics<E> extends Statistics<E, number> {
             return 0;
         }
         if (invalidate(argument1)) {
-            let minimum: E = this.ordered[0].value;
-            let maximum: E = this.ordered[0].value;
+            let minimum: E = this.ordered[0].element;
+            let maximum: E = this.ordered[0].element;
             for (let i = 1; i < this.ordered.length; i++) {
-                let current = this.ordered[i].value;
+                let current = this.ordered[i].element;
                 if (useCompare(current, minimum) < 0) {
                     minimum = current;
                 }
@@ -204,10 +204,10 @@ export class NumericStatistics<E> extends Statistics<E, number> {
             return useCompare(maximum, minimum);
         } else if (isFunction(argument1)) {
             let mapper: Functional<E, number> = argument1;
-            let minimum: number = mapper(this.ordered[0].value);
-            let maximum: number = mapper(this.ordered[0].value);
+            let minimum: number = mapper(this.ordered[0].element);
+            let maximum: number = mapper(this.ordered[0].element);
             for (let i = 1; i < this.ordered.length; i++) {
-                let current = mapper(this.ordered[i].value);
+                let current = mapper(this.ordered[i].element);
                 if (current < minimum) {
                     minimum = current;
                 }
@@ -278,18 +278,18 @@ export class NumericStatistics<E> extends Statistics<E, number> {
         if (invalidate(argument1)) {
             let count: number = Number(this.count());
             let middle: number = Math.floor(count / 2);
-            let median: number = Number(this.ordered[middle].value);
+            let median: number = Number(this.ordered[middle].element);
             if (count % 2 === 0) {
-                median = (median + Number(this.ordered[middle - 1].value)) / 2;
+                median = (median + Number(this.ordered[middle - 1].element)) / 2;
             }
             return median;
         } else if (isFunction(argument1)) {
             let mapper: Functional<E, number> = argument1;
             let count = Number(this.count());
             let middle = Math.floor(count / 2);
-            let median: number = mapper(this.ordered[middle].value);
+            let median: number = mapper(this.ordered[middle].element);
             if (count % 2 === 0) {
-                median = (median + mapper(this.ordered[middle - 1].value)) / 2;
+                median = (median + mapper(this.ordered[middle - 1].element)) / 2;
             }
             return median;
         }
@@ -338,7 +338,7 @@ export class NumericStatistics<E> extends Statistics<E, number> {
         if (invalidate(argument1)) {
             let frequency: Map<number, bigint> = new Map<number, bigint>();
             for (let i = 0; i < this.ordered.length; i++) {
-                let current = Number(this.ordered[i].value);
+                let current = Number(this.ordered[i].element);
                 let count: bigint = frequency.get(current) || 0n;
                 frequency.set(current, count + 1n);
             }
@@ -347,7 +347,7 @@ export class NumericStatistics<E> extends Statistics<E, number> {
             let mapper: Functional<E, number> = argument1;
             let frequency: Map<number, bigint> = new Map<number, bigint>();
             for (let i = 0; i < this.ordered.length; i++) {
-                let current = mapper(this.ordered[i].value);
+                let current = mapper(this.ordered[i].element);
                 let count: bigint = frequency.get(current) || 0n;
                 frequency.set(current, count + 1n);
             }
@@ -365,7 +365,7 @@ export class NumericStatistics<E> extends Statistics<E, number> {
         if (invalidate(argument1)) {
             let summate: number = 0;
             for (let i = 0; i < this.ordered.length; i++) {
-                let current = Number(this.ordered[i].value);
+                let current = Number(this.ordered[i].element);
                 summate += current;
             }
             return summate;
@@ -373,7 +373,7 @@ export class NumericStatistics<E> extends Statistics<E, number> {
             let mapper: Functional<E, number> = argument1;
             let summate: number = 0;
             for (let i = 0; i < this.ordered.length; i++) {
-                let current = mapper(this.ordered[i].value);
+                let current = mapper(this.ordered[i].element);
                 summate += current;
             }
             return summate;
@@ -396,7 +396,7 @@ export class NumericStatistics<E> extends Statistics<E, number> {
             if (index === count) {
                 index--;
             }
-            let value: number = Number(this.ordered[index].value);
+            let value: number = Number(this.ordered[index].element);
             return value;
         } else if (isFunction(argument1)) {
             let mapper: Functional<E, number> = argument1;
@@ -405,7 +405,7 @@ export class NumericStatistics<E> extends Statistics<E, number> {
             if (index === count) {
                 index--;
             }
-            let value = mapper(this.ordered[index].value);
+            let value = mapper(this.ordered[index].element);
             return value;
         }
         throw new TypeError("Invalid arguments.");
@@ -536,10 +536,10 @@ export class BigIntStatistics<E> extends Statistics<E, bigint> {
             return 0n;
         }
         if (invalidate(argument1)) {
-            let minimum: E = this.ordered[0].value;
-            let maximum: E = this.ordered[0].value;
+            let minimum: E = this.ordered[0].element;
+            let maximum: E = this.ordered[0].element;
             for (let i = 1; i < this.ordered.length; i++) {
-                let current = this.ordered[i].value;
+                let current = this.ordered[i].element;
                 if (useCompare(current, minimum) < 0) {
                     minimum = current;
                 }
@@ -550,10 +550,10 @@ export class BigIntStatistics<E> extends Statistics<E, bigint> {
             return BigInt(useCompare(maximum, minimum));
         } else if (isFunction(argument1)) {
             let mapper: Functional<E, bigint> = argument1;
-            let minimum: bigint = mapper(this.ordered[0].value);
-            let maximum: bigint = mapper(this.ordered[0].value);
+            let minimum: bigint = mapper(this.ordered[0].element);
+            let maximum: bigint = mapper(this.ordered[0].element);
             for (let i: number = 1; i < this.ordered.length; i++) {
-                let current = mapper(this.ordered[i].value);
+                let current = mapper(this.ordered[i].element);
                 if (current < minimum) {
                     minimum = current;
                 }
@@ -624,9 +624,9 @@ export class BigIntStatistics<E> extends Statistics<E, bigint> {
         if (invalidate(argument1)) {
             let count: number = Number(this.count());
             let middle: number = Math.floor(count / 2);
-            let median: bigint = BigInt(Number(this.ordered[middle].value));
+            let median: bigint = BigInt(Number(this.ordered[middle].element));
             if (count % 2 === 0) {
-                median = (median + BigInt(Number(this.ordered[middle - 1].value))) / 2n;
+                median = (median + BigInt(Number(this.ordered[middle - 1].element))) / 2n;
                 return median;
             }
             return median;
@@ -634,9 +634,9 @@ export class BigIntStatistics<E> extends Statistics<E, bigint> {
             let mapper: Functional<E, bigint> = argument1;
             let count: bigint = this.count();
             let middle: bigint = count / 2n;
-            let median: bigint = mapper(this.ordered[Number(middle)].value);
+            let median: bigint = mapper(this.ordered[Number(middle)].element);
             if (count % 2n === 0n) {
-                median = (median + mapper(this.ordered[Number(middle - 1n)].value)) / 2n;
+                median = (median + mapper(this.ordered[Number(middle - 1n)].element)) / 2n;
             }
             return median;
         }
@@ -685,7 +685,7 @@ export class BigIntStatistics<E> extends Statistics<E, bigint> {
         if (invalidate(argument1)) {
             let frequency: Map<bigint, bigint> = new Map<bigint, bigint>();
             for (let i = 0; i < this.ordered.length; i++) {
-                let current = BigInt(Number(this.ordered[i].value));
+                let current = BigInt(Number(this.ordered[i].element));
                 let count: bigint = frequency.get(current) || 0n;
                 frequency.set(current, count + 1n);
             }
@@ -694,7 +694,7 @@ export class BigIntStatistics<E> extends Statistics<E, bigint> {
             let mapper: Functional<E, bigint> = argument1;
             let frequency: Map<bigint, bigint> = new Map<bigint, bigint>();
             for (let i = 0; i < this.ordered.length; i++) {
-                let current = mapper(this.ordered[i].value);
+                let current = mapper(this.ordered[i].element);
                 let count: bigint = frequency.get(current) || 0n;
                 frequency.set(current, count + 1n);
             }
@@ -712,7 +712,7 @@ export class BigIntStatistics<E> extends Statistics<E, bigint> {
         if (invalidate(argument1)) {
             let summate: bigint = 0n;
             for (let i = 0; i < this.ordered.length; i++) {
-                let current = BigInt(Number(this.ordered[i].value));
+                let current = BigInt(Number(this.ordered[i].element));
                 summate += current;
             }
             return summate;
@@ -720,7 +720,7 @@ export class BigIntStatistics<E> extends Statistics<E, bigint> {
             let mapper: Functional<E, bigint> = argument1;
             let summate: bigint = 0n;
             for (let i = 0; i < this.ordered.length; i++) {
-                let current = mapper(this.ordered[i].value);
+                let current = mapper(this.ordered[i].element);
                 summate += current;
             }
             return summate;
@@ -743,7 +743,7 @@ export class BigIntStatistics<E> extends Statistics<E, bigint> {
             if (index === count) {
                 index--;
             }
-            let value: bigint = BigInt(Number(this.ordered[index].value));
+            let value: bigint = BigInt(Number(this.ordered[index].element));
             return value;
         } else if (isFunction(mapper)) {
             let count: number = Number(this.count());
@@ -751,7 +751,7 @@ export class BigIntStatistics<E> extends Statistics<E, bigint> {
             if (index === count) {
                 index--;
             }
-            let value: bigint = mapper(this.ordered[index].value);
+            let value: bigint = mapper(this.ordered[index].element);
             return value;
         }
         throw new TypeError("Invalid arguments.");
