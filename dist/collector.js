@@ -57,19 +57,7 @@ export class Collector {
         else if (isCollectable(argument1)) {
             let collectable = argument1;
             let source = collectable.source();
-            if (isIterable(source)) {
-                let iterable = source;
-                let index = 0n;
-                for (let element of iterable) {
-                    if (this.interrupt(element, index, accumulator)) {
-                        break;
-                    }
-                    accumulator = this.accumulator(accumulator, element, count);
-                    count++;
-                    index++;
-                }
-            }
-            else if (isFunction(source)) {
+            if (isFunction(source)) {
                 let generator = source;
                 generator((element, index) => {
                     accumulator = this.accumulator(accumulator, element, index);

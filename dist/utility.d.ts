@@ -54,3 +54,7 @@ export interface Generator<T> {
     (accept: BiConsumer<T, bigint>, interrupt: Predicate<T>): void;
     (accept: BiConsumer<T, bigint>, interrupt: BiPredicate<T, bigint>): void;
 }
+export interface Indexed<E> {
+    element: E;
+    index: bigint;
+}

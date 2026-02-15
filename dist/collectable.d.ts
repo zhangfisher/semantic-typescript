@@ -1,10 +1,13 @@
 import { Collector } from "./collector";
 import { Optional } from "./optional";
 import { Semantic } from "./semantic";
-import type { BiConsumer, BiFunctional, Comparator, Consumer, Functional, Predicate, Supplier, TriFunctional, Generator, BiPredicate, TriPredicate } from "./utility";
-export declare abstract class Collectable<E> {
+import type { BiConsumer, BiFunctional, Comparator, Consumer, Functional, Predicate, Supplier, TriFunctional, Generator, BiPredicate, TriPredicate, Indexed } from "./utility";
+export declare abstract class Collectable<E> implements Iterable<E> {
     protected readonly Collectable: symbol;
     constructor();
+    [Symbol.iterator](): globalThis.Generator<E, void, undefined>;
+    generate(): globalThis.Generator<E, void, undefined>;
+    [Symbol.asyncIterator](): globalThis.AsyncGenerator<E, void, undefined>;
     anyMatch(predicate: Predicate<E>): boolean;
     allMatch(predicate: Predicate<E>): boolean;
     collect<A, R>(collector: Collector<E, A, R>): R;
@@ -50,7 +53,7 @@ export declare abstract class Collectable<E> {
     reduce<R>(identity: R, accumulator: BiFunctional<R, E, R>, finisher: Functional<R, R>): R;
     reduce<R>(identity: R, accumulator: TriFunctional<R, E, bigint, R>, finisher: Functional<R, R>): R;
     semantic(): Semantic<E>;
-    abstract source(): Generator<E> | Iterable<E>;
+    abstract source(): Generator<E>;
     toArray(): Array<E>;
     toMap<K, V>(keyExtractor: Functional<E, K>, valueExtractor: Functional<E, V>): Map<K, V>;
     toSet(): Set<E>;
@@ -61,20 +64,17 @@ export declare abstract class Collectable<E> {
 export declare class UnorderedCollectable<E> extends Collectable<E> {
     protected readonly UnorderedCollectable: symbol;
     protected generator: Generator<E>;
+    constructor(iterable: Iterable<E>);
     constructor(generator: Generator<E>);
     source(): Generator<E>;
 }
-type Indexed<K, V> = {
-    index: K;
-    value: V;
-};
 export declare class OrderedCollectable<E> extends Collectable<E> {
     protected readonly OrderedCollectable: symbol;
-    protected ordered: Array<Indexed<bigint, E>>;
+    protected ordered: Array<Indexed<E>>;
+    protected generator: Generator<E>;
     constructor(iterable: Iterable<E>);
     constructor(iterable: Iterable<E>, comparator: Comparator<E>);
     constructor(generator: Generator<E>);
     constructor(generator: Generator<E>, comparator: Comparator<E>);
-    source(): Generator<E> | Iterable<E>;
+    source(): Generator<E>;
 }
-export {};

@@ -1,3 +1,4 @@
+import { useToArray } from "./collector";
 import { isFunction, isIterable, isNumber, isObject, isPrimitive } from "./guard";
 import { validate } from "./utility";
 export let useCompare = (t1, t2) => {
@@ -108,4 +109,59 @@ export let useTraverse = (t, callback) => {
         };
         traverse(t);
     }
+};
+export let useGenerator = (iterable) => {
+    if (isIterable(iterable)) {
+        return (accept, interrupt) => {
+            let index = 0n;
+            for (let element of iterable) {
+                if (interrupt(element, index)) {
+                    break;
+                }
+                accept(element, index);
+            }
+        };
+    }
+    return () => { };
+};
+;
+export let useArrange = (source, comparator) => {
+    if (isIterable(source)) {
+        let buffer = [...source];
+        if (validate(comparator) && isFunction(comparator)) {
+            return useGenerator(buffer.sort(comparator));
+        }
+        else {
+            return useGenerator(buffer.map((element, index) => {
+                return {
+                    element: element,
+                    index: BigInt(((index % buffer.length) + buffer.length) % buffer.length)
+                };
+            }).sort((a, b) => {
+                return Number(a.index - b.index);
+            }).map((indexed) => {
+                return indexed.element;
+            }));
+        }
+    }
+    else if (isFunction(source)) {
+        let collector = useToArray();
+        let buffer = collector.collect(source);
+        if (validate(comparator) && isFunction(comparator)) {
+            return useGenerator(buffer.sort(comparator));
+        }
+        else {
+            return useGenerator(buffer.map((element, index) => {
+                return {
+                    element: element,
+                    index: BigInt(((index % buffer.length) + buffer.length) % buffer.length)
+                };
+            }).sort((a, b) => {
+                return Number(a.index - b.index);
+            }).map((indexed) => {
+                return indexed.element;
+            }));
+        }
+    }
+    return useGenerator([]);
 };

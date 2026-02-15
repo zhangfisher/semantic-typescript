@@ -1,7 +1,6 @@
 import { Collector, useAllMatch, useAnyMatch, useCollect, useCount, useError, useFindAny, useFindFirst, useFindLast, useForEach, useGroup, useGroupBy, useJoin, useLog, useNoneMatch, usePartition, useReduce, useToArray, useToMap, useToSet, useWrite } from "./collector";
-import { from } from "./factory";
 import { isBigInt, isCollector, isFunction, isIterable, isObject, isString } from "./guard";
-import { useCompare } from "./hook";
+import { useArrange, useGenerator } from "./hook";
 import { Optional } from "./optional";
 import { Semantic } from "./semantic";
 import { CollectableSymbol, OrderedCollectableSymbol, UnorderedCollectableSymbol } from "./symbol";
@@ -9,6 +8,24 @@ import { invalidate, validate } from "./utility";
 export class Collectable {
     Collectable = CollectableSymbol;
     constructor() {
+    }
+    *[Symbol.iterator]() {
+        let buffer = this.toArray();
+        for (let element of buffer) {
+            yield element;
+        }
+    }
+    *generate() {
+        let buffer = this.toArray();
+        for (let element of buffer) {
+            yield element;
+        }
+    }
+    async *[Symbol.asyncIterator]() {
+        let buffer = this.toArray();
+        for (let element of buffer) {
+            yield element;
+        }
     }
     anyMatch(predicate) {
         if (isFunction(predicate)) {
@@ -180,10 +197,7 @@ export class Collectable {
     }
     semantic() {
         let source = this.source();
-        if (isIterable(source)) {
-            return from(source);
-        }
-        else if (isFunction(source)) {
+        if (isFunction(source)) {
             return new Semantic(source);
         }
         else {
@@ -217,9 +231,17 @@ export class Collectable {
 export class UnorderedCollectable extends Collectable {
     UnorderedCollectable = UnorderedCollectableSymbol;
     generator;
-    constructor(generator) {
+    constructor(argument1) {
         super();
-        this.generator = generator;
+        if (isIterable(argument1)) {
+            this.generator = useGenerator(argument1);
+        }
+        else if (isFunction(argument1)) {
+            this.generator = argument1;
+        }
+        else {
+            throw new TypeError("Source must be an iterable or a generator function.");
+        }
     }
     source() {
         return this.generator;
@@ -229,52 +251,21 @@ export class UnorderedCollectable extends Collectable {
 export class OrderedCollectable extends Collectable {
     OrderedCollectable = OrderedCollectableSymbol;
     ordered = [];
+    generator;
     constructor(argument1, argument2) {
         super();
-        let buffer = [];
         if (isIterable(argument1)) {
-            let iterable = argument1;
-            let index = 0n;
-            for (let element of iterable) {
-                buffer.push({
-                    index: index,
-                    value: element
-                });
-                index++;
-            }
+            this.generator = isFunction(argument2) ? useArrange(argument1, argument2) : useArrange(argument1);
         }
         else if (isFunction(argument1)) {
-            let generator = argument1;
-            generator((element, index) => {
-                buffer.push({
-                    index: index,
-                    value: element
-                });
-            }, () => false);
+            this.generator = isFunction(argument2) ? useArrange(argument1, argument2) : useArrange(argument1);
         }
         else {
-            throw new TypeError("Invalid arguments.");
+            throw new TypeError("Source must be an iterable or a generator function.");
         }
-        buffer.map((indexed, _index, array) => {
-            let length = BigInt(array.length);
-            return {
-                index: ((indexed.index % length) + length) % length,
-                value: indexed.value
-            };
-        }).sort((a, b) => {
-            if (isFunction(argument2)) {
-                let comparator = argument2;
-                return comparator(a.value, b.value);
-            }
-            else {
-                return useCompare(a.index, b.index);
-            }
-        }).forEach((indexed) => {
-            this.ordered.push(indexed);
-        });
     }
     source() {
-        return this.ordered.map((indexed) => indexed.value);
+        return useGenerator(this.ordered.map((indexed) => indexed.element));
     }
 }
 ;

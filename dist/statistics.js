@@ -148,10 +148,10 @@ export class NumericStatistics extends Statistics {
             return 0;
         }
         if (invalidate(argument1)) {
-            let minimum = this.ordered[0].value;
-            let maximum = this.ordered[0].value;
+            let minimum = this.ordered[0].element;
+            let maximum = this.ordered[0].element;
             for (let i = 1; i < this.ordered.length; i++) {
-                let current = this.ordered[i].value;
+                let current = this.ordered[i].element;
                 if (useCompare(current, minimum) < 0) {
                     minimum = current;
                 }
@@ -163,10 +163,10 @@ export class NumericStatistics extends Statistics {
         }
         else if (isFunction(argument1)) {
             let mapper = argument1;
-            let minimum = mapper(this.ordered[0].value);
-            let maximum = mapper(this.ordered[0].value);
+            let minimum = mapper(this.ordered[0].element);
+            let maximum = mapper(this.ordered[0].element);
             for (let i = 1; i < this.ordered.length; i++) {
-                let current = mapper(this.ordered[i].value);
+                let current = mapper(this.ordered[i].element);
                 if (current < minimum) {
                     minimum = current;
                 }
@@ -228,9 +228,9 @@ export class NumericStatistics extends Statistics {
         if (invalidate(argument1)) {
             let count = Number(this.count());
             let middle = Math.floor(count / 2);
-            let median = Number(this.ordered[middle].value);
+            let median = Number(this.ordered[middle].element);
             if (count % 2 === 0) {
-                median = (median + Number(this.ordered[middle - 1].value)) / 2;
+                median = (median + Number(this.ordered[middle - 1].element)) / 2;
             }
             return median;
         }
@@ -238,9 +238,9 @@ export class NumericStatistics extends Statistics {
             let mapper = argument1;
             let count = Number(this.count());
             let middle = Math.floor(count / 2);
-            let median = mapper(this.ordered[middle].value);
+            let median = mapper(this.ordered[middle].element);
             if (count % 2 === 0) {
-                median = (median + mapper(this.ordered[middle - 1].value)) / 2;
+                median = (median + mapper(this.ordered[middle - 1].element)) / 2;
             }
             return median;
         }
@@ -284,7 +284,7 @@ export class NumericStatistics extends Statistics {
         if (invalidate(argument1)) {
             let frequency = new Map();
             for (let i = 0; i < this.ordered.length; i++) {
-                let current = Number(this.ordered[i].value);
+                let current = Number(this.ordered[i].element);
                 let count = frequency.get(current) || 0n;
                 frequency.set(current, count + 1n);
             }
@@ -294,7 +294,7 @@ export class NumericStatistics extends Statistics {
             let mapper = argument1;
             let frequency = new Map();
             for (let i = 0; i < this.ordered.length; i++) {
-                let current = mapper(this.ordered[i].value);
+                let current = mapper(this.ordered[i].element);
                 let count = frequency.get(current) || 0n;
                 frequency.set(current, count + 1n);
             }
@@ -309,7 +309,7 @@ export class NumericStatistics extends Statistics {
         if (invalidate(argument1)) {
             let summate = 0;
             for (let i = 0; i < this.ordered.length; i++) {
-                let current = Number(this.ordered[i].value);
+                let current = Number(this.ordered[i].element);
                 summate += current;
             }
             return summate;
@@ -318,7 +318,7 @@ export class NumericStatistics extends Statistics {
             let mapper = argument1;
             let summate = 0;
             for (let i = 0; i < this.ordered.length; i++) {
-                let current = mapper(this.ordered[i].value);
+                let current = mapper(this.ordered[i].element);
                 summate += current;
             }
             return summate;
@@ -338,7 +338,7 @@ export class NumericStatistics extends Statistics {
             if (index === count) {
                 index--;
             }
-            let value = Number(this.ordered[index].value);
+            let value = Number(this.ordered[index].element);
             return value;
         }
         else if (isFunction(argument1)) {
@@ -348,7 +348,7 @@ export class NumericStatistics extends Statistics {
             if (index === count) {
                 index--;
             }
-            let value = mapper(this.ordered[index].value);
+            let value = mapper(this.ordered[index].element);
             return value;
         }
         throw new TypeError("Invalid arguments.");
@@ -467,10 +467,10 @@ export class BigIntStatistics extends Statistics {
             return 0n;
         }
         if (invalidate(argument1)) {
-            let minimum = this.ordered[0].value;
-            let maximum = this.ordered[0].value;
+            let minimum = this.ordered[0].element;
+            let maximum = this.ordered[0].element;
             for (let i = 1; i < this.ordered.length; i++) {
-                let current = this.ordered[i].value;
+                let current = this.ordered[i].element;
                 if (useCompare(current, minimum) < 0) {
                     minimum = current;
                 }
@@ -482,10 +482,10 @@ export class BigIntStatistics extends Statistics {
         }
         else if (isFunction(argument1)) {
             let mapper = argument1;
-            let minimum = mapper(this.ordered[0].value);
-            let maximum = mapper(this.ordered[0].value);
+            let minimum = mapper(this.ordered[0].element);
+            let maximum = mapper(this.ordered[0].element);
             for (let i = 1; i < this.ordered.length; i++) {
-                let current = mapper(this.ordered[i].value);
+                let current = mapper(this.ordered[i].element);
                 if (current < minimum) {
                     minimum = current;
                 }
@@ -547,9 +547,9 @@ export class BigIntStatistics extends Statistics {
         if (invalidate(argument1)) {
             let count = Number(this.count());
             let middle = Math.floor(count / 2);
-            let median = BigInt(Number(this.ordered[middle].value));
+            let median = BigInt(Number(this.ordered[middle].element));
             if (count % 2 === 0) {
-                median = (median + BigInt(Number(this.ordered[middle - 1].value))) / 2n;
+                median = (median + BigInt(Number(this.ordered[middle - 1].element))) / 2n;
                 return median;
             }
             return median;
@@ -558,9 +558,9 @@ export class BigIntStatistics extends Statistics {
             let mapper = argument1;
             let count = this.count();
             let middle = count / 2n;
-            let median = mapper(this.ordered[Number(middle)].value);
+            let median = mapper(this.ordered[Number(middle)].element);
             if (count % 2n === 0n) {
-                median = (median + mapper(this.ordered[Number(middle - 1n)].value)) / 2n;
+                median = (median + mapper(this.ordered[Number(middle - 1n)].element)) / 2n;
             }
             return median;
         }
@@ -604,7 +604,7 @@ export class BigIntStatistics extends Statistics {
         if (invalidate(argument1)) {
             let frequency = new Map();
             for (let i = 0; i < this.ordered.length; i++) {
-                let current = BigInt(Number(this.ordered[i].value));
+                let current = BigInt(Number(this.ordered[i].element));
                 let count = frequency.get(current) || 0n;
                 frequency.set(current, count + 1n);
             }
@@ -614,7 +614,7 @@ export class BigIntStatistics extends Statistics {
             let mapper = argument1;
             let frequency = new Map();
             for (let i = 0; i < this.ordered.length; i++) {
-                let current = mapper(this.ordered[i].value);
+                let current = mapper(this.ordered[i].element);
                 let count = frequency.get(current) || 0n;
                 frequency.set(current, count + 1n);
             }
@@ -629,7 +629,7 @@ export class BigIntStatistics extends Statistics {
         if (invalidate(argument1)) {
             let summate = 0n;
             for (let i = 0; i < this.ordered.length; i++) {
-                let current = BigInt(Number(this.ordered[i].value));
+                let current = BigInt(Number(this.ordered[i].element));
                 summate += current;
             }
             return summate;
@@ -638,7 +638,7 @@ export class BigIntStatistics extends Statistics {
             let mapper = argument1;
             let summate = 0n;
             for (let i = 0; i < this.ordered.length; i++) {
-                let current = mapper(this.ordered[i].value);
+                let current = mapper(this.ordered[i].element);
                 summate += current;
             }
             return summate;
@@ -658,7 +658,7 @@ export class BigIntStatistics extends Statistics {
             if (index === count) {
                 index--;
             }
-            let value = BigInt(Number(this.ordered[index].value));
+            let value = BigInt(Number(this.ordered[index].element));
             return value;
         }
         else if (isFunction(mapper)) {
@@ -667,7 +667,7 @@ export class BigIntStatistics extends Statistics {
             if (index === count) {
                 index--;
             }
-            let value = mapper(this.ordered[index].value);
+            let value = mapper(this.ordered[index].element);
             return value;
         }
         throw new TypeError("Invalid arguments.");
