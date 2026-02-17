@@ -12,7 +12,7 @@ export let isString: (t: unknown) => t is string = (t: unknown): t is string => 
     return typeof t === "string";
 };
 export let isNumber: (t: unknown) => t is number = (t: unknown): t is number => {
-    return typeof t === "number";
+    return typeof t === "number" && !Number.isNaN(t) && Number.isFinite(t);
 };
 export let isFunction: (t: unknown) => t is Function = (t: unknown): t is Function => {
     return typeof t === "function";
@@ -97,9 +97,23 @@ export let isPromise: (t: unknown) => t is Promise<unknown> = (t: unknown): t is
     return false;
 };
 
-export let isAsync: (t: unknown) => t is AsyncFunction = (t: unknown): t is AsyncFunction => {
+export let isAsyncFunction: (t: unknown) => t is AsyncFunction = (t: unknown): t is AsyncFunction => {
     if(isFunction(t)){
         return Reflect.get(t, Symbol.toStringTag) === "AsyncFunction" && t.constructor.name === "AsyncFunction";
+    }
+    return false;
+};
+
+export let isGeneratorFunction: (t: unknown) => t is Generator<unknown, unknown, unknown> = (t: unknown): t is Generator<unknown, unknown, unknown> => {
+    if(isObject(t)){
+        return isFunction(t) && Reflect.get(t, "constructor").name === "GeneratorFunction";
+    }
+    return false;
+};
+
+export let isAsyncGeneratorFunction: (t: unknown) => t is AsyncGenerator<unknown, unknown, unknown> = (t: unknown): t is AsyncGenerator<unknown, unknown, unknown> => {
+    if(isObject(t)){
+        return isFunction(t) && Reflect.get(t, "constructor").name === "AsyncGeneratorFunction";
     }
     return false;
 };

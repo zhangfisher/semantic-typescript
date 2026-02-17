@@ -7,7 +7,7 @@ export let validate: <T>(t: MaybeInvalid<T>) => t is T = <T>(t: T | null | undef
 };
 
 export let invalidate: <T>(t: MaybeInvalid<T>) => t is (null | undefined) = <T>(t: T | null | undefined): t is (null | undefined) => {
-    return t === null || t === undefined;
+    return t === null || t === (void 0);
 };
 
 export type Primitive = string | number | boolean | symbol | bigint | Function | ((...args: any[]) => any);

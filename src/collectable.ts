@@ -1,13 +1,17 @@
-import { Collector, useAllMatch, useAnyMatch, useCollect, useCount, useError, useFindAny, useFindFirst, useFindLast, useForEach, useGroup, useGroupBy, useJoin, useLog, useNoneMatch, usePartition, useReduce, useToArray, useToMap, useToSet, useWrite } from "./collector";
-import { isBigInt, isCollector, isFunction, isIterable, isObject, isString } from "./guard";
-import { useArrange, useGenerator } from "./hook";
+import { Collector, useAllMatch, useAnyMatch, useCollect, useCount, useError, useFindAny, useFindFirst, useFindLast, useFindMaximum, useFindMinimum, useForEach, useGroup, useGroupBy, useJoin, useLog, useNoneMatch, usePartition, usePartitionBy, useReduce, useToArray, useToAsyncGeneratorFunction, useToGeneratorFunction, useToMap, useToSet, useWrite } from "./collector";
+import { isBigInt, isCollector, isFunction, isObject, isString } from "./guard";
+import { useCompare } from "./hook";
 import { Optional } from "./optional";
 import { Semantic } from "./semantic";
 import { CollectableSymbol, OrderedCollectableSymbol, UnorderedCollectableSymbol } from "./symbol";
 import { invalidate, validate } from "./utility";
-import type { BiConsumer, BiFunctional, Comparator, Consumer, Functional, Predicate, Supplier, TriFunctional, Generator, BiPredicate, TriPredicate, Indexed } from "./utility";
+import type {
+    BiConsumer, BiFunctional, Comparator, Consumer, Functional,
+    Predicate, Supplier, TriFunctional, Generator, BiPredicate, TriPredicate, Indexed
+} from "./utility";
 
-export abstract class Collectable<E> implements Iterable<E> {
+
+export abstract class Collectable<E> implements Iterable<E>, AsyncIterable<E> {
 
     protected readonly Collectable: symbol = CollectableSymbol;
 
@@ -15,30 +19,17 @@ export abstract class Collectable<E> implements Iterable<E> {
 
     }
 
-    public *[Symbol.iterator](): globalThis.Generator<E, void, undefined> {
-        let buffer: Array<E> = this.toArray();
-        for (let element of buffer) {
-            yield element;
-        }
-    }
+    public abstract [Symbol.iterator](): globalThis.Generator<E, void, undefined>;
 
-    *generate(): globalThis.Generator<E, void, undefined> {
-        let buffer: Array<E> = this.toArray();
-        for (let element of buffer) {
-            yield element;
-        }
-    }
-
-    async *[Symbol.asyncIterator](): globalThis.AsyncGenerator<E, void, undefined> {
-        let buffer: Array<E> = this.toArray();
-        for (let element of buffer) {
-            yield element;
-        }
-    }
+    public abstract [Symbol.asyncIterator](): globalThis.AsyncGenerator<E, void, undefined>;
 
     public anyMatch(predicate: Predicate<E>): boolean {
         if (isFunction(predicate)) {
-            return useAnyMatch(predicate).collect(this);
+            try {
+                return useAnyMatch(predicate).collect(this);
+            } catch (error) {
+                throw new Error("Uncaught error on anyMatch.");
+            }
         }
         throw new TypeError("Predicate must be a function.");
     }
@@ -57,28 +48,32 @@ export abstract class Collectable<E> implements Iterable<E> {
     public collect<A, R>(identity: Supplier<A>, interruptor: BiPredicate<E, bigint>, accumulator: TriFunctional<A, E, bigint, A>, finisher: Functional<A, R>): R;
     public collect<A, R>(identity: Supplier<A>, interruptor: TriPredicate<E, bigint, A>, accumulator: TriFunctional<A, E, bigint, A>, finisher: Functional<A, R>): R;
     public collect<A, R>(argument1: Supplier<A> | Collector<E, A, R>, argument2?: BiFunctional<A, E, A> | TriFunctional<A, E, bigint, A> | Predicate<E> | BiPredicate<E, bigint> | TriPredicate<E, bigint, A>, argument3?: BiFunctional<A, E, A> | TriFunctional<A, E, bigint, A> | Functional<A, R>, argument4?: Functional<A, R>): R {
-        if (isCollector(argument1)) {
-            let collector: Collector<E, A, R> = argument1 as Collector<E, A, R>;
-            return collector.collect(this);
-        }
-        if (isFunction(argument1) && isFunction(argument2) && isFunction(argument3)) {
-            let identity: Supplier<A> = argument1 as Supplier<A>;
-            let accumulator: BiFunctional<A, E, A> & TriFunctional<A, E, bigint, A> = argument2 as BiFunctional<A, E, A> & TriFunctional<A, E, bigint, A>;
-            let finisher: Functional<A, R> = argument3 as Functional<A, R>;
-            return useCollect(identity, accumulator, finisher).collect(this);
-        }
-        if (isFunction(argument1) && isFunction(argument2) && isFunction(argument3) && isFunction(argument4)) {
-            let identity: Supplier<A> = argument1 as Supplier<A>;
-            let interrupt: Predicate<E> & BiPredicate<E, bigint> & TriPredicate<E, bigint, A> = argument2 as Predicate<E> & BiPredicate<E, bigint> & TriPredicate<E, bigint, A>;
-            let accumulator: BiFunctional<A, E, A> & TriFunctional<A, E, bigint, A> = argument3 as BiFunctional<A, E, A> & TriFunctional<A, E, bigint, A>;
-            let finisher: Functional<A, R> = argument4 as Functional<A, R>;
-            return useCollect(identity, interrupt, accumulator, finisher).collect(this);
+        try {
+            if (isCollector(argument1)) {
+                let collector: Collector<E, A, R> = argument1 as Collector<E, A, R>;
+                return collector.collect(this);
+            }
+            if (isFunction(argument1) && isFunction(argument2) && isFunction(argument3)) {
+                let identity: Supplier<A> = argument1 as Supplier<A>;
+                let accumulator: BiFunctional<A, E, A> & TriFunctional<A, E, bigint, A> = argument2 as BiFunctional<A, E, A> & TriFunctional<A, E, bigint, A>;
+                let finisher: Functional<A, R> = argument3 as Functional<A, R>;
+                return useCollect(identity, accumulator, finisher).collect(this);
+            }
+            if (isFunction(argument1) && isFunction(argument2) && isFunction(argument3) && isFunction(argument4)) {
+                let identity: Supplier<A> = argument1 as Supplier<A>;
+                let interrupt: Predicate<E> & BiPredicate<E, bigint> & TriPredicate<E, bigint, A> = argument2 as Predicate<E> & BiPredicate<E, bigint> & TriPredicate<E, bigint, A>;
+                let accumulator: BiFunctional<A, E, A> & TriFunctional<A, E, bigint, A> = argument3 as BiFunctional<A, E, A> & TriFunctional<A, E, bigint, A>;
+                let finisher: Functional<A, R> = argument4 as Functional<A, R>;
+                return useCollect(identity, interrupt, accumulator, finisher).collect(this);
+            }
+        } catch (error) {
+            throw new Error("Uncaught error on collect.");
         }
         throw new TypeError("Invalid arguments.");
     }
 
     public count(): bigint {
-        return useCount<E>().collect(this);
+        return useCount<E>().collect(this.source());
     }
 
     public error(): void;
@@ -88,16 +83,28 @@ export abstract class Collectable<E> implements Iterable<E> {
     public error(prefix: string, accumulator: TriFunctional<string, E, bigint, string>, suffix: string): void
     public error(argument1?: string | BiFunctional<string, E, string> | TriFunctional<string, E, bigint, string>, argument2?: BiFunctional<string, E, string> | TriFunctional<string, E, bigint, string>, argument3?: string): void {
         if (invalidate(argument1) && invalidate(argument2) && invalidate(argument3)) {
-            useError<E>().collect(this);
+            try {
+                useError<E>().collect(this.source());
+            } catch (error) {
+                throw new Error("Uncaught error on error.");
+            }
         } else if (isFunction(argument1) && invalidate(argument2) && invalidate(argument3)) {
-            let accumulator: BiFunctional<string, E, string> & TriFunctional<string, E, bigint, string> = argument1 as BiFunctional<string, E, string> & TriFunctional<string, E, bigint, string>;
-            useError<E>(accumulator).collect(this);
+            try {
+                let accumulator: BiFunctional<string, E, string> & TriFunctional<string, E, bigint, string> = argument1 as BiFunctional<string, E, string> & TriFunctional<string, E, bigint, string>;
+                useError<E>(accumulator).collect(this.source());
+            } catch (error) {
+                throw new Error("Uncaught error on error.");
+            }
         } else if (isString(argument1) && isFunction(argument2) && isString(argument3)) {
-            let prefix: string = argument1;
-            let accumulator: BiFunctional<string, E, string> & TriFunctional<string, E, bigint, string> = argument2 as BiFunctional<string, E, string> & TriFunctional<string, E, bigint, string>;
-            let suffix: string = argument3;
-            useError<E>(prefix, accumulator, suffix).collect(this);
-        } {
+            try {
+                let prefix: string = argument1;
+                let accumulator: BiFunctional<string, E, string> & TriFunctional<string, E, bigint, string> = argument2 as BiFunctional<string, E, string> & TriFunctional<string, E, bigint, string>;
+                let suffix: string = argument3;
+                useError<E>(prefix, accumulator, suffix).collect(this.source());
+            } catch (error) {
+                throw new Error("Uncaught error on error.");
+            }
+        } else {
             throw new TypeError("Invalid arguments.");
         }
     }
@@ -107,22 +114,60 @@ export abstract class Collectable<E> implements Iterable<E> {
     }
 
     public findAny(): Optional<E> {
-        return useFindAny<E>().collect(this);
+        try {
+            return useFindAny<E>().collect(this.source());
+        } catch (error) {
+            throw new Error("Uncaught error on findAny.");
+        }
     }
 
     public findFirst(): Optional<E> {
-        return useFindFirst<E>().collect(this);
+        try {
+            return useFindFirst<E>().collect(this.source());
+        } catch (error) {
+            throw new Error("Uncaught error on findFirst.");
+        }
     }
 
     public findLast(): Optional<E> {
-        return useFindLast<E>().collect(this);
+        try {
+            return useFindLast<E>().collect(this.source());
+        } catch (error) {
+            throw new Error("Uncaught error on findLast.");
+        }
+    }
+
+    public findMaximum(): Optional<E>;
+    public findMaximum(comparator: Comparator<E>): Optional<E>;
+    public findMaximum(argument1?: Comparator<E>): Optional<E> {
+        try {
+            let comparator: Comparator<E> = isFunction(argument1) ? argument1 : useCompare;
+            return useFindMaximum(comparator).collect(this.source());
+        } catch (error) {
+            throw new Error("Uncaught error on findMaximum.");
+        }
+    }
+
+    public findMinimum(): Optional<E>;
+    public findMinimum(comparator: Comparator<E>): Optional<E>;
+    public findMinimum(argument1?: Comparator<E>): Optional<E> {
+        try {
+            let comparator: Comparator<E> = isFunction(argument1) ? argument1 : useCompare;
+            return useFindMinimum(comparator).collect(this.source());
+        } catch (error) {
+            throw new Error("Uncaught error on findMinimum.");
+        }
     }
 
     public forEach(action: Consumer<E>): void
     public forEach(action: BiConsumer<E, bigint>): void
     public forEach(action: Consumer<E> | BiConsumer<E, bigint>): void {
         if (isFunction(action)) {
-            useForEach(action).collect(this);
+            try {
+                useForEach(action).collect(this);
+            } catch (error) {
+                throw new Error("Uncaught error on forEach.");
+            }
         } else {
             throw new TypeError("Action must be a function.");
         }
@@ -130,14 +175,22 @@ export abstract class Collectable<E> implements Iterable<E> {
 
     public group<K>(classifier: Functional<E, K>): Map<K, Array<E>> {
         if (isFunction(classifier)) {
-            return useGroup(classifier).collect(this);
+            try {
+                return useGroup(classifier).collect(this.source());
+            } catch (error) {
+                throw new Error("Uncaught error on group.");
+            }
         }
         throw new TypeError("Classifier must be a function.");
     }
 
     public groupBy<K, V>(keyExtractor: Functional<E, K>, valueExtractor: Functional<E, V>): Map<K, Array<V>> {
         if (isFunction(keyExtractor) && isFunction(valueExtractor)) {
-            return useGroupBy(keyExtractor, valueExtractor).collect(this);
+            try {
+                return useGroupBy(keyExtractor, valueExtractor).collect(this.source());
+            } catch (error) {
+                throw new Error("Uncaught error on groupBy.");
+            }
         }
         throw new TypeError("Key and value extractors must be functions.");
     }
@@ -149,23 +202,36 @@ export abstract class Collectable<E> implements Iterable<E> {
     public join(prefiex: string, accumulator: TriFunctional<string, E, bigint, string>, suffix: string): string;
     public join(argument1?: string, argument2?: string | BiFunctional<string, E, string> | TriFunctional<string, E, bigint, string>, argument3?: string): string {
         if (invalidate(argument1) && invalidate(argument2) && invalidate(argument3)) {
-            return useJoin<E>().collect(this);
-        }
-        if (isString(argument1) && invalidate(argument2) && invalidate(argument3)) {
-            let delimiter: string = argument1;
-            return useJoin<E>(delimiter).collect(this);
-        }
-        if (isString(argument1) && isFunction(argument2) && isString(argument3)) {
-            let prefix: string = argument1;
-            let accumulator: BiFunctional<string, E, string> & TriFunctional<string, E, bigint, string> = argument2 as BiFunctional<string, E, string> & TriFunctional<string, E, bigint, string>;
-            let suffix: string = argument3;
-            return useJoin<E>(prefix, accumulator, suffix).collect(this);
-        }
-        if (isString(argument1) && isString(argument2) && isString(argument3)) {
-            let prefix: string = argument1;
-            let delimiter: string = argument2;
-            let suffix: string = argument3;
-            return useJoin<E>(prefix, delimiter, suffix).collect(this);
+            try {
+                return useJoin<E>().collect(this.source());
+            } catch (error) {
+                throw new Error("Uncaught error on join.");
+            }
+        } else if (isString(argument1) && invalidate(argument2) && invalidate(argument3)) {
+            try {
+                let delimiter: string = argument1;
+                return useJoin<E>(delimiter).collect(this.source());
+            } catch (error) {
+                throw new Error("Uncaught error on join.");
+            }
+        } else if (isString(argument1) && isFunction(argument2) && isString(argument3)) {
+            try {
+                let prefix: string = argument1;
+                let accumulator: BiFunctional<string, E, string> & TriFunctional<string, E, bigint, string> = argument2 as BiFunctional<string, E, string> & TriFunctional<string, E, bigint, string>;
+                let suffix: string = argument3;
+                return useJoin<E>(prefix, accumulator, suffix).collect(this.source());
+            } catch (error) {
+                throw new Error("Uncaught error on join.");
+            }
+        } else if (isString(argument1) && isString(argument2) && isString(argument3)) {
+            try {
+                let prefix: string = argument1;
+                let delimiter: string = argument2;
+                let suffix: string = argument3;
+                return useJoin<E>(prefix, delimiter, suffix).collect(this.source());
+            } catch (error) {
+                throw new Error("Uncaught error on join.");
+            }
         }
         throw new TypeError("Invalid arguments.");
     }
@@ -176,48 +242,63 @@ export abstract class Collectable<E> implements Iterable<E> {
     public log(prefix: string, accumulator: BiFunctional<string, E, string>, suffix: string): void
     public log(prefix: string, accumulator: TriFunctional<string, E, bigint, string>, suffix: string): void
     public log(argument1?: string | BiFunctional<string, E, string> | TriFunctional<string, E, bigint, string>, argument2?: BiFunctional<string, E, string> | TriFunctional<string, E, bigint, string>, argument3?: string): void {
-        if (invalidate(argument1) && invalidate(argument2) && invalidate(argument3)) {
-            useLog<E>().collect(this);
-        } else if (isFunction(argument1) && invalidate(argument2) && invalidate(argument3)) {
-            let accumulator: BiFunctional<string, E, string> & TriFunctional<string, E, bigint, string> = argument1 as BiFunctional<string, E, string> & TriFunctional<string, E, bigint, string>;
-            useLog<E>(accumulator).collect(this);
+        if (isFunction(argument1) && invalidate(argument2) && invalidate(argument3)) {
+            try {
+                let accumulator: BiFunctional<string, E, string> & TriFunctional<string, E, bigint, string> = argument1 as BiFunctional<string, E, string> & TriFunctional<string, E, bigint, string>;
+                useLog<E>(accumulator).collect(this.source());
+            } catch (error) {
+                throw new Error("Uncaught error on log.");
+            }
         } else if (isString(argument1) && isFunction(argument2) && isString(argument3)) {
-            let prefix: string = argument1;
-            let accumulator: BiFunctional<string, E, string> & TriFunctional<string, E, bigint, string> = argument2 as BiFunctional<string, E, string> & TriFunctional<string, E, bigint, string>;
-            let suffix: string = argument3;
-            useLog<E>(prefix, accumulator, suffix).collect(this);
-        } {
-            throw new TypeError("Invalid arguments.");
+            try {
+                let prefix: string = argument1;
+                let accumulator: BiFunctional<string, E, string> & TriFunctional<string, E, bigint, string> = argument2 as BiFunctional<string, E, string> & TriFunctional<string, E, bigint, string>;
+                let suffix: string = argument3;
+                useLog<E>(prefix, accumulator, suffix).collect(this.source());
+            } catch (error) {
+                throw new Error("Uncaught error on log.");
+            }
+        } else {
+            try {
+                useLog<E>().collect(this.source());
+            } catch (error) {
+                throw new Error("Uncaught error on log.");
+            }
         }
     }
 
     public nonMatch(predicate: Predicate<E>): boolean {
         if (isFunction(predicate)) {
-            return useNoneMatch(predicate).collect(this);
+            try {
+                return useNoneMatch(predicate).collect(this.source());
+            } catch (error) {
+                throw new Error("Uncaught error on nonMatch.");
+            }
         }
         throw new TypeError("Predicate must be a function.");
     }
 
     public partition(count: bigint): Array<Array<E>> {
         if (isBigInt(count)) {
-            return usePartition<E>(count).collect(this);
+            try {
+                return usePartition<E>(count).collect(this.source());
+            } catch (error) {
+                throw new Error("Uncaught error on partition.");
+            }
         }
         throw new TypeError("Count must be a BigInt.");
     }
 
     public partitionBy(classifier: Functional<E, bigint>): Array<Array<E>> {
-        return this.collect<Array<Array<E>>, Array<Array<E>>>((): Array<Array<E>> => {
-            return [];
-        }, (array: Array<Array<E>>, element: E): Array<Array<E>> => {
-            let index: bigint = classifier(element);
-            while (index > BigInt(array.length) - 1n) {
-                array.push([]);
+        if (isFunction(classifier)) {
+            try {
+                let collector: Collector<E, Array<E[]>, Array<E[]>> = usePartitionBy(classifier);
+                return collector.collect(this.source());
+            } catch (error) {
+                throw new Error("Uncaught error on partitionBy.");
             }
-            array[Number(index)].push(element);
-            return array;
-        }, (result: Array<Array<E>>,): Array<Array<E>> => {
-            return result;
-        });
+        }
+        throw new TypeError("Classifier must be a function.");
     }
 
     public reduce(accumulator: BiFunctional<E, E, E>): Optional<E>;
@@ -228,17 +309,29 @@ export abstract class Collectable<E> implements Iterable<E> {
     public reduce<R>(identity: R, accumulator: TriFunctional<R, E, bigint, R>, finisher: Functional<R, R>): R;
     public reduce<R>(argument1?: R | E | BiFunctional<E, E, E> | TriFunctional<E, E, bigint, E>, argument2?: BiFunctional<E, E, E> | TriFunctional<E, E, bigint, E> | BiFunctional<R, E, R> | TriFunctional<R, E, bigint, R>, argument3?: Functional<R, R>): R | E | Optional<E> {
         if (isFunction(argument1) && invalidate(argument2) && invalidate(argument3)) {
-            let accumulator = argument1 as BiFunctional<E, E, E> | TriFunctional<E, E, bigint, E>;
-            return useReduce(accumulator).collect(this);
+            try {
+                let accumulator = argument1 as BiFunctional<E, E, E> | TriFunctional<E, E, bigint, E>;
+                return useReduce(accumulator).collect(this.source());
+            } catch (error) {
+                throw new Error("Uncaught error on reduce.");
+            }
         } else if (validate(argument1) && isFunction(argument2) && invalidate(argument3)) {
-            let identity = argument1 as E;
-            let accumulator = argument2 as BiFunctional<E, E, E> & TriFunctional<E, E, bigint, E>;
-            return useReduce(identity, accumulator).collect(this);
+            try {
+                let identity = argument1 as E;
+                let accumulator = argument2 as BiFunctional<E, E, E> & TriFunctional<E, E, bigint, E>;
+                return useReduce(identity, accumulator).collect(this.source());
+            } catch (error) {
+                throw new Error("Uncaught error on reduce.");
+            }
         } else if (validate(argument1) && isFunction(argument2) && isFunction(argument3)) {
-            let identity = argument1 as R;
-            let accumulator = argument2 as BiFunctional<R, E, R> & TriFunctional<R, E, bigint, R>;
-            let finisher = argument3 as Functional<R, R>;
-            return useReduce(identity, accumulator, finisher).collect(this);
+            try {
+                let identity = argument1 as R;
+                let accumulator = argument2 as BiFunctional<R, E, R> & TriFunctional<R, E, bigint, R>;
+                let finisher = argument3 as Functional<R, R>;
+                return useReduce(identity, accumulator, finisher).collect(this.source());
+            } catch (error) {
+                throw new Error("Uncaught error on reduce.");
+            }
         } else {
             throw new TypeError("Invalid arguments.");
         }
@@ -247,7 +340,11 @@ export abstract class Collectable<E> implements Iterable<E> {
     public semantic(): Semantic<E> {
         let source: Generator<E> = this.source();
         if (isFunction(source)) {
-            return new Semantic(source);
+            try {
+                return new Semantic(source);
+            } catch (error) {
+                throw new Error("Uncaught error on semantic.");
+            }
         } else {
             throw new TypeError("Invalid source.");
         }
@@ -256,28 +353,44 @@ export abstract class Collectable<E> implements Iterable<E> {
     public abstract source(): Generator<E>;
 
     public toArray(): Array<E> {
-        return useToArray<E>().collect(this);
+        try {
+            return useToArray<E>().collect(this.source());
+        } catch (error) {
+            throw new Error("Uncaught error on toArray.");
+        }
     }
 
     public toMap<K, V>(keyExtractor: Functional<E, K>, valueExtractor: Functional<E, V>): Map<K, V> {
-        return useToMap<E, K, V>(keyExtractor, valueExtractor).collect(this);
+        try {
+            return useToMap<E, K, V>(keyExtractor, valueExtractor).collect(this.source());
+        } catch (error) {
+            throw new Error("Uncaught error on toMap.");
+        }
     }
 
     public toSet(): Set<E> {
-        return useToSet<E>().collect(this);
+        try {
+            return useToSet<E>().collect(this.source());
+        } catch (error) {
+            throw new Error("Uncaught error on toSet.");
+        }
     }
 
-    public write<S = string>(stream: WritableStream<S>): Collector<E, Promise<WritableStream<S>>, Promise<WritableStream<S>>>;
-    public write<S = string>(stream: WritableStream<S>, accumulator: BiFunctional<WritableStream<S>, E, WritableStream<S>>): Collector<E, Promise<WritableStream<S>>, Promise<WritableStream<S>>>;
-    public write<S = string>(stream: WritableStream<S>, accumulator: TriFunctional<WritableStream<S>, E, bigint, WritableStream<S>>): Collector<E, Promise<WritableStream<S>>, Promise<WritableStream<S>>>;
-    public write<S = string>(argument1: WritableStream<S>, argument2?: BiFunctional<WritableStream<S>, E, WritableStream<S>> | TriFunctional<WritableStream<S>, E, bigint, WritableStream<S>>): Collector<E, Promise<WritableStream<S>>, Promise<WritableStream<S>>> {
+    public write<S = string>(stream: WritableStream<S>): Promise<WritableStream<S>>;
+    public write<S = string>(stream: WritableStream<S>, accumulator: BiFunctional<WritableStream<S>, E, WritableStream<S>>): Promise<WritableStream<S>>;
+    public write<S = string>(stream: WritableStream<S>, accumulator: TriFunctional<WritableStream<S>, E, bigint, WritableStream<S>>): Promise<WritableStream<S>>;
+    public write<S = string>(argument1: WritableStream<S>, argument2?: BiFunctional<WritableStream<S>, E, WritableStream<S>> | TriFunctional<WritableStream<S>, E, bigint, WritableStream<S>>): Promise<WritableStream<S>> {
         if (isObject(argument1)) {
-            let stream: WritableStream<S> = argument1 as WritableStream<S>;
-            if (isFunction(argument2)) {
-                let accumulator: BiFunctional<WritableStream<S>, E, WritableStream<S>> & TriFunctional<WritableStream<S>, E, bigint, WritableStream<S>> = argument2 as BiFunctional<WritableStream<S>, E, WritableStream<S>> & TriFunctional<WritableStream<S>, E, bigint, WritableStream<S>>;
-                return useWrite(stream, accumulator);
-            } else {
-                return useWrite(stream);
+            try {
+                let stream: WritableStream<S> = argument1 as WritableStream<S>;
+                if (isFunction(argument2)) {
+                    let accumulator: BiFunctional<WritableStream<S>, E, WritableStream<S>> & TriFunctional<WritableStream<S>, E, bigint, WritableStream<S>> = argument2 as BiFunctional<WritableStream<S>, E, WritableStream<S>> & TriFunctional<WritableStream<S>, E, bigint, WritableStream<S>>;
+                    return useWrite(stream, accumulator).collect(this.source());
+                } else {
+                    return useWrite(stream).collect(this.source());
+                }
+            } catch (error) {
+                throw new Error("Uncaught error on write.");
             }
         }
         throw new TypeError("Invalid arguments.");
@@ -290,13 +403,10 @@ export class UnorderedCollectable<E> extends Collectable<E> {
 
     protected generator: Generator<E>;
 
-    public constructor(iterable: Iterable<E>);
     public constructor(generator: Generator<E>);
-    public constructor(argument1: Iterable<E> | Generator<E>) {
+    public constructor(argument1: Generator<E>) {
         super();
-        if (isIterable(argument1)) {
-            this.generator = useGenerator(argument1);
-        } else if (isFunction(argument1)) {
+        if (isFunction(argument1)) {
             this.generator = argument1;
         } else {
             throw new TypeError("Source must be an iterable or a generator function.");
@@ -306,32 +416,100 @@ export class UnorderedCollectable<E> extends Collectable<E> {
     public source(): Generator<E> {
         return this.generator;
     }
+
+    public override *[Symbol.iterator](): globalThis.Generator<E, void, undefined> {
+        try {
+            let collector: Collector<E, Array<E>, globalThis.Generator<E, void, undefined>> = useToGeneratorFunction();
+            yield* collector.collect(this.generator);
+        } catch (error) {
+            throw new Error("Uncaught error on Generator.");
+        }
+    }
+
+    public override async *[Symbol.asyncIterator](): globalThis.AsyncGenerator<E, void, undefined> {
+        try {
+            let collector: Collector<E, Array<E>, globalThis.AsyncGenerator<E, void, undefined>> = useToAsyncGeneratorFunction();
+            yield* collector.collect(this.generator);
+        } catch (error) {
+            throw new Error("Uncaught error on AsyncGenerator.");
+        }
+    }
+
 };
 
 export class OrderedCollectable<E> extends Collectable<E> {
 
     protected readonly OrderedCollectable: symbol = OrderedCollectableSymbol;
 
-    protected ordered: Array<Indexed<E>> = [];
+    protected buffer: Array<Indexed<E>>;
 
-    protected generator: Generator<E>;
-
-    public constructor(iterable: Iterable<E>);
-    public constructor(iterable: Iterable<E>, comparator: Comparator<E>);
     public constructor(generator: Generator<E>);
     public constructor(generator: Generator<E>, comparator: Comparator<E>);
-    public constructor(argument1: Iterable<E> | Generator<E>, argument2?: Comparator<E>) {
+    public constructor(argument1: Generator<E>, argument2?: Comparator<E>) {
         super();
-        if (isIterable(argument1)) {
-            this.generator = isFunction(argument2) ? useArrange(argument1, argument2) : useArrange(argument1);
-        } else if (isFunction(argument1)) {
-            this.generator = isFunction(argument2) ? useArrange(argument1, argument2) : useArrange(argument1);
+        if (isFunction(argument1)) {
+            try {
+                if (isFunction(argument2)) {
+                    let collector: Collector<E, Array<E>, Array<E>> = useToArray();
+                    this.buffer = collector.collect(argument1).sort(argument2).map((element: E, index: number) => {
+                        return {
+                            element: element,
+                            index: BigInt(index)
+                        };
+                    });
+                } else {
+                    let collector: Collector<E, Array<E>, Array<E>> = useToArray();
+                    this.buffer = collector.collect(argument1).map((element: E, index: number) => {
+                        return {
+                            element: element,
+                            index: BigInt(index)
+                        };
+                    }).sort((a: Indexed<E>, b: Indexed<E>): number => {
+                        return Number(a.index - b.index);
+                    });
+                }
+            } catch (error) {
+                throw new Error("Uncaught error on creating buffer.");
+            }
         } else {
             throw new TypeError("Source must be an iterable or a generator function.");
         }
     }
 
+    public override *[Symbol.iterator](): globalThis.Generator<E, void, undefined> {
+        try {
+            let collector: Collector<E, Array<E>, globalThis.Generator<E, void, undefined>> = useToGeneratorFunction();
+            yield* collector.collect(this.source());
+        } catch (error) {
+            throw new Error("Uncaught error on Generator.");
+        }
+    }
+
+    public override async *[Symbol.asyncIterator](): globalThis.AsyncGenerator<E, void, undefined> {
+        try {
+            let collector: Collector<E, Array<E>, globalThis.AsyncGenerator<E, void, undefined>> = useToAsyncGeneratorFunction();
+            yield* collector.collect(this.source());
+        } catch (error) {
+            throw new Error("Uncaught error on AsyncGenerator.");
+        }
+    }
+
     public override source(): Generator<E> {
-        return useGenerator(this.ordered.map((indexed: Indexed<E>) => indexed.element));
+        try {
+            return (accept: Consumer<E> | BiConsumer<E, bigint>, interrupt: Predicate<E> | BiPredicate<E, bigint>): void => {
+                for (let indexed of this.buffer) {
+                    if (interrupt(indexed.element, indexed.index)) {
+                        break;
+                    }
+                    accept(indexed.element, indexed.index);
+                }
+            };
+        } catch (error) {
+            throw new Error("Uncaught error on creating source.");
+        }
+    }
+
+    public isEmpty(): boolean {
+        return this.buffer.length === 0;
     }
 };

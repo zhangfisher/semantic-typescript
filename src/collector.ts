@@ -1,9 +1,10 @@
 import type { Collectable } from "./collectable";
 import { isBigInt, isBoolean, isCollectable, isFunction, isIterable, isNumber, isObject, isSemantic, isString } from "./guard";
+import { useCompare, useToBigInt, useToNumber } from "./hook";
 import { Optional } from "./optional";
 import type { Semantic } from "./semantic";
 import { CollectableSymbol } from "./symbol";
-import { type BiFunctional, type BiPredicate, type Functional, type Predicate, type Supplier, type TriFunctional, type Generator, type TriPredicate, validate, type Consumer, type BiConsumer, invalidate } from "./utility";
+import { type BiFunctional, type BiPredicate, type Functional, type Predicate, type Supplier, type TriFunctional, type Generator, type TriPredicate, validate, type Consumer, type BiConsumer, invalidate, type Comparator } from "./utility";
 
 export class Collector<E, A, R> {
 
@@ -189,34 +190,8 @@ export interface UseError {
     <E = unknown>(prefix: string, accumulator: TriFunctional<string, E, bigint, string>, suffix: string): Collector<E, string, string>;
 };
 
-export let useError: UseLog = <E = unknown>(argument1?: string | BiFunctional<string, E, string> | TriFunctional<string, E, bigint, string>, argument2?: BiFunctional<string, E, string> | TriFunctional<string, E, bigint, string>, argument3?: string): Collector<E, string, string> => {
-    if (invalidate(argument1) && invalidate(argument2) && invalidate(argument3)) {
-        return Collector.full<E, string, string>(
-            (): string => "[",
-            (accumulator: string, element: E): string => {
-                if (isString(accumulator) && isString(element)) {
-                    return accumulator + element + ",";
-                }
-                return String(accumulator) + String(element) + ",";
-            },
-            (text: string): string => {
-                let result: string = text.substring(0, text.length - 1) + "]";
-                console.error(result);
-                return result;
-            }
-        );
-    } else if (isFunction(argument1) && invalidate(argument2) && invalidate(argument3)) {
-        let accumulator: BiFunctional<string, E, string> & TriFunctional<string, E, bigint, string> = argument1 as BiFunctional<string, E, string> & TriFunctional<string, E, bigint, string>;
-        return Collector.full<E, string, string>(
-            (): string => "[",
-            accumulator,
-            (text: string): string => {
-                let result: string = text.substring(0, text.length - 1) + "]";
-                console.error(result);
-                return result;
-            }
-        );
-    } else if (isString(argument1) && isFunction(argument2) && isString(argument3)) {
+export let useError: UseError = <E = unknown>(argument1?: string | BiFunctional<string, E, string> | TriFunctional<string, E, bigint, string>, argument2?: BiFunctional<string, E, string> | TriFunctional<string, E, bigint, string>, argument3?: string): Collector<E, string, string> => {
+    if (isString(argument1) && isFunction(argument2) && isString(argument3)) {
         let prefix: string = argument1;
         let accumulator: BiFunctional<string, E, string> & TriFunctional<string, E, bigint, string> = argument2 as BiFunctional<string, E, string> & TriFunctional<string, E, bigint, string>;
         let suffix: string = argument3;
@@ -229,8 +204,34 @@ export let useError: UseLog = <E = unknown>(argument1?: string | BiFunctional<st
                 return result;
             }
         );
+    } else if (isFunction(argument1)) {
+        let prefix: string = "[";
+        let accumulator: BiFunctional<string, E, string> & TriFunctional<string, E, bigint, string> = argument2 as BiFunctional<string, E, string> & TriFunctional<string, E, bigint, string>;
+        let suffix: string = "]";
+        return Collector.full<E, string, string>(
+            (): string => prefix,
+            accumulator,
+            (text: string): string => {
+                let result: string = text + suffix;
+                console.error(result);
+                return result;
+            }
+        );
     } else {
-        throw new TypeError("Invalid arguments.");
+        return Collector.full<E, string, string>(
+            (): string => "[",
+            (accumulator: string, element: E): string => {
+                if (isString(accumulator) && isString(element)) {
+                    return accumulator + element + ",";
+                }
+                return String(accumulator) + String(element) + ",";
+            },
+            (text: string): string => {
+                let result: string = text.substring(0, Math.max(1, text.length - 1)) + "]";
+                console.error(result);
+                return result;
+            }
+        );
     }
 };
 
@@ -272,6 +273,40 @@ export let useFindLast: <E>() => Collector<E, Optional<E>, Optional<E>> = <E>():
             return accumulator;
         },
         (accumulator: Optional<E>): Optional<E> => accumulator
+    );
+};
+
+export interface UseFindMaximum{
+    <E>(): Collector<E, Optional<E>, Optional<E>>;
+    <E>(comparator: Comparator<E>): Collector<E, Optional<E>, Optional<E>>;
+}
+export let useFindMaximum: UseFindMaximum = <E>(comparator: Comparator<E> = useCompare<E>): Collector<E, Optional<E>, Optional<E>> => {
+    return Collector.full(
+        (): Optional<E> => Optional.ofNullable(),
+        (accumulator: Optional<E>, element: E): Optional<E> => {
+            if(accumulator.isPresent()){
+                return comparator(accumulator.get(), element) > 0 ? accumulator : Optional.ofNullable(element);
+            }
+            return Optional.ofNullable(element);
+        },
+        (result: Optional<E>): Optional<E> => result
+    );
+};
+
+export interface UseFindMinimum{
+    <E>(): Collector<E, Optional<E>, Optional<E>>;
+    <E>(comparator: Comparator<E>): Collector<E, Optional<E>, Optional<E>>;
+}
+export let useFindMinimum: UseFindMinimum = <E>(comparator: Comparator<E> = useCompare<E>): Collector<E, Optional<E>, Optional<E>> => {
+    return Collector.full(
+        (): Optional<E> => Optional.ofNullable(),
+        (accumulator: Optional<E>, element: E): Optional<E> => {
+            if(accumulator.isPresent()){
+                return comparator(accumulator.get(), element) < 0 ? accumulator : Optional.ofNullable(element);
+            }
+            return Optional.ofNullable(element);
+        },
+        (result: Optional<E>): Optional<E> => result
     );
 };
 
@@ -394,33 +429,7 @@ export interface UseLog {
 };
 
 export let useLog: UseLog = <E = unknown>(argument1?: string | BiFunctional<string, E, string> | TriFunctional<string, E, bigint, string>, argument2?: BiFunctional<string, E, string> | TriFunctional<string, E, bigint, string>, argument3?: string): Collector<E, string, string> => {
-    if (invalidate(argument1) && invalidate(argument2) && invalidate(argument3)) {
-        return Collector.full<E, string, string>(
-            (): string => "[",
-            (accumulator: string, element: E): string => {
-                if (isString(accumulator) && isString(element)) {
-                    return accumulator + element + ",";
-                }
-                return String(accumulator) + String(element) + ",";
-            },
-            (text: string): string => {
-                let result: string = text.substring(0, text.length - 1) + "]";
-                console.log(result);
-                return result;
-            }
-        );
-    } else if (isFunction(argument1) && invalidate(argument2) && invalidate(argument3)) {
-        let accumulator: BiFunctional<string, E, string> & TriFunctional<string, E, bigint, string> = argument1 as BiFunctional<string, E, string> & TriFunctional<string, E, bigint, string>;
-        return Collector.full<E, string, string>(
-            (): string => "[",
-            accumulator,
-            (text: string): string => {
-                let result: string = text.substring(0, text.length - 1) + "]";
-                console.log(result);
-                return result;
-            }
-        );
-    } else if (isString(argument1) && isFunction(argument2) && isString(argument3)) {
+    if (isString(argument1) && isFunction(argument2) && isString(argument3)) {
         let prefix: string = argument1;
         let accumulator: BiFunctional<string, E, string> & TriFunctional<string, E, bigint, string> = argument2 as BiFunctional<string, E, string> & TriFunctional<string, E, bigint, string>;
         let suffix: string = argument3;
@@ -433,8 +442,35 @@ export let useLog: UseLog = <E = unknown>(argument1?: string | BiFunctional<stri
                 return result;
             }
         );
+    } else if (isFunction(argument1)) {
+        let prefix: string = "[";
+        let accumulator: BiFunctional<string, E, string> & TriFunctional<string, E, bigint, string> = argument2 as BiFunctional<string, E, string> & TriFunctional<string, E, bigint, string>;
+        let suffix: string = "]";
+        return Collector.full<E, string, string>(
+            (): string => prefix,
+            accumulator,
+            (text: string): string => {
+                let result: string = text + suffix;
+                console.log(result);
+                return result;
+            }
+        );
     } else {
-        throw new TypeError("Invalid arguments.");
+        return Collector.full<E, string, string>(
+            (): string => "[",
+            (accumulator: string, element: E): string => {
+                console.log(element)
+                if (isString(accumulator) && isString(element)) {
+                    return accumulator + element + ",";
+                }
+                return String(accumulator) + String(element) + ",";
+            },
+            (text: string): string => {
+                let result: string = text.substring(0, Math.max(1, text.length - 1)) + "]";
+                console.log(result);
+                return result;
+            }
+        );
     }
 };
 
@@ -601,100 +637,102 @@ export let useWrite: UseWrite = <E, S = string>(argument1: WritableStream<S>, ar
     throw new TypeError("Invalid arguments.");
 };
 
-export type NumericAverageInformation = {
+export interface UseNumericSummate {
+    <E>(): Collector<E, number, number>;
+    <E>(mapper: Functional<E, number>): Collector<E, number, number>;
+};
+export let useNumericSummate: UseNumericSummate = <E>(mapper: Functional<E, number> = useToNumber): Collector<number, number, number> | Collector<E, number, number> => {
+    return Collector.full(
+        (): number => 0,
+        (accumulator: number, element: number | E): number => {
+            let resolved: number = isNumber(element) ? element : mapper(element);
+            return accumulator + (isNumber(resolved) ? resolved : 0);
+        },
+        (result: number): number => result
+    );
+};
+
+export interface UseBigIntSummate {
+    <E>(): Collector<E, bigint, bigint>;
+    <E>(mapper: Functional<E, bigint>): Collector<E, bigint, bigint>;
+};
+export let useBigIntSummate: UseBigIntSummate = <E>(mapper: Functional<E, bigint> = useToBigInt): Collector<bigint, bigint, bigint> | Collector<E, bigint, bigint> => {
+    return Collector.full(
+        (): bigint => 0n,
+        (accumulator: bigint, element: bigint | E): bigint => {
+            let resolved: bigint = isBigInt(element) ? element : mapper(element);
+            return accumulator + (isBigInt(resolved) ? resolved : 0n);
+        },
+        (result: bigint): bigint => result
+    );
+};
+
+export interface UseNumericAverage {
+    <E>(): Collector<E, NumericAverageAccumulator, number>;
+    <E>(mapper: Functional<E, number>): Collector<E, NumericAverageAccumulator, number>;
+};
+export interface NumericAverageAccumulator {
     summate: number;
     count: number;
 };
-export interface UseNumericAverage {
-    (): Collector<number, NumericAverageInformation, number>;
-    <E>(mapper: Functional<E, number>): Collector<E, NumericAverageInformation, number>;
-};
-export let useNumericAverage: UseNumericAverage = <E = number>(mapper?: Functional<E, number>): Collector<number, NumericAverageInformation, number> | Collector<E, NumericAverageInformation, number> => {
-    if (isFunction(mapper)) {
-        return Collector.full<E, NumericAverageInformation, number>(
-            (): NumericAverageInformation => {
-                return {
-                    summate: 0,
-                    count: 0
-                };
-            },
-            (information: NumericAverageInformation, element: E): NumericAverageInformation => {
-                let value: number = mapper(element);
-                information.summate += value;
-                information.count++;
-                return information;
-            },
-            (information: NumericAverageInformation): number => {
-                return information.summate / information.count;
-            }
-        );
-    }
-    return Collector.full<number, NumericAverageInformation, number>(
-        (): NumericAverageInformation => {
+export let useNumericAverage: UseNumericAverage = <E>(mapper: Functional<E, number> = useToNumber): Collector<number, NumericAverageAccumulator, number> | Collector<E, NumericAverageAccumulator, number> => {
+    return Collector.full(
+        (): NumericAverageAccumulator => {
             return {
                 summate: 0,
                 count: 0
             };
         },
-        (information: NumericAverageInformation, element: number): NumericAverageInformation => {
-            information.summate += element;
-            information.count++;
-            return information;
+        (accumulator: NumericAverageAccumulator, element: number | E): NumericAverageAccumulator => {
+            let resolved: number = isNumber(element) ? element : mapper(element);
+            return {
+                summate: accumulator.summate + (isNumber(resolved) ? resolved : 0),
+                count: accumulator.count + 1
+            };
         },
-        (information: NumericAverageInformation): number => {
-            return information.summate / information.count;
+        (result: NumericAverageAccumulator): number => {
+            if (result.count === 0) {
+                return 0;
+            }
+            return result.summate / result.count;
         }
     );
 };
 
-export type BigIntAverageInformation = {
+export interface UseBigIntAverage {
+    <E>(): Collector<E, BigIntAverageAccumulator, bigint>;
+    <E>(mapper: Functional<E, bigint>): Collector<E, BigIntAverageAccumulator, bigint>;
+};
+export interface BigIntAverageAccumulator {
     summate: bigint;
     count: bigint;
 };
-export interface UseBigIntAverage {
-    (): Collector<bigint, BigIntAverageInformation, bigint>;
-    <E>(mapper: Functional<E, bigint>): Collector<E, BigIntAverageInformation, bigint>;
-};
-export let useBigIntAverage: UseBigIntAverage = <E = bigint>(mapper?: Functional<E, bigint>): Collector<bigint, BigIntAverageInformation, bigint> | Collector<E, BigIntAverageInformation, bigint> => {
-    if (isFunction(mapper)) {
-        return Collector.full<E, BigIntAverageInformation, bigint>(
-            (): BigIntAverageInformation => {
-                return {
-                    summate: 0n,
-                    count: 0n
-                };
-            },
-            (information: BigIntAverageInformation, element: E): BigIntAverageInformation => {
-                let value: bigint = mapper(element);
-                information.summate += value;
-                information.count++;
-                return information;
-            },
-            (information: BigIntAverageInformation): bigint => {
-                return information.summate / information.count;
-            }
-        );
-    }
-    return Collector.full<bigint, BigIntAverageInformation, bigint>(
-        (): BigIntAverageInformation => {
+export let useBigIntAverage: UseBigIntAverage = <E>(mapper: Functional<E, bigint> = useToBigInt): Collector<bigint, BigIntAverageAccumulator, bigint> | Collector<E, BigIntAverageAccumulator, bigint> => {
+    return Collector.full(
+        (): BigIntAverageAccumulator => {
             return {
                 summate: 0n,
                 count: 0n
             };
         },
-        (information: BigIntAverageInformation, element: bigint): BigIntAverageInformation => {
-            information.summate += element;
-            information.count++;
-            return information;
+        (accumulator: BigIntAverageAccumulator, element: bigint | E): BigIntAverageAccumulator => {
+            let resolved: bigint = isBigInt(element) ? element : mapper(element);
+            return {
+                summate: accumulator.summate + (isBigInt(resolved) ? resolved : 0n),
+                count: accumulator.count + 1n
+            };
         },
-        (information: BigIntAverageInformation): bigint => {
-            return information.summate / information.count;
+        (result: BigIntAverageAccumulator): bigint => {
+            if (result.count === 0n) {
+                return 0n;
+            }
+            return result.summate / result.count;
         }
     );
 };
 
 export let useFrequency: <E>() => Collector<E, Map<E, bigint>, Map<E, bigint>> = <E>(): Collector<E, Map<E, bigint>, Map<E, bigint>> => {
-    return Collector.full<E, Map<E, bigint>, Map<E, bigint>>(
+    return Collector.full(
         (): Map<E, bigint> => new Map<E, bigint>(),
         (map: Map<E, bigint>, element: E): Map<E, bigint> => {
             let count: bigint = map.get(element) || 0n;
@@ -705,26 +743,292 @@ export let useFrequency: <E>() => Collector<E, Map<E, bigint>, Map<E, bigint>> =
     );
 };
 
-export interface UseNumericSummate {
-    (): Collector<number, number, number>;
-    <E>(mapper: Functional<E, number>): Collector<E, number, number>;
+export interface UseNumericMode{
+    <E>(): Collector<E, Map<number, bigint>, number>;
+    <E>(mapper: Functional<E, number>): Collector<E, Map<number, bigint>, number>;
 };
-export let useSummate: UseNumericSummate = <E = number>(mapper?: Functional<E, number>): Collector<number, number, number> | Collector<E, number, number> => {
-    if (isFunction(mapper)) {
-        return Collector.full<E, number, number>(
-            (): number => 0,
-            (summate: number, element: E): number => {
-                let value: number = mapper(element);
-                return summate + value;
-            },
-            (summate: number): number => summate
-        );
-    }
-    return Collector.full<number, number, number>(
-        (): number => 0,
-        (summate: number, element: number): number => {
-            return summate + element;
+export let useNumericMode: UseNumericMode = <E>(mapper: Functional<E, number> = useToNumber): Collector<number, Map<number, bigint>, number> | Collector<E, Map<number, bigint>, number> => {
+    return Collector.full(
+        (): Map<number, bigint> => new Map<number, bigint>(),
+        (map: Map<number, bigint>, element: number | E): Map<number, bigint> => {
+            let resolved: number = isNumber(element) ? element : mapper(element);
+            let count: bigint = map.get(resolved) || 0n;
+            map.set(resolved, count + 1n);
+            return map;
         },
-        (summate: number): number => summate
+        (map: Map<number, bigint>): number => {
+            let maxCount: bigint = 0n;
+            let mode: number = 0;
+            for (let [key, value] of map) {
+                if (value > maxCount) {
+                    maxCount = value;
+                    mode = key;
+                }
+            }
+            return mode;
+        }
+    );
+};
+
+export interface UseBigIntMode{
+    <E>(): Collector<E, Map<bigint, bigint>, bigint>;
+    <E>(mapper: Functional<E, bigint>): Collector<E, Map<bigint, bigint>, bigint>;
+};
+export let useBigIntMode: UseBigIntMode = <E>(mapper: Functional<E, bigint> = useToBigInt): Collector<bigint, Map<bigint, bigint>, bigint> | Collector<E, Map<bigint, bigint>, bigint> => {
+    return Collector.full(
+        (): Map<bigint, bigint> => new Map<bigint, bigint>(),
+        (map: Map<bigint, bigint>, element: bigint | E): Map<bigint, bigint> => {
+            let resolved: bigint = isBigInt(element) ? element : mapper(element);
+            let count: bigint = map.get(resolved) || 0n;
+            map.set(resolved, count + 1n);
+            return map;
+        },
+        (map: Map<bigint, bigint>): bigint => {
+            let maxCount: bigint = 0n;
+            let mode: bigint = 0n;
+            for (let [key, value] of map) {
+                if (value > maxCount) {
+                    maxCount = value;
+                    mode = key;
+                }
+            }
+            return mode;
+        }
+    );
+};
+
+export interface UseNumericVariance {
+    <E>(): Collector<E, VarianceAccumulator, number>;
+    <E>(mapper: Functional<E, number>): Collector<E, VarianceAccumulator, number>;
+};
+export interface VarianceAccumulator {
+    summate: number;
+    summateOfSquares: number;
+    count: number;
+};
+export let useNumericVariance: UseNumericVariance = <E>(mapper: Functional<E, number> = useToNumber): Collector<number, VarianceAccumulator, number> | Collector<E, VarianceAccumulator, number> => {
+    return Collector.full(
+        (): VarianceAccumulator => {
+            return {
+                summate: 0,
+                summateOfSquares: 0,
+                count: 0
+            };
+        },
+        (accumulator: VarianceAccumulator, element: number | E): VarianceAccumulator => {
+            let resolved: number = isNumber(element) ? element : mapper(element);
+            return {
+                summate: accumulator.summate + (isNumber(resolved) ? resolved : 0),
+                summateOfSquares: accumulator.summateOfSquares + (isNumber(resolved) ? Math.pow(resolved, 2) : 0),
+                count: accumulator.count + 1
+            };
+        },
+        (result: VarianceAccumulator): number => {
+            if (result.count < 2) {
+                return 0;
+            }
+            let mean: number = result.summate / result.count;
+            let variance: number = (result.summateOfSquares / result.count) - Math.pow(mean, 2);
+            return variance;
+        }
+    );
+};
+
+export interface UseBigIntVariance {
+    <E>(): Collector<E, BigIntVarianceAccumulator, bigint>;
+    <E>(mapper: Functional<E, bigint>): Collector<E, BigIntVarianceAccumulator, bigint>;
+};
+export interface BigIntVarianceAccumulator {
+    summate: bigint;
+    summateOfSquares: bigint;
+    count: bigint;
+};
+export let useBigIntVariance: UseBigIntVariance = <E>(mapper: Functional<E, bigint> = useToBigInt): Collector<bigint, BigIntVarianceAccumulator, bigint> | Collector<E, BigIntVarianceAccumulator, bigint> => {
+    return Collector.full(
+        (): BigIntVarianceAccumulator => {
+            return {
+                summate: 0n,
+                summateOfSquares: 0n,
+                count: 0n
+            };
+        },
+        (accumulator: BigIntVarianceAccumulator, element: bigint | E): BigIntVarianceAccumulator => {
+            let resolved: bigint = isBigInt(element) ? element : mapper(element);
+            return {
+                summate: accumulator.summate + (isBigInt(resolved) ? resolved : 0n),
+                summateOfSquares: accumulator.summateOfSquares + (isBigInt(resolved) ? resolved * resolved : 0n),
+                count: accumulator.count + 1n
+            };
+        },
+        (result: BigIntVarianceAccumulator): bigint => {
+            if (result.count < 2n) {
+                return 0n;
+            }
+            let mean: bigint = result.summate / result.count;
+            let variance: bigint = (result.summateOfSquares / result.count) - (mean * mean);
+            return variance;
+        }
+    );
+};
+
+export interface UseNumericStandardDeviation {
+    <E>(): Collector<E, StandardDeviationAccumulator, number>;
+    <E>(mapper: Functional<E, number>): Collector<E, StandardDeviationAccumulator, number>;
+};
+export interface StandardDeviationAccumulator {
+    summate: number;
+    summateOfSquares: number;
+    count: number;
+};
+export let useNumericStandardDeviation: UseNumericStandardDeviation = <E>(mapper: Functional<E, number> = useToNumber): Collector<number, StandardDeviationAccumulator, number> | Collector<E, StandardDeviationAccumulator, number> => {
+    return Collector.full(
+        (): StandardDeviationAccumulator => {
+            return {
+                summate: 0,
+                summateOfSquares: 0,
+                count: 0
+            };
+        },
+        (accumulator: StandardDeviationAccumulator, element: number | E): StandardDeviationAccumulator => {
+            let resolved: number = isNumber(element) ? element : mapper(element);
+            return {
+                summate: accumulator.summate + (isNumber(resolved) ? resolved : 0),
+                summateOfSquares: accumulator.summateOfSquares + (isNumber(resolved) ? Math.pow(resolved, 2) : 0),
+                count: accumulator.count + 1
+            };
+        },
+        (result: StandardDeviationAccumulator): number => {
+            if (result.count < 2) {
+                return 0;
+            }
+            let mean: number = result.summate / result.count;
+            let variance: number = (result.summateOfSquares / result.count) - Math.pow(mean, 2);
+            let standardDeviation: number = Math.sqrt(variance);
+            return standardDeviation;
+        }
+    );
+};
+
+export interface UseBigIntStandardDeviation {
+    <E>(): Collector<E, BigIntStandardDeviationAccumulator, bigint>;
+    <E>(mapper: Functional<E, bigint>): Collector<E, BigIntStandardDeviationAccumulator, bigint>;
+};
+export interface BigIntStandardDeviationAccumulator {
+    summate: bigint;
+    summateOfSquares: bigint;
+    count: bigint;
+};
+export let useBigIntStandardDeviation: UseBigIntStandardDeviation = <E>(mapper: Functional<E, bigint> = useToBigInt): Collector<bigint, BigIntStandardDeviationAccumulator, bigint> | Collector<E, BigIntStandardDeviationAccumulator, bigint> => {
+    return Collector.full(
+        (): BigIntStandardDeviationAccumulator => {
+            return {
+                summate: 0n,
+                summateOfSquares: 0n,
+                count: 0n
+            };
+        },
+        (accumulator: BigIntStandardDeviationAccumulator, element: bigint | E): BigIntStandardDeviationAccumulator => {
+            let resolved: bigint = isBigInt(element) ? element : mapper(element);
+            return {
+                summate: accumulator.summate + (isBigInt(resolved) ? resolved : 0n),
+                summateOfSquares: accumulator.summateOfSquares + (isBigInt(resolved) ? resolved * resolved : 0n),
+                count: accumulator.count + 1n
+            };
+        },
+        (result: BigIntStandardDeviationAccumulator): bigint => {
+            if (result.count < 2n) {
+                return 0n;
+            }
+            let mean: bigint = result.summate / result.count;
+            let variance: bigint = (result.summateOfSquares / result.count) - (mean * mean);
+            let standardDeviation: bigint = BigInt(Math.sqrt(Number(variance)));
+            return standardDeviation;
+        }
+    );
+};
+
+export interface UseNumericMedian {
+    <E>(): Collector<E, number[], number>;
+    <E>(mapper: Functional<E, number>): Collector<E, number[], number>;
+};
+export let useNumericMedian: UseNumericMedian = <E>(mapper: Functional<E, number> = useToNumber): Collector<number, number[], number> | Collector<E, number[], number> => {
+    return Collector.full(
+        (): number[] => [],
+        (array: number[], element: number | E): number[] => {
+            let resolved: number = isNumber(element) ? element : mapper(element);
+            array.push(resolved);
+            array.sort((a: number, b: number): number => a - b);
+            return array;
+        },
+        (array: number[]): number => {
+            let length: number = array.length;
+            if (length % 2 === 0) {
+                let mid: number = length / 2;
+                return (array[mid - 1] + array[mid]) / 2;
+            } else {
+                let mid: number = Math.floor(length / 2);
+                return array[mid];
+            }
+        }
+    );
+};
+
+export interface UseBigIntMedian {
+    <E>(): Collector<E, bigint[], bigint>;
+    <E>(mapper: Functional<E, bigint>): Collector<E, bigint[], bigint>;
+};
+export let useBigIntMedian: UseBigIntMedian = <E>(mapper: Functional<E, bigint> = useToBigInt): Collector<bigint, bigint[], bigint> | Collector<E, bigint[], bigint> => {
+    return Collector.full(
+        (): bigint[] => [],
+        (array: bigint[], element: bigint | E): bigint[] => {
+            let resolved: bigint = isBigInt(element) ? element : mapper(element);
+            array.push(resolved);
+            array.sort((a: bigint, b: bigint): number => Number(a - b));
+            return array;
+        },
+        (array: bigint[]): bigint => {
+            let length: number = array.length;
+            if (length % 2 === 0) {
+                let mid: number = length / 2;
+                return (array[Number(mid - 1)] + array[mid]) / 2n;
+            } else {
+                let mid: number = Math.floor(length / 2);
+                return array[mid];
+            }
+        }
+    );
+};
+
+export let useToGeneratorFunction: <E>() => Collector<E, Array<E>, globalThis.Generator<E, void, undefined>> = <E>(): Collector<E, Array<E>, globalThis.Generator<E, void, undefined>> => {
+    return Collector.full(
+        (): Array<E> => [],
+        (array: Array<E>, element: E): Array<E> => {
+            array.push(element);
+            return array;
+        },
+        (array: Array<E>): globalThis.Generator<E, void, undefined> => {
+            return (function* () {
+                for (let element of array) {
+                    yield element;
+                }
+            })();
+        }
+    );
+};
+
+export let useToAsyncGeneratorFunction: <E>() => Collector<E, Array<E>, globalThis.AsyncGenerator<E, void, undefined>> = <E>(): Collector<E, Array<E>, globalThis.AsyncGenerator<E, void, undefined>> => {
+    return Collector.full(
+        (): Array<E> => [],
+        (array: Array<E>, element: E): Array<E> => {
+            array.push(element);
+            return array;
+        },
+        (array: Array<E>): globalThis.AsyncGenerator<E, void, undefined> => {
+            return (async function* () {
+                for (let element of array) {
+                    yield element;
+                }
+            })();
+        }
     );
 };

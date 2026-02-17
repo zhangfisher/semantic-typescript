@@ -1,5 +1,5 @@
 import { useToArray, type Collector } from "./collector";
-import { isFunction, isIterable, isNumber, isObject, isPrimitive } from "./guard";
+import { isBigInt, isFunction, isIterable, isNumber, isObject, isPrimitive } from "./guard";
 import { validate, type BiPredicate, type DeepPropertyKey, type DeepPropertyValue, type MaybePrimitive } from "./utility";
 import type { BiConsumer, Comparator, Consumer, Generator, Indexed, Predicate } from "./utility";
 
@@ -118,14 +118,14 @@ export let useGenerator: <E>(iterable: Iterable<E>) => Generator<E> = <E>(iterab
         return (accept: Consumer<E> | BiConsumer<E, bigint>, interrupt: Predicate<E> | BiPredicate<E, bigint>): void => {
             let index: bigint = 0n;
             for (let element of iterable) {
-                if(interrupt(element, index)){
+                if (interrupt(element, index)) {
                     break;
                 }
                 accept(element, index);
             }
         };
     }
-    return (): void => {};
+    return (): void => { };
 };
 
 interface UseArrange {
@@ -171,4 +171,19 @@ export let useArrange: UseArrange = <E>(source: Iterable<E> | Generator<E>, comp
         }
     }
     return useGenerator([]);
+};
+
+export let useToNumber: <T = unknown>(target: T) => number = <T>(target: T): number => {
+    if (isNumber(target)) {
+        return target;
+    }
+    let resolved: number = Reflect.apply(Reflect.get(target as object, Symbol.toPrimitive), target, ["default"]);
+    return isNumber(resolved) ? resolved : 0;
+};
+
+export let useToBigInt: <T = unknown>(target: T) => bigint = <T>(target: T): bigint => {
+    if (isBigInt(target)) {
+        return target;
+    }
+    return BigInt(useToNumber(target));
 };
