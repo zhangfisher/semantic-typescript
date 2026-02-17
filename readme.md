@@ -2,9 +2,59 @@
 
 ## Introduction
 
-Semantic-TypeScript is a modern stream processing library inspired by JavaScript GeneratorFunction, Java Stream, and MySQL Index. Its core design philosophy is based on building efficient data processing pipelines using data indexing, providing a type-safe, functional-style streaming operation experience for front-end development.
+**Semantic-TypeScript: A Paradigm-Shifting Stream Processing Library for the Modern Web**
 
-Unlike traditional synchronous processing, Semantic employs an asynchronous processing model. When creating a data stream, the time when the terminal receives data entirely depends on when the upstream calls the `accept` and `interrupt` callback functions. This design allows the library to elegantly handle real-time data streams, large datasets, and asynchronous data sources.
+Semantic-TypeScript represents a significant advancement in stream processing technology, synthesising the most effective concepts from JavaScript GeneratorFunction, Java Stream, and MySQL Index paradigms. Its foundational design principle is centred on constructing exceptionally efficient data processing pipelines through sophisticated data indexing methodologies. The library delivers a rigorously type-safe, functionally pure streaming operation experience specifically engineered for contemporary front-end development.
+
+In contrast to conventional synchronous processing architectures, Semantic-TypeScript implements a fully asynchronous processing model. During data stream generation, the temporal reception of data at the terminal is determined exclusively by the upstream invocation of the `accept` and `interrupt` callback mechanisms. This deliberate architectural choice enables the library to handle with exceptional grace:
+
+- **Real-time data streams** with deterministic latency characteristics
+- **Large-scale datasets** through memory-efficient processing pipelines
+- **Asynchronous data sources** with guaranteed consistency and reliability
+
+The library's innovative approach fundamentally reimagines how developers interact with streaming data, providing both unprecedented performance characteristics and developer ergonomics in a single, cohesive package.
+
+### Why Choose Semantic-TypeScript?
+
+Selecting the right library for data stream processing in a TypeScript project involves balancing performance, developer experience, and architectural fit. Semantic-TypeScript is engineered to excel across all these dimensions, offering a paradigm-shifting approach for the modern web. Here’s why it stands out.
+
+#### 1. **A Unified, Type-Safe Paradigm for Streams**
+Semantic-TypeScript synthesises the most effective concepts from **JavaScript GeneratorFunctions**, **Java Streams API**, and **database indexing strategies**. It provides a consistent, declarative API for processing any data sequence—be it static arrays, real-time events, or asynchronous chunks—while leveraging TypeScript's full power to ensure end-to-end type safety. This eliminates a whole class of runtime errors and transforms stream manipulation into a predictable, compiler-verified activity.
+
+#### 2. **Uncompromising Performance with Intelligent Laziness**
+At its core, the library is built on **lazy evaluation**. Operations like `filter`, `map`, and `flatMap` merely compose a processing pipeline; no work is done until a terminal operation (like `collect` or `toArray`) is invoked. This is coupled with **short-circuiting** capabilities (via operations like `limit`, `anyMatch`, or custom `interruptor` functions), which allows the processing to stop early when the result is known, dramatically improving efficiency for large or infinite streams.
+
+#### 3. **Architectural Distinction: `Semantic<E>` vs. `Collectable<E>`**
+This library introduces a crucial architectural separation that others often lack:
+*   **`Semantic<E>`**: Represents the abstract, lazy stream definition—the "blueprint" of your data transformation. It is immutable and composable.
+*   **`Collectable<E>`**: Represents a materialised, executable view of the stream, offering all terminal operations.
+
+This separation enforces a clear mental model and allows for optimisations (e.g., an `UnorderedCollectable` can skip expensive sorting steps if order is not required).
+
+#### 4. **The Power of the `Collector<E, A, R>` Pattern**
+Inspired by Java, the `Collector` pattern is the engine of flexibility. It decouples the *specification* of how to accumulate stream elements from the *execution* of the stream itself. The library provides a rich set of built-in collectors (`useToArray`, `useGroupBy`, `useSummate`, etc.) for everyday tasks, while the pattern makes it trivial to implement your own complex, reusable reduction logic. This is far more powerful and composable than a fixed set of terminal methods.
+
+#### 5. **First-Class Support for Modern Web & Async Data**
+Semantic-TypeScript is designed for contemporary front-end and Node.js development. It offers native factory methods for modern web sources:
+*   `from(iterable)`, `range()` for static data.
+*   `interval()`, `animationFrame()` for time-based streams.
+*   `blob()` for chunked binary data processing.
+*   `websocket()` for real-time message streams.
+Its foundational support for both `Iterable` and `AsyncIterable` protocols means it handles synchronous and asynchronous data flows with the same elegant API.
+
+#### 6. **Beyond Basic Aggregation: Built-in Statistical Analysis**
+Move beyond simple sums and averages. The library provides dedicated `NumericStatistics` and `BigIntStatistics` classes, offering immediate access to advanced statistical measures directly from your streams—**variance, standard deviation, median, quantiles, skewness, and kurtosis**. This turns complex data analysis into a one-liner, saving you from manual implementation or integrating another specialised library.
+
+#### 7. **Designed for Developer Ergonomics**
+*   **Fluent, Chainable API**: Write complex data pipelines as readable, sequential chains of operations.
+*   **Comprehensive Utility Suite**: Comes with essential guards (`isOptional`, `isSemantic`), type-safe utilities (`useCompare`, `useTraverse`), and functional interfaces out of the box.
+*   **`Optional<T>` Integration**: Models the absence of a value safely, eliminating null-pointer concerns in find operations.
+*   **Performance Guidance**: The documentation clearly guides you on when to use `toUnordered()` (for maximum speed) versus `toOrdered()` (when sequence matters).
+
+#### 8. **Robust, Community-Ready Foundation**
+As an open-source library hosted on **GitHub** and distributed via **npm**, it is built for real-world use. The extensive documentation, complete with time/space complexity annotations and practical examples, lowers the learning curve and provides clarity for performance-sensitive applications.
+
+**In summary, choose Semantic-TypeScript if you seek a rigorously designed, type-safe, and high-performance stream processing library that brings the power of enterprise-level data transformation patterns to the TypeScript ecosystem, without compromising on the idioms and needs of modern web development.**
 
 ## Installation
 
@@ -83,7 +133,9 @@ let comparator: Comparator<number> = (a: number, b: number): number => a - b;
 | `isNumericStatistics(t: unknown): t is NumericStatistics<unknown>` | Check if it is a NumericStatistics instance | O(1) | O(1) |
 | `isBigIntStatistics(t: unknown): t is BigIntStatistics<unknown>` | Check if it is a BigIntStatistics instance | O(1) | O(1) |
 | `isPromise(t: unknown): t is Promise<unknown>` | Check if it is a Promise object  | O(1) | O(1) |
-| `isAsync(t: unknown): t is AsyncFunction` | Check if it is an AsyncFunction | O(1) | O(1) |
+| `isAsyncFunction(t: unknown): t is AsyncFunction` | Check if it is an AsyncFunction | O(1) | O(1) |
+| `isGeneratorFunction(t: unknown): t is GeneratorFunction` | Check if it is a GeneratorFunction | O(1) | O(1) |
+| `isAsyncGeneratorFunction(t: unknown): t is AsyncGeneratorFunction` | Check if it is an AsyncGeneratorFunction | O(1) | O(1) |
 
 ```typescript
 // Type guard usage examples
@@ -94,7 +146,7 @@ if (isString(value)) {
 }
 
 if (isOptional(someValue)) {
-    someValue.ifPresent((value): void => console.log(val));
+    someValue.ifPresent((value): void => console.log(value));
 }
 
 if(isIterable(value)){
@@ -112,6 +164,8 @@ if(isIterable(value)){
 | `useCompare<T>(t1: T, t2: T): number` | Generic comparison function | O(1) | O(1) |
 | `useRandom<T = number \| bigint>(index: T): T` | Pseudo-random number generator | O(log n) | O(1) |
 | `useTraverse(t, callback)` | Deep traverse an object without cyclic references | O(n) | O(1) |
+| `useToNumber(t: unknown): number` | Convert a value to a number | O(1) | O(1) |
+| `useToBigInt(t: unknown): bigint` | Convert a value to a BigInt | O(1) | O(1) |
 
 ```typescript
 // Utility function usage examples
@@ -140,6 +194,12 @@ useTraverse(o, (value, key): boolean => {
     */
     return true; // Returns true to continue traversing.
 });
+
+let toBeResolved: object = {
+    [Symbol.toPrimitive]: () => 5
+};
+let resolvedNumber: number = useToNumber(toBeResolved); // 5
+let resolvedBigInt: bigint = useToBigInt(toBeResolved); // 5n
 ```
 
 ## Factory Methods
@@ -160,7 +220,7 @@ let present: Optional<number> = Optional.of(42);
 let nullable: Optional<string> = Optional.ofNullable<string>(null);
 let nonNull: Optional<string> = Optional.ofNonNull("hello");
 
-presentO.ifPresent((value: number): void => console.log(value)); // Outputs 42
+present.ifPresent((value: number): void => console.log(value)); // Outputs 42
 console.log(empty.get(100)); // Outputs 100
 ```
 
@@ -175,9 +235,16 @@ console.log(empty.get(100)); // Outputs 100
 | `useCollect<E, A, R>(identity, accumulator, finisher)` | Create a full collector with identity, accumulator, finisher | O(1) | O(1) |
 | `useCollect<E, A, R>(identity, interruptor, accumulator, finisher)` | Create a shortable collector with identity, interruptor, accumulator, finisher | O(1) | O(1) |
 | `useCount<E>()` | Create a full collector counting elements | O(n) | O(1) |
+| `useError<E>()` | Create a collector printing an error | O(n) | O(1) |
+| `useError<E>(accumulator)` | Create a collector printing an accumulated error | O(n) | O(1) |
+| `useError<E>(prefix, accumulator, suffix)` | Create a collector printing an accumulated error with prefix and suffix | O(n) | O(1) |
 | `useFindFirst<E>()` | Create a shortable collector returning the first element | O(n) | O(1) |
 | `useFindAny<E>()` | Create a shortable collector returning any element | O(n) | O(1) |
 | `useFindLast<E>()` | Create a full collector returning the last element | O(n) | O(1) |
+| `useFindMaximum<E>()` | Create a full collector returning the maximum element | O(n) | O(1) |
+| `useFindMaximum<E>(comparator?)` | Create a full collector returning the maximum element | O(n) | O(1) |
+| `useFindMinimum<E>()` | Create a full collector returning the minimum element | O(n) | O(1) |
+| `useFindMinimum<E>(comparator?)` | Create a full collector returning the minimum element | O(n) | O(1) |
 | `useForEach<E>(action)` | Create a full collector executing an action for each element | O(n) | O(1) |
 | `useNoneMatch<E>(predicate)` | Create a shortable collector returning true if no element matches the predicate | O(n) | O(1) |
 | `useGroup<E, K>(classifier)` | Create a full collector grouping elements by classifier key | O(n) | O(n) |
@@ -204,8 +271,33 @@ console.log(empty.get(100)); // Outputs 100
 | `useBigIntAverage<E>(mapper)` | Create a full collector computing bigint average with mapper | O(n) | O(1) |
 | `useBigIntAverage<E>()` | Create a full collector computing bigint average | O(n) | O(1) |
 | `useFrequency<E>()` | Create a full collector counting element frequencies | O(n) | O(n) |
-| `useSummate<E>(mapper)` | Create a full collector summing mapped numeric values | O(n) | O(1) |
-| `useSummate<E>()` | Create a full collector summing numeric elements | O(n) | O(1) |
+| `useNumericSummate<E>()` | Create a full collector summing numeric elements | O(n) | O(1) |
+| `useNumericSummate<E>(mapper)` | Create a full collector summing mapped numeric values | O(n) | O(1) |
+| `useBigIntSummate<E>()` | Create a full collector summing numeric elements | O(n) | O(1) |
+| `useBigIntSummate<E>(mapper)` | Create a full collector summing mapped numeric values | O(n) | O(1) |
+| `useNumericAverage<E>()` | Create a full collector computing numeric average | O(n) | O(1) |
+| `useNumericAverage<E>(mapper)` | Create a full collector computing numeric average with mapper | O(n) | O(1) |
+| `useBigIntAverage<E>()` | Create a full collector computing bigint average | O(n) | O(1) |
+| `useBigIntAverage<E>(mapper)` | Create a full collector computing bigint average with mapper | O(n) | O(1) |
+| `useFrequency<E>()` | Create a full collector counting element frequencies | O(n) | O(n) |
+| `useNumericMode<E>()` | Create a full collector computing numeric mode | O(n) | O(n) |
+| `useNumericMode<E>(mapper)` | Create a full collector computing numeric mode with mapper | O(n) | O(n) |
+| `useBigIntMode<E>()` | Create a full collector computing bigint mode | O(n) | O(n) |
+| `useBigIntMode<E>(mapper)` | Create a full collector computing bigint mode with mapper | O(n) | O(n) |
+| `useNumericVariance<E>()` | Create a full collector computing numeric variance | O(n) | O(1) |
+| `useNumericVariance<E>(mapper)` | Create a full collector computing numeric variance with mapper | O(n) | O(1) |
+| `useBigIntVariance<E>()` | Create a full collector computing bigint variance | O(n) | O(1) |
+| `useBigIntVariance<E>(mapper)` | Create a full collector computing bigint variance with mapper | O(n) | O(1) |
+| `useNumericStandardDeviation<E>()` | Create a full collector computing numeric standard deviation | O(n) | O(1) |
+| `useNumericStandardDeviation<E>(mapper)` | Create a full collector computing numeric standard deviation with mapper | O(n) | O(1) |
+| `useBigIntStandardDeviation<E>()` | Create a full collector computing bigint standard deviation | O(n) | O(1) |
+| `useBigIntStandardDeviation<E>(mapper)` | Create a full collector computing bigint standard deviation with mapper | O(n) | O(1) |
+| `useNumericMedian<E>()` | Create a full collector computing numeric median | O(n) | O(1) |
+| `useNumericMedian<E>(mapper)` | Create a full collector computing numeric median with mapper | O(n) | O(1) |
+| `useBigIntMedian<E>()` | Create a full collector computing bigint median | O(n) | O(1) |
+| `useBigIntMedian<E>(mapper)` | Create a full collector computing bigint median with mapper | O(n) | O(1) |
+| `useToGeneratorFunction<E>()` | Create a full collector converting a stream to a generator function | O(n) | O(1) |
+| `useToAsyncGeneratorFunction<E>()` | Create a full collector converting a stream to an async generator function | O(n) | O(1) |
 
 ```typescript
 // Collector conversion examples
@@ -274,7 +366,7 @@ average.collect([1,2,3,4,5]); // Averages from an iterable object
 // Create a stream from a timed animation frame
 animationFrame(1000)
     .toUnordered()
-    .forEach(frame => console.log(frame));
+    .forEach((frame): void => console.log(frame));
 
 // Create a stream from a Blob (chunked reading)
 blob(someBlob, 1024n)
@@ -365,6 +457,7 @@ let complexResult = range(1, 100, 1)
 | Method | Description | Time Complexity | Space Complexity |
 |------------|------------|------------|------------|
 | `sorted()` | Convert to ordered collector | O(n log n) | O(n) |
+| `sorted(comparator)` | Convert to ordered collector with comparator | O(n log n) | O(n) |
 | `toUnordered()` | Convert to unordered collector | O(1) | O(1) |
 | `toOrdered()` | Convert to ordered collector | O(1) | O(1) |
 | `toNumericStatistics()` | Convert to numeric statistics | O(n) | O(1) |
@@ -438,6 +531,10 @@ let customizedCollector = from([1, 2, 3, 4, 5]).toCollectable((generator: Genera
 | `findAny()` | Find any element in the collectable | O(n) | O(1) |
 | `findFirst()` | Find the first element in the collectable | O(n) | O(1) |
 | `findLast()` | Find the last element in the collectable | O(n) | O(1) |
+| `findMaximum()` | Find the maximum element in the collectable | O(n) | O(1) |
+| `findMaximum(comparator)` | Find the maximum element in the collectable using a comparator | O(n) | O(1) |
+| `findMinimum()` | Find the minimum element in the collectable | O(n) | O(1) |
+| `findMinimum(comparator)` | Find the minimum element in the collectable using a comparator | O(n) | O(1) |
 | `forEach(action)` | Iterate over all elements with a consumer or bi-consumer | O(n) | O(1) |
 | `group(classifier)` | Group elements by a classifier function | O(n) | O(n) |
 | `groupBy(keyExtractor, valueExtractor)` | Group elements by key and value extractors | O(n) | O(n) |
@@ -455,6 +552,7 @@ let customizedCollector = from([1, 2, 3, 4, 5]).toCollectable((generator: Genera
 | `reduce(identity, accumulator)` | Reduce elements with an initial value and accumulator | O(n) | O(1) |
 | `reduce(identity, accumulator, finisher)` | Reduce elements with initial value, accumulator, and finisher | O(n) | O(1) |
 | `semantic()` | Convert the collectable to a semantic object | O(1) | O(1) |
+| `source()` | Get the source of the collectable | O(1) | O(1) |
 | `toArray()` | Convert elements to an array | O(n) | O(n) |
 | `toMap(keyExtractor, valueExtractor)` | Convert elements to a Map via key and value extractors | O(n) | O(n) |
 | `toSet()` | Convert elements to a Set | O(n) | O(n) |
@@ -489,24 +587,61 @@ let sum = data.reduce(0, (accumulator: number, n: number): number => accumulator
 data.join(", "); // "[2, 4, 6, 8, 10]"
 ```
 
+## Unordered Collectable Methods
+
+| Method | Description | Time Complexity | Space Complexity |
+|------------|------------|------------|------------|
+| `*[Symbol.iterator]()` | Iterate over all elements | O(n) | O(1) |
+| `*[Symbol.asyncIterator]()` | Iterate over all elements asynchronously | O(n) | O(1) |
+
+## Ordered Collectable Methods
+
+| Method | Description | Time Complexity | Space Complexity |
+|------------|------------|------------|------------|
+| `*[Symbol.iterator]()` | Iterate over all elements | O(n) | O(1) |
+| `*[Symbol.asyncIterator]()` | Iterate over all elements asynchronously | O(n) | O(1) |
+
 ## Statistical Analysis Methods
+
+### Statisttics Methods
+
+| Method | Description | Time Complexity | Space Complexity |
+|------------|------------|------------|------------|
+| `*[Symbol.iterator]()` | Iterate over all elements | O(n) | O(1) |
+| `*[Symbol.asyncIterator]()` | Iterate over all elements asynchronously | O(n) | O(1) |
+| `count()` | Count the number of elements | O(n) | O(1) |
+| `frequency()` | Frequency distribution | O(n) | O(n) |
 
 ### NumericStatistics Methods
 
 | Method | Description | Time Complexity | Space Complexity |
 |------|------|------------|------------|
-| `range()` | Range | O(n) | O(1) |
-| `variance()` | Variance | O(n) | O(1) |
-| `standardDeviation()` | Standard deviation | O(n) | O(1) |
-| `mean()` | Mean | O(n) | O(1) |
-| `median()` | Median | O(n log n) | O(n) |
-| `mode()` | Mode | O(n) | O(n) |
-| `frequency()` | Frequency distribution | O(n) | O(n) |
-| `summate()` | Summation | O(n) | O(1) |
-| `quantile(quantile)` | Quantile | O(n log n) | O(n) |
-| `interquartileRange()` | Interquartile range | O(n log n) | O(n) |
-| `skewness()` | Skewness | O(n) | O(1) |
-| `kurtosis()` | Kurtosis | O(n) | O(1) |
+| `*[Symbol.iterator]()` | Iterate over all elements | O(n) | O(1) |
+| `*[Symbol.asyncIterator]()` | Iterate over all elements asynchronously | O(n) | O(1) |
+| `average()` | Calculate the average of elements | O(n) | O(1) |
+| `average(mapper)` | Calculate the average of elements using a mapper | O(n) | O(1) |
+| `range()` | Calculate the range of elements | O(n) | O(1) |
+| `range(mapper)` | Calculate the range of elements using a mapper | O(n) | O(1) |
+| `variance()` | Calculate the variance of elements | O(n) | O(1) |
+| `variance(mapper)` | Calculate the variance of elements using a mapper | O(n) | O(1) |
+| `standardDeviation()` | Calculate the standard deviation of elements | O(n) | O(1) |
+| `standardDeviation(mapper)` | Calculate the standard deviation of elements using a mapper | O(n) | O(1) |
+| `mean()` | Calculate the mean of elements | O(n) | O(1) |
+| `mean(mapper)` | Calculate the mean of elements using a mapper | O(n) | O(1) |
+| `median()` | Calculate the median of elements | O(n) | O(1) |
+| `median(mapper)` | Calculate the median of elements using a mapper | O(n) | O(1) |
+| `mode()` | Calculate the mode of elements | O(n) | O(1) |
+| `mode(mapper)` | Calculate the mode of elements using a mapper | O(n) | O(1) |
+| `summate()` | Calculate the sum of elements | O(n) | O(1) |
+| `summate(mapper)` | Calculate the sum of elements using a mapper | O(n) | O(1) |
+| `quantile(quantile)` | Calculate the quantile of elements | O(n) | O(1) |
+| `quantile(quantile, mapper)` | Calculate the quantile of elements using a mapper | O(n) | O(1) |
+| `interquartileRange()` | Calculate the interquartile range of elements | O(n) | O(1) |
+| `interquartileRange(mapper)` | Calculate the interquartile range of elements using a mapper | O(n) | O(1) |
+| `skewness()` | Calculate the percentile of elements | O(n) | O(1) |
+| `skewness(mapper)` | Calculate the percentile of elements using a mapper | O(n) | O(1) |
+| `kurtosis()` | Calculate the kurtosis of elements | O(n) | O(1) |
+| `kurtosis(mapper)` | Calculate the kurtosis of elements using a mapper | O(n) | O(1) |
 
 ```typescript
 // Statistical analysis examples
@@ -527,6 +662,47 @@ let objects = from([
 
 console.log("Mapped mean:", objects.mean(obj => obj.value)); // 20
 ```
+
+### BigintStatistics Methods
+
+| Method | Description | Time Complexity | Space Complexity |
+|------------|------------|------------|------------|
+| `*[Symbol.iterator]()` | Iterate over all elements | O(n) | O(1) |
+| `*[Symbol.asyncIterator]()` | Iterate over all elements asynchronously | O(n) | O(1) |
+| `average()` | Calculate the average of elements | O(n) | O(1) |
+| `average(mapper)` | Calculate the average of elements using a mapper | O(n) | O(1) |
+| `range()` | Calculate the range of elements | O(n) | O(1) |
+| `range(mapper)` | Calculate the range of elements using a mapper | O(n) | O(1) |
+| `variance()` | Calculate the variance of elements | O(n) | O(1) |
+| `variance(mapper)` | Calculate the variance of elements using a mapper | O(n) | O(1) |
+| `standardDeviation()` | Calculate the standard deviation of elements | O(n) | O(1) |
+| `standardDeviation(mapper)` | Calculate the standard deviation of elements using a mapper | O(n) | O(1) |
+| `mean()` | Calculate the mean of elements | O(n) | O(1) |
+| `mean(mapper)` | Calculate the mean of elements using a mapper | O(n) | O(1) |
+| `median()` | Calculate the median of elements | O(n) | O(1) |
+| `median(mapper)` | Calculate the median of elements using a mapper | O(n) | O(1) |
+| `mode()` | Calculate the mode of elements | O(n) | O(1) |
+| `mode(mapper)` | Calculate the mode of elements using a mapper | O(n) | O(1) |
+| `summate()` | Calculate the sum of elements | O(n) | O(1) |
+| `summate(mapper)` | Calculate the sum of elements using a mapper | O(n) | O(1) |
+| `quantile(quantile)` | Calculate the quantile of elements | O(n) | O(1) |
+| `quantile(quantile, mapper)` | Calculate the quantile of elements using a mapper | O(n) | O(1) |
+| `interquartileRange()` | Calculate the interquartile range of elements | O(n) | O(1) |
+| `interquartileRange(mapper)` | Calculate the interquartile range of elements using a mapper | O(n) | O(1) |
+| `skewness()` | Calculate the percentile of elements | O(n) | O(1) |
+| `skewness(mapper)` | Calculate the percentile of elements using a mapper | O(n) | O(1) |
+| `kurtosis()` | Calculate the kurtosis of elements | O(n) | O(1) |
+| `kurtosis(mapper)` | Calculate the kurtosis of elements using a mapper | O(n) | O(1) |
+
+### Window Collectable Methods
+
+| Method | Description | Time Complexity | Space Complexity |
+|------------|------------|------------|------------|
+| `*[Symbol.iterator]()` | Iterate over all elements | O(n) | O(1) |
+| `*[Symbol.asyncIterator]()` | Iterate over all elements asynchronously | O(n) | O(1) |
+| `slide(size)` | Slide a window of a given size | O(n) | O(1) |
+| `slide(size, step)` | Slide a window of a given size and step | O(n) | O(1) |
+| `tumble(size)` | Tumble a window of a given size | O(n) | O(1) |
 
 ## Performance Selection Guide
 
