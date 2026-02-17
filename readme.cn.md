@@ -1,5 +1,3 @@
-好的，这是“Semantic-TypeScript Stream Processing Library”的简体中文翻译。我将根据文档的结构，对各个部分进行翻译。
-
 # Semantic-TypeScript 流处理库
 
 ## 介绍
@@ -750,5 +748,6 @@ https://www.npmjs.com/package/semantic-typescript
 2.  **性能考量**：如果不需要顺序保证，优先使用 `toUnoredered()` 以获得更好的性能。
 3.  **内存使用**：排序操作需要 O(n) 的额外空间。
 4.  **实时数据**：Semantic 流适用于处理实时数据，并支持异步数据源。
+
 
 这个库为 TypeScript 开发者提供了强大而灵活的流式处理能力，结合了函数式编程的优势和类型安全的保证。
