@@ -11,4 +11,6 @@ interface UseArrange {
     <E>(source: Generator<E>, comparator: Comparator<E>): Generator<E>;
 }
 export declare let useArrange: UseArrange;
+export declare let useToNumber: <T = unknown>(target: T) => number;
+export declare let useToBigInt: <T = unknown>(target: T) => bigint;
 export {};

@@ -6,7 +6,7 @@ export let isString = (t) => {
     return typeof t === "string";
 };
 export let isNumber = (t) => {
-    return typeof t === "number";
+    return typeof t === "number" && !Number.isNaN(t) && Number.isFinite(t);
 };
 export let isFunction = (t) => {
     return typeof t === "function";
@@ -89,9 +89,21 @@ export let isPromise = (t) => {
     }
     return false;
 };
-export let isAsync = (t) => {
+export let isAsyncFunction = (t) => {
     if (isFunction(t)) {
         return Reflect.get(t, Symbol.toStringTag) === "AsyncFunction" && t.constructor.name === "AsyncFunction";
+    }
+    return false;
+};
+export let isGeneratorFunction = (t) => {
+    if (isObject(t)) {
+        return isFunction(t) && Reflect.get(t, "constructor").name === "GeneratorFunction";
+    }
+    return false;
+};
+export let isAsyncGeneratorFunction = (t) => {
+    if (isObject(t)) {
+        return isFunction(t) && Reflect.get(t, "constructor").name === "AsyncGeneratorFunction";
     }
     return false;
 };

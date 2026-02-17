@@ -41,8 +41,3 @@ export declare class Semantic<E> {
     translate(offset: bigint): Semantic<E>;
     translate(translator: BiFunctional<E, bigint, bigint>): Semantic<E>;
 }
-export interface UseTransform {
-    <E, R>(generator: Generator<E>, mapper: Functional<E, R>): Generator<R>;
-    <E, R>(generator: Generator<E>, mapper: BiFunctional<E, bigint, R>): Generator<R>;
-}
-export declare let useTransform: UseTransform;

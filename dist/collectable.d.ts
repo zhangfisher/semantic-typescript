@@ -2,12 +2,11 @@ import { Collector } from "./collector";
 import { Optional } from "./optional";
 import { Semantic } from "./semantic";
 import type { BiConsumer, BiFunctional, Comparator, Consumer, Functional, Predicate, Supplier, TriFunctional, Generator, BiPredicate, TriPredicate, Indexed } from "./utility";
-export declare abstract class Collectable<E> implements Iterable<E> {
+export declare abstract class Collectable<E> implements Iterable<E>, AsyncIterable<E> {
     protected readonly Collectable: symbol;
     constructor();
-    [Symbol.iterator](): globalThis.Generator<E, void, undefined>;
-    generate(): globalThis.Generator<E, void, undefined>;
-    [Symbol.asyncIterator](): globalThis.AsyncGenerator<E, void, undefined>;
+    abstract [Symbol.iterator](): globalThis.Generator<E, void, undefined>;
+    abstract [Symbol.asyncIterator](): globalThis.AsyncGenerator<E, void, undefined>;
     anyMatch(predicate: Predicate<E>): boolean;
     allMatch(predicate: Predicate<E>): boolean;
     collect<A, R>(collector: Collector<E, A, R>): R;
@@ -29,6 +28,10 @@ export declare abstract class Collectable<E> implements Iterable<E> {
     findAny(): Optional<E>;
     findFirst(): Optional<E>;
     findLast(): Optional<E>;
+    findMaximum(): Optional<E>;
+    findMaximum(comparator: Comparator<E>): Optional<E>;
+    findMinimum(): Optional<E>;
+    findMinimum(comparator: Comparator<E>): Optional<E>;
     forEach(action: Consumer<E>): void;
     forEach(action: BiConsumer<E, bigint>): void;
     group<K>(classifier: Functional<E, K>): Map<K, Array<E>>;
@@ -57,24 +60,25 @@ export declare abstract class Collectable<E> implements Iterable<E> {
     toArray(): Array<E>;
     toMap<K, V>(keyExtractor: Functional<E, K>, valueExtractor: Functional<E, V>): Map<K, V>;
     toSet(): Set<E>;
-    write<S = string>(stream: WritableStream<S>): Collector<E, Promise<WritableStream<S>>, Promise<WritableStream<S>>>;
-    write<S = string>(stream: WritableStream<S>, accumulator: BiFunctional<WritableStream<S>, E, WritableStream<S>>): Collector<E, Promise<WritableStream<S>>, Promise<WritableStream<S>>>;
-    write<S = string>(stream: WritableStream<S>, accumulator: TriFunctional<WritableStream<S>, E, bigint, WritableStream<S>>): Collector<E, Promise<WritableStream<S>>, Promise<WritableStream<S>>>;
+    write<S = string>(stream: WritableStream<S>): Promise<WritableStream<S>>;
+    write<S = string>(stream: WritableStream<S>, accumulator: BiFunctional<WritableStream<S>, E, WritableStream<S>>): Promise<WritableStream<S>>;
+    write<S = string>(stream: WritableStream<S>, accumulator: TriFunctional<WritableStream<S>, E, bigint, WritableStream<S>>): Promise<WritableStream<S>>;
 }
 export declare class UnorderedCollectable<E> extends Collectable<E> {
     protected readonly UnorderedCollectable: symbol;
     protected generator: Generator<E>;
-    constructor(iterable: Iterable<E>);
     constructor(generator: Generator<E>);
     source(): Generator<E>;
+    [Symbol.iterator](): globalThis.Generator<E, void, undefined>;
+    [Symbol.asyncIterator](): globalThis.AsyncGenerator<E, void, undefined>;
 }
 export declare class OrderedCollectable<E> extends Collectable<E> {
     protected readonly OrderedCollectable: symbol;
-    protected ordered: Array<Indexed<E>>;
-    protected generator: Generator<E>;
-    constructor(iterable: Iterable<E>);
-    constructor(iterable: Iterable<E>, comparator: Comparator<E>);
+    protected buffer: Array<Indexed<E>>;
     constructor(generator: Generator<E>);
     constructor(generator: Generator<E>, comparator: Comparator<E>);
+    [Symbol.iterator](): globalThis.Generator<E, void, undefined>;
+    [Symbol.asyncIterator](): globalThis.AsyncGenerator<E, void, undefined>;
     source(): Generator<E>;
+    isEmpty(): boolean;
 }

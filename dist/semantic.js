@@ -14,27 +14,37 @@ export class Semantic {
     concat(other) {
         if (isSemantic(other)) {
             return new Semantic((accept, interrupt) => {
-                let count = 0n;
-                this.generator((element, index) => {
-                    accept(element, index);
-                    count++;
-                }, interrupt);
-                let otherGenerator = Reflect.has(other, "generator") ? Reflect.get(other, "generator") : () => { };
-                otherGenerator((element, index) => {
-                    accept(element, index + count);
-                }, interrupt);
+                try {
+                    let count = 0n;
+                    this.generator((element, index) => {
+                        accept(element, index);
+                        count++;
+                    }, interrupt);
+                    let otherGenerator = Reflect.has(other, "generator") ? Reflect.get(other, "generator") : () => { };
+                    otherGenerator((element, index) => {
+                        accept(element, index + count);
+                    }, interrupt);
+                }
+                catch (error) {
+                    throw new Error("Uncaught error on concatenation.");
+                }
             });
         }
         if (isIterable(other)) {
             return new Semantic((accept, interrupt) => {
-                let count = 0n;
-                this.generator((element, index) => {
-                    accept(element, index);
-                    count++;
-                }, interrupt);
-                for (let element of other) {
-                    accept(element, count);
-                    count++;
+                try {
+                    let count = 0n;
+                    this.generator((element, index) => {
+                        accept(element, index);
+                        count++;
+                    }, interrupt);
+                    for (let element of other) {
+                        accept(element, count);
+                        count++;
+                    }
+                }
+                catch (error) {
+                    throw new Error("Uncaught error on concatenation.");
                 }
             });
         }
@@ -43,39 +53,54 @@ export class Semantic {
     distinct(comparator) {
         if (validate(comparator)) {
             return new Semantic((accept, interrupt) => {
-                let array = [];
-                this.generator((element, index) => {
-                    if (!array.some((e) => comparator(e, element))) {
-                        array.push(element);
-                        accept(element, index);
-                    }
-                }, interrupt);
+                try {
+                    let array = [];
+                    this.generator((element, index) => {
+                        if (!array.some((e) => comparator(e, element))) {
+                            array.push(element);
+                            accept(element, index);
+                        }
+                    }, interrupt);
+                }
+                catch (error) {
+                    throw new Error("Uncaught error on distinct.");
+                }
             });
         }
         return new Semantic((accept, interrupt) => {
-            let set = new Set();
-            this.generator((element, index) => {
-                if (!set.has(element)) {
-                    set.add(element);
-                    accept(element, index);
-                }
-            }, interrupt);
+            try {
+                let set = new Set();
+                this.generator((element, index) => {
+                    if (!set.has(element)) {
+                        set.add(element);
+                        accept(element, index);
+                    }
+                }, interrupt);
+            }
+            catch (error) {
+                throw new Error("Uncaught error on distinct.");
+            }
         });
     }
     dropWhile(predicate) {
         if (isFunction(predicate)) {
             return new Semantic((accept, interrupt) => {
-                let dropping = true;
-                this.generator((element, index) => {
-                    if (dropping) {
-                        if (!predicate(element)) {
-                            dropping = false;
-                            accept(element, index);
+                try {
+                    let dropping = true;
+                    this.generator((element, index) => {
+                        if (dropping) {
+                            if (!predicate(element)) {
+                                dropping = false;
+                                accept(element, index);
+                            }
+                            return;
                         }
-                        return;
-                    }
-                    accept(element, index);
-                }, interrupt);
+                        accept(element, index);
+                    }, interrupt);
+                }
+                catch (error) {
+                    throw new Error("Uncaught error on dropWhile.");
+                }
             });
         }
         throw new TypeError("Invalid arguments.");
@@ -83,11 +108,16 @@ export class Semantic {
     filter(predicate) {
         if (isFunction(predicate)) {
             return new Semantic((accept, interrupt) => {
-                this.generator((element, index) => {
-                    if (predicate(element)) {
-                        accept(element, index);
-                    }
-                }, interrupt);
+                try {
+                    this.generator((element, index) => {
+                        if (predicate(element)) {
+                            accept(element, index);
+                        }
+                    }, interrupt);
+                }
+                catch (error) {
+                    throw new Error("Uncaught error on filter.");
+                }
             });
         }
         throw new TypeError("Invalid arguments.");
@@ -95,25 +125,30 @@ export class Semantic {
     flat(mapper) {
         if (isFunction(mapper)) {
             return new Semantic((accept, interrupt) => {
-                let count = 0n;
-                let stop = false;
-                this.generator((element) => {
-                    let result = mapper(element);
-                    if (isIterable(result)) {
-                        for (let subElement of result) {
-                            accept(subElement, count);
-                            stop = stop || interrupt(subElement, count);
-                            count++;
+                try {
+                    let count = 0n;
+                    let stop = false;
+                    this.generator((element) => {
+                        let result = mapper(element);
+                        if (isIterable(result)) {
+                            for (let subElement of result) {
+                                accept(subElement, count);
+                                stop = stop || interrupt(subElement, count);
+                                count++;
+                            }
                         }
-                    }
-                    else if (isSemantic(result)) {
-                        result.generator((subElement) => {
-                            accept(subElement, count);
-                            stop = stop || interrupt(subElement, count);
-                            count++;
-                        }, (element) => interrupt(element, count) || stop);
-                    }
-                }, (element) => interrupt(element, count) || stop);
+                        else if (isSemantic(result)) {
+                            result.generator((subElement) => {
+                                accept(subElement, count);
+                                stop = stop || interrupt(subElement, count);
+                                count++;
+                            }, (element) => interrupt(element, count) || stop);
+                        }
+                    }, (element) => interrupt(element, count) || stop);
+                }
+                catch (error) {
+                    throw new Error("Uncaught error on flat.");
+                }
             });
         }
         throw new TypeError("Invalid arguments.");
@@ -121,25 +156,30 @@ export class Semantic {
     flatMap(mapper) {
         if (isFunction(mapper)) {
             return new Semantic((accept, interrupt) => {
-                let count = 0n;
-                let stop = false;
-                this.generator((element) => {
-                    let result = mapper(element);
-                    if (isIterable(result)) {
-                        for (let subElement of result) {
-                            accept(subElement, count);
-                            stop = stop || interrupt(subElement, count);
-                            count++;
+                try {
+                    let count = 0n;
+                    let stop = false;
+                    this.generator((element) => {
+                        let result = mapper(element);
+                        if (isIterable(result)) {
+                            for (let subElement of result) {
+                                accept(subElement, count);
+                                stop = stop || interrupt(subElement, count);
+                                count++;
+                            }
                         }
-                    }
-                    else if (isSemantic(result)) {
-                        result.generator((subElement) => {
-                            accept(subElement, count);
-                            stop = stop || interrupt(subElement, count);
-                            count++;
-                        }, (element) => interrupt(element, count) || stop);
-                    }
-                }, () => stop);
+                        else if (isSemantic(result)) {
+                            result.generator((subElement) => {
+                                accept(subElement, count);
+                                stop = stop || interrupt(subElement, count);
+                                count++;
+                            }, (element) => interrupt(element, count) || stop);
+                        }
+                    }, () => stop);
+                }
+                catch (error) {
+                    throw new Error("Uncaught error on flatMap.");
+                }
             });
         }
         throw new TypeError("Invalid arguments.");
@@ -148,25 +188,35 @@ export class Semantic {
         if (isNumber(n)) {
             let limit = BigInt(n);
             return new Semantic((accept, interrupt) => {
-                let count = 0n;
-                this.generator((element, index) => {
-                    if (count < limit) {
-                        accept(element, index);
-                        count++;
-                    }
-                }, (element) => interrupt(element, count) || count >= limit);
+                try {
+                    let count = 0n;
+                    this.generator((element, index) => {
+                        if (count < limit) {
+                            accept(element, index);
+                            count++;
+                        }
+                    }, (element) => interrupt(element, count) || count >= limit);
+                }
+                catch (error) {
+                    throw new Error("Uncaught error on limit.");
+                }
             });
         }
         if (isBigInt(n)) {
             let limit = n;
             return new Semantic((accept, interrupt) => {
-                let count = 0n;
-                this.generator((element, index) => {
-                    if (count < limit) {
-                        accept(element, index);
-                        count++;
-                    }
-                }, (element) => interrupt(element, count) || count >= limit);
+                try {
+                    let count = 0n;
+                    this.generator((element, index) => {
+                        if (count < limit) {
+                            accept(element, index);
+                            count++;
+                        }
+                    }, (element) => interrupt(element, count) || count >= limit);
+                }
+                catch (error) {
+                    throw new Error("Uncaught error on limit.");
+                }
             });
         }
         throw new TypeError("Invalid arguments.");
@@ -174,12 +224,17 @@ export class Semantic {
     map(mapper) {
         if (isFunction(mapper)) {
             return new Semantic((accept, interrupt) => {
-                let stop = false;
-                this.generator((element, index) => {
-                    let resolved = mapper(element);
-                    accept(resolved, index);
-                    stop = stop || interrupt(resolved, index);
-                }, () => stop);
+                try {
+                    let stop = false;
+                    this.generator((element, index) => {
+                        let resolved = mapper(element);
+                        accept(resolved, index);
+                        stop = stop || interrupt(resolved, index);
+                    }, () => stop);
+                }
+                catch (error) {
+                    throw new Error("Uncaught error on map.");
+                }
             });
         }
         throw new TypeError("Invalid arguments.");
@@ -187,10 +242,15 @@ export class Semantic {
     peek(consumer) {
         if (isFunction(consumer)) {
             return new Semantic((accept, interrupt) => {
-                this.generator((element, index) => {
-                    accept(element, index);
-                    consumer(element, index);
-                }, interrupt);
+                try {
+                    this.generator((element, index) => {
+                        accept(element, index);
+                        consumer(element, index);
+                    }, interrupt);
+                }
+                catch (error) {
+                    throw new Error("Uncaught error on peek.");
+                }
             });
         }
         throw new TypeError("Invalid arguments.");
@@ -198,155 +258,244 @@ export class Semantic {
     redirect(redirector) {
         if (isFunction(redirector)) {
             return new Semantic((accept, interrupt) => {
-                this.generator((element, index) => {
-                    accept(element, redirector(element, index));
-                }, interrupt);
+                try {
+                    this.generator((element, index) => {
+                        accept(element, redirector(element, index));
+                    }, interrupt);
+                }
+                catch (error) {
+                    throw new Error("Uncaught error on redirect.");
+                }
             });
         }
         throw new TypeError("Invalid arguments.");
     }
     reverse() {
         return new Semantic((accept, interrupt) => {
-            this.generator((element, index) => {
-                accept(element, -index);
-            }, interrupt);
+            try {
+                this.generator((element, index) => {
+                    accept(element, -index);
+                }, interrupt);
+            }
+            catch (error) {
+                throw new Error("Uncaught error on reverse.");
+            }
         });
     }
     shuffle(mapper) {
         if (isFunction(mapper)) {
-            return new Semantic((accept, interrupt) => {
-                this.generator((element, index) => {
-                    accept(element, mapper(element, index));
-                }, interrupt);
-            });
+            try {
+                return new Semantic((accept, interrupt) => {
+                    this.generator((element, index) => {
+                        accept(element, mapper(element, index));
+                    }, interrupt);
+                });
+            }
+            catch (error) {
+                throw new Error("Uncaught error on shuffle.");
+            }
         }
         return new Semantic((accept, interrupt) => {
-            this.generator((element, index) => {
-                accept(element, useRandom(index));
-            }, interrupt);
+            try {
+                this.generator((element, index) => {
+                    accept(element, useRandom(index));
+                }, interrupt);
+            }
+            catch (error) {
+                throw new Error("Uncaught error on shuffle.");
+            }
         });
     }
     skip(n) {
         if (isNumber(n)) {
             return new Semantic((accept, interrupt) => {
-                let count = 0n;
-                let limit = BigInt(n);
-                this.generator((element, index) => {
-                    if (count < limit) {
-                        count++;
-                    }
-                    else {
-                        accept(element, index);
-                    }
-                }, interrupt);
+                try {
+                    let count = 0n;
+                    let limit = BigInt(n);
+                    this.generator((element, index) => {
+                        if (count < limit) {
+                            count++;
+                        }
+                        else {
+                            accept(element, index);
+                        }
+                    }, interrupt);
+                }
+                catch (error) {
+                    throw new Error("Uncaught error on skip.");
+                }
             });
         }
         if (isBigInt(n)) {
             return new Semantic((accept, interrupt) => {
-                let count = 0n;
-                this.generator((element, index) => {
-                    if (count < n) {
-                        count++;
-                    }
-                    else {
-                        accept(element, index);
-                    }
-                }, interrupt);
+                try {
+                    let count = 0n;
+                    this.generator((element, index) => {
+                        if (count < n) {
+                            count++;
+                        }
+                        else {
+                            accept(element, index);
+                        }
+                    }, interrupt);
+                }
+                catch (error) {
+                    throw new Error("Uncaught error on skip.");
+                }
             });
         }
         throw new TypeError("Invalid arguments.");
     }
     sorted(comparator) {
         if (isFunction(comparator)) {
-            return new OrderedCollectable(this.generator, comparator);
+            try {
+                return new OrderedCollectable(this.generator, comparator);
+            }
+            catch (error) {
+                throw new Error("Uncaught error on sorted.");
+            }
         }
-        return new OrderedCollectable(this.generator, (a, b) => useCompare(a, b));
+        try {
+            return new OrderedCollectable(this.generator, (a, b) => useCompare(a, b));
+        }
+        catch (error) {
+            throw new Error("Uncaught error on sorted.");
+        }
     }
     sub(start, end) {
         return new Semantic((accept, interrupt) => {
-            let count = 0n;
-            this.generator((element, index) => {
-                if (count < end) {
-                    count++;
-                    if (count >= start) {
-                        accept(element, index);
+            try {
+                let count = 0n;
+                this.generator((element, index) => {
+                    if (count < end) {
+                        count++;
+                        if (count >= start) {
+                            accept(element, index);
+                        }
                     }
-                }
-            }, interrupt);
+                }, interrupt);
+            }
+            catch (error) {
+                throw new Error("Uncaught error on sub.");
+            }
         });
     }
     takeWhile(predicate) {
         return new Semantic((accept, interrupt) => {
-            this.generator((element, index) => {
-                if (!predicate(element)) {
-                    interrupt(element, index);
-                    return;
-                }
-                accept(element, index);
-            }, interrupt);
+            try {
+                this.generator((element, index) => {
+                    if (!predicate(element)) {
+                        interrupt(element, index);
+                        return;
+                    }
+                    accept(element, index);
+                }, interrupt);
+            }
+            catch (error) {
+                throw new Error("Uncaught error on takeWhile.");
+            }
         });
     }
     toCollectable(mapper) {
         if (isFunction(mapper)) {
-            let collectable = mapper(this.generator);
-            if (isCollectable(collectable)) {
-                return collectable;
+            try {
+                let collectable = mapper(this.generator);
+                if (isCollectable(collectable)) {
+                    return collectable;
+                }
+            }
+            catch (error) {
+                throw new Error("Uncaught error on toCollectable.");
             }
         }
-        return new UnorderedCollectable(this.generator);
+        try {
+            return new UnorderedCollectable(this.generator);
+        }
+        catch (error) {
+            throw new Error("Uncaught error on toCollectable.");
+        }
     }
     toBigintStatistics() {
-        return new BigIntStatistics(this.generator);
+        try {
+            return new BigIntStatistics(this.generator);
+        }
+        catch (error) {
+            throw new Error("Uncaught error on toBigintStatistics.");
+        }
     }
     toNumericStatistics() {
-        return new NumericStatistics(this.generator);
+        try {
+            return new NumericStatistics(this.generator);
+        }
+        catch (error) {
+            throw new Error("Uncaught error on toNumericStatistics.");
+        }
     }
     toOrdered() {
-        return new OrderedCollectable(this.generator);
+        try {
+            return new OrderedCollectable(this.generator);
+        }
+        catch (error) {
+            throw new Error("Uncaught error on toOrdered.");
+        }
     }
     toUnordered() {
-        return new UnorderedCollectable(this.generator);
+        try {
+            return new UnorderedCollectable(this.generator);
+        }
+        catch (error) {
+            throw new Error("Uncaught error on toUnordered.");
+        }
     }
     toWindow() {
-        return new WindowCollectable(this.generator);
+        try {
+            return new WindowCollectable(this.generator);
+        }
+        catch (error) {
+            throw new Error("Uncaught error on toWindow.");
+        }
     }
     translate(argument1) {
         if (isNumber(argument1)) {
             let offset = argument1;
             return new Semantic((accept, interrupt) => {
-                this.generator((element, index) => {
-                    accept(element, index + BigInt(offset));
-                }, interrupt);
+                try {
+                    this.generator((element, index) => {
+                        accept(element, index + BigInt(offset));
+                    }, interrupt);
+                }
+                catch (error) {
+                    throw new Error("Uncaught error on translate.");
+                }
             });
         }
         else if (isBigInt(argument1)) {
             let offset = argument1;
             return new Semantic((accept, interrupt) => {
-                this.generator((element, index) => {
-                    accept(element, index + offset);
-                }, interrupt);
+                try {
+                    this.generator((element, index) => {
+                        accept(element, index + offset);
+                    }, interrupt);
+                }
+                catch (error) {
+                    throw new Error("Uncaught error on translate.");
+                }
             });
         }
         else if (isFunction(argument1)) {
             let translator = argument1;
             return new Semantic((accept, interrupt) => {
-                this.generator((element, index) => {
-                    accept(element, index + translator(element, index));
-                }, interrupt);
+                try {
+                    this.generator((element, index) => {
+                        accept(element, index + translator(element, index));
+                    }, interrupt);
+                }
+                catch (error) {
+                    throw new Error("Uncaught error on translate.");
+                }
             });
         }
         throw new TypeError("Invalid arguments.");
     }
 }
 ;
-;
-export let useTransform = (generator, mapper) => {
-    return (accept, interrupt) => {
-        generator((element, index) => {
-            let resolved = mapper(element, index);
-            accept(resolved, index);
-        }, (element, index) => {
-            return interrupt(mapper(element, index), index);
-        });
-    };
-};

@@ -1,7 +1,7 @@
 import type { Collectable } from "./collectable";
 import { Optional } from "./optional";
 import type { Semantic } from "./semantic";
-import { type BiFunctional, type BiPredicate, type Functional, type Predicate, type Supplier, type TriFunctional, type Generator, type TriPredicate, type Consumer, type BiConsumer } from "./utility";
+import { type BiFunctional, type BiPredicate, type Functional, type Predicate, type Supplier, type TriFunctional, type Generator, type TriPredicate, type Consumer, type BiConsumer, type Comparator } from "./utility";
 export declare class Collector<E, A, R> {
     protected identity: Supplier<A>;
     protected interrupt: Predicate<E> | BiPredicate<E, bigint> | TriPredicate<E, bigint, A>;
@@ -49,10 +49,20 @@ export interface UseError {
     <E = unknown>(prefix: string, accumulator: BiFunctional<string, E, string>, suffix: string): Collector<E, string, string>;
     <E = unknown>(prefix: string, accumulator: TriFunctional<string, E, bigint, string>, suffix: string): Collector<E, string, string>;
 }
-export declare let useError: UseLog;
+export declare let useError: UseError;
 export declare let useFindFirst: <E>() => Collector<E, Optional<E>, Optional<E>>;
 export declare let useFindAny: <E>() => Collector<E, Optional<E>, Optional<E>>;
 export declare let useFindLast: <E>() => Collector<E, Optional<E>, Optional<E>>;
+export interface UseFindMaximum {
+    <E>(): Collector<E, Optional<E>, Optional<E>>;
+    <E>(comparator: Comparator<E>): Collector<E, Optional<E>, Optional<E>>;
+}
+export declare let useFindMaximum: UseFindMaximum;
+export interface UseFindMinimum {
+    <E>(): Collector<E, Optional<E>, Optional<E>>;
+    <E>(comparator: Comparator<E>): Collector<E, Optional<E>, Optional<E>>;
+}
+export declare let useFindMinimum: UseFindMinimum;
 export interface UseForEach {
     <E>(action: Consumer<E>): Collector<E, bigint, bigint>;
     <E>(action: BiConsumer<E, bigint>): Collector<E, bigint, bigint>;
@@ -97,28 +107,95 @@ export interface UseWrite {
     <E, S = string>(stream: WritableStream<S>, accumulator: TriFunctional<WritableStream<S>, E, bigint, WritableStream<S>>): Collector<E, Promise<WritableStream<S>>, Promise<WritableStream<S>>>;
 }
 export declare let useWrite: UseWrite;
-export type NumericAverageInformation = {
+export interface UseNumericSummate {
+    <E>(): Collector<E, number, number>;
+    <E>(mapper: Functional<E, number>): Collector<E, number, number>;
+}
+export declare let useNumericSummate: UseNumericSummate;
+export interface UseBigIntSummate {
+    <E>(): Collector<E, bigint, bigint>;
+    <E>(mapper: Functional<E, bigint>): Collector<E, bigint, bigint>;
+}
+export declare let useBigIntSummate: UseBigIntSummate;
+export interface UseNumericAverage {
+    <E>(): Collector<E, NumericAverageAccumulator, number>;
+    <E>(mapper: Functional<E, number>): Collector<E, NumericAverageAccumulator, number>;
+}
+export interface NumericAverageAccumulator {
     summate: number;
     count: number;
-};
-export interface UseNumericAverage {
-    (): Collector<number, NumericAverageInformation, number>;
-    <E>(mapper: Functional<E, number>): Collector<E, NumericAverageInformation, number>;
 }
 export declare let useNumericAverage: UseNumericAverage;
-export type BigIntAverageInformation = {
+export interface UseBigIntAverage {
+    <E>(): Collector<E, BigIntAverageAccumulator, bigint>;
+    <E>(mapper: Functional<E, bigint>): Collector<E, BigIntAverageAccumulator, bigint>;
+}
+export interface BigIntAverageAccumulator {
     summate: bigint;
     count: bigint;
-};
-export interface UseBigIntAverage {
-    (): Collector<bigint, BigIntAverageInformation, bigint>;
-    <E>(mapper: Functional<E, bigint>): Collector<E, BigIntAverageInformation, bigint>;
 }
 export declare let useBigIntAverage: UseBigIntAverage;
 export declare let useFrequency: <E>() => Collector<E, Map<E, bigint>, Map<E, bigint>>;
-export interface UseNumericSummate {
-    (): Collector<number, number, number>;
-    <E>(mapper: Functional<E, number>): Collector<E, number, number>;
+export interface UseNumericMode {
+    <E>(): Collector<E, Map<number, bigint>, number>;
+    <E>(mapper: Functional<E, number>): Collector<E, Map<number, bigint>, number>;
 }
-export declare let useSummate: UseNumericSummate;
+export declare let useNumericMode: UseNumericMode;
+export interface UseBigIntMode {
+    <E>(): Collector<E, Map<bigint, bigint>, bigint>;
+    <E>(mapper: Functional<E, bigint>): Collector<E, Map<bigint, bigint>, bigint>;
+}
+export declare let useBigIntMode: UseBigIntMode;
+export interface UseNumericVariance {
+    <E>(): Collector<E, VarianceAccumulator, number>;
+    <E>(mapper: Functional<E, number>): Collector<E, VarianceAccumulator, number>;
+}
+export interface VarianceAccumulator {
+    summate: number;
+    summateOfSquares: number;
+    count: number;
+}
+export declare let useNumericVariance: UseNumericVariance;
+export interface UseBigIntVariance {
+    <E>(): Collector<E, BigIntVarianceAccumulator, bigint>;
+    <E>(mapper: Functional<E, bigint>): Collector<E, BigIntVarianceAccumulator, bigint>;
+}
+export interface BigIntVarianceAccumulator {
+    summate: bigint;
+    summateOfSquares: bigint;
+    count: bigint;
+}
+export declare let useBigIntVariance: UseBigIntVariance;
+export interface UseNumericStandardDeviation {
+    <E>(): Collector<E, StandardDeviationAccumulator, number>;
+    <E>(mapper: Functional<E, number>): Collector<E, StandardDeviationAccumulator, number>;
+}
+export interface StandardDeviationAccumulator {
+    summate: number;
+    summateOfSquares: number;
+    count: number;
+}
+export declare let useNumericStandardDeviation: UseNumericStandardDeviation;
+export interface UseBigIntStandardDeviation {
+    <E>(): Collector<E, BigIntStandardDeviationAccumulator, bigint>;
+    <E>(mapper: Functional<E, bigint>): Collector<E, BigIntStandardDeviationAccumulator, bigint>;
+}
+export interface BigIntStandardDeviationAccumulator {
+    summate: bigint;
+    summateOfSquares: bigint;
+    count: bigint;
+}
+export declare let useBigIntStandardDeviation: UseBigIntStandardDeviation;
+export interface UseNumericMedian {
+    <E>(): Collector<E, number[], number>;
+    <E>(mapper: Functional<E, number>): Collector<E, number[], number>;
+}
+export declare let useNumericMedian: UseNumericMedian;
+export interface UseBigIntMedian {
+    <E>(): Collector<E, bigint[], bigint>;
+    <E>(mapper: Functional<E, bigint>): Collector<E, bigint[], bigint>;
+}
+export declare let useBigIntMedian: UseBigIntMedian;
+export declare let useToGeneratorFunction: <E>() => Collector<E, Array<E>, globalThis.Generator<E, void, undefined>>;
+export declare let useToAsyncGeneratorFunction: <E>() => Collector<E, Array<E>, globalThis.AsyncGenerator<E, void, undefined>>;
 export {};

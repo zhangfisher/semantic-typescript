@@ -1,4 +1,5 @@
 import { isBigInt, isBoolean, isCollectable, isFunction, isIterable, isNumber, isObject, isSemantic, isString } from "./guard";
+import { useCompare, useToBigInt, useToNumber } from "./hook";
 import { Optional } from "./optional";
 import { CollectableSymbol } from "./symbol";
 import { validate, invalidate } from "./utility";
@@ -131,27 +132,7 @@ export let useCount = () => {
 };
 ;
 export let useError = (argument1, argument2, argument3) => {
-    if (invalidate(argument1) && invalidate(argument2) && invalidate(argument3)) {
-        return Collector.full(() => "[", (accumulator, element) => {
-            if (isString(accumulator) && isString(element)) {
-                return accumulator + element + ",";
-            }
-            return String(accumulator) + String(element) + ",";
-        }, (text) => {
-            let result = text.substring(0, text.length - 1) + "]";
-            console.error(result);
-            return result;
-        });
-    }
-    else if (isFunction(argument1) && invalidate(argument2) && invalidate(argument3)) {
-        let accumulator = argument1;
-        return Collector.full(() => "[", accumulator, (text) => {
-            let result = text.substring(0, text.length - 1) + "]";
-            console.error(result);
-            return result;
-        });
-    }
-    else if (isString(argument1) && isFunction(argument2) && isString(argument3)) {
+    if (isString(argument1) && isFunction(argument2) && isString(argument3)) {
         let prefix = argument1;
         let accumulator = argument2;
         let suffix = argument3;
@@ -161,8 +142,27 @@ export let useError = (argument1, argument2, argument3) => {
             return result;
         });
     }
+    else if (isFunction(argument1)) {
+        let prefix = "[";
+        let accumulator = argument2;
+        let suffix = "]";
+        return Collector.full(() => prefix, accumulator, (text) => {
+            let result = text + suffix;
+            console.error(result);
+            return result;
+        });
+    }
     else {
-        throw new TypeError("Invalid arguments.");
+        return Collector.full(() => "[", (accumulator, element) => {
+            if (isString(accumulator) && isString(element)) {
+                return accumulator + element + ",";
+            }
+            return String(accumulator) + String(element) + ",";
+        }, (text) => {
+            let result = text.substring(0, Math.max(1, text.length - 1)) + "]";
+            console.error(result);
+            return result;
+        });
     }
 };
 export let useFindFirst = () => {
@@ -188,6 +188,22 @@ export let useFindLast = () => {
         }
         return accumulator;
     }, (accumulator) => accumulator);
+};
+export let useFindMaximum = (comparator = (useCompare)) => {
+    return Collector.full(() => Optional.ofNullable(), (accumulator, element) => {
+        if (accumulator.isPresent()) {
+            return comparator(accumulator.get(), element) > 0 ? accumulator : Optional.ofNullable(element);
+        }
+        return Optional.ofNullable(element);
+    }, (result) => result);
+};
+export let useFindMinimum = (comparator = (useCompare)) => {
+    return Collector.full(() => Optional.ofNullable(), (accumulator, element) => {
+        if (accumulator.isPresent()) {
+            return comparator(accumulator.get(), element) < 0 ? accumulator : Optional.ofNullable(element);
+        }
+        return Optional.ofNullable(element);
+    }, (result) => result);
 };
 ;
 export let useForEach = (action) => {
@@ -254,27 +270,7 @@ export let useJoin = (argument1, argument2, argument3) => {
 };
 ;
 export let useLog = (argument1, argument2, argument3) => {
-    if (invalidate(argument1) && invalidate(argument2) && invalidate(argument3)) {
-        return Collector.full(() => "[", (accumulator, element) => {
-            if (isString(accumulator) && isString(element)) {
-                return accumulator + element + ",";
-            }
-            return String(accumulator) + String(element) + ",";
-        }, (text) => {
-            let result = text.substring(0, text.length - 1) + "]";
-            console.log(result);
-            return result;
-        });
-    }
-    else if (isFunction(argument1) && invalidate(argument2) && invalidate(argument3)) {
-        let accumulator = argument1;
-        return Collector.full(() => "[", accumulator, (text) => {
-            let result = text.substring(0, text.length - 1) + "]";
-            console.log(result);
-            return result;
-        });
-    }
-    else if (isString(argument1) && isFunction(argument2) && isString(argument3)) {
+    if (isString(argument1) && isFunction(argument2) && isString(argument3)) {
         let prefix = argument1;
         let accumulator = argument2;
         let suffix = argument3;
@@ -284,8 +280,28 @@ export let useLog = (argument1, argument2, argument3) => {
             return result;
         });
     }
+    else if (isFunction(argument1)) {
+        let prefix = "[";
+        let accumulator = argument2;
+        let suffix = "]";
+        return Collector.full(() => prefix, accumulator, (text) => {
+            let result = text + suffix;
+            console.log(result);
+            return result;
+        });
+    }
     else {
-        throw new TypeError("Invalid arguments.");
+        return Collector.full(() => "[", (accumulator, element) => {
+            console.log(element);
+            if (isString(accumulator) && isString(element)) {
+                return accumulator + element + ",";
+            }
+            return String(accumulator) + String(element) + ",";
+        }, (text) => {
+            let result = text.substring(0, Math.max(1, text.length - 1)) + "]";
+            console.log(result);
+            return result;
+        });
     }
 };
 export let usePartition = (count) => {
@@ -415,63 +431,59 @@ export let useWrite = (argument1, argument2) => {
     throw new TypeError("Invalid arguments.");
 };
 ;
-export let useNumericAverage = (mapper) => {
-    if (isFunction(mapper)) {
-        return Collector.full(() => {
-            return {
-                summate: 0,
-                count: 0
-            };
-        }, (information, element) => {
-            let value = mapper(element);
-            information.summate += value;
-            information.count++;
-            return information;
-        }, (information) => {
-            return information.summate / information.count;
-        });
-    }
+export let useNumericSummate = (mapper = useToNumber) => {
+    return Collector.full(() => 0, (accumulator, element) => {
+        let resolved = isNumber(element) ? element : mapper(element);
+        return accumulator + (isNumber(resolved) ? resolved : 0);
+    }, (result) => result);
+};
+;
+export let useBigIntSummate = (mapper = useToBigInt) => {
+    return Collector.full(() => 0n, (accumulator, element) => {
+        let resolved = isBigInt(element) ? element : mapper(element);
+        return accumulator + (isBigInt(resolved) ? resolved : 0n);
+    }, (result) => result);
+};
+;
+;
+export let useNumericAverage = (mapper = useToNumber) => {
     return Collector.full(() => {
         return {
             summate: 0,
             count: 0
         };
-    }, (information, element) => {
-        information.summate += element;
-        information.count++;
-        return information;
-    }, (information) => {
-        return information.summate / information.count;
+    }, (accumulator, element) => {
+        let resolved = isNumber(element) ? element : mapper(element);
+        return {
+            summate: accumulator.summate + (isNumber(resolved) ? resolved : 0),
+            count: accumulator.count + 1
+        };
+    }, (result) => {
+        if (result.count === 0) {
+            return 0;
+        }
+        return result.summate / result.count;
     });
 };
 ;
-export let useBigIntAverage = (mapper) => {
-    if (isFunction(mapper)) {
-        return Collector.full(() => {
-            return {
-                summate: 0n,
-                count: 0n
-            };
-        }, (information, element) => {
-            let value = mapper(element);
-            information.summate += value;
-            information.count++;
-            return information;
-        }, (information) => {
-            return information.summate / information.count;
-        });
-    }
+;
+export let useBigIntAverage = (mapper = useToBigInt) => {
     return Collector.full(() => {
         return {
             summate: 0n,
             count: 0n
         };
-    }, (information, element) => {
-        information.summate += element;
-        information.count++;
-        return information;
-    }, (information) => {
-        return information.summate / information.count;
+    }, (accumulator, element) => {
+        let resolved = isBigInt(element) ? element : mapper(element);
+        return {
+            summate: accumulator.summate + (isBigInt(resolved) ? resolved : 0n),
+            count: accumulator.count + 1n
+        };
+    }, (result) => {
+        if (result.count === 0n) {
+            return 0n;
+        }
+        return result.summate / result.count;
     });
 };
 export let useFrequency = () => {
@@ -482,14 +494,204 @@ export let useFrequency = () => {
     }, (map) => map);
 };
 ;
-export let useSummate = (mapper) => {
-    if (isFunction(mapper)) {
-        return Collector.full(() => 0, (summate, element) => {
-            let value = mapper(element);
-            return summate + value;
-        }, (summate) => summate);
-    }
-    return Collector.full(() => 0, (summate, element) => {
-        return summate + element;
-    }, (summate) => summate);
+export let useNumericMode = (mapper = useToNumber) => {
+    return Collector.full(() => new Map(), (map, element) => {
+        let resolved = isNumber(element) ? element : mapper(element);
+        let count = map.get(resolved) || 0n;
+        map.set(resolved, count + 1n);
+        return map;
+    }, (map) => {
+        let maxCount = 0n;
+        let mode = 0;
+        for (let [key, value] of map) {
+            if (value > maxCount) {
+                maxCount = value;
+                mode = key;
+            }
+        }
+        return mode;
+    });
+};
+;
+export let useBigIntMode = (mapper = useToBigInt) => {
+    return Collector.full(() => new Map(), (map, element) => {
+        let resolved = isBigInt(element) ? element : mapper(element);
+        let count = map.get(resolved) || 0n;
+        map.set(resolved, count + 1n);
+        return map;
+    }, (map) => {
+        let maxCount = 0n;
+        let mode = 0n;
+        for (let [key, value] of map) {
+            if (value > maxCount) {
+                maxCount = value;
+                mode = key;
+            }
+        }
+        return mode;
+    });
+};
+;
+;
+export let useNumericVariance = (mapper = useToNumber) => {
+    return Collector.full(() => {
+        return {
+            summate: 0,
+            summateOfSquares: 0,
+            count: 0
+        };
+    }, (accumulator, element) => {
+        let resolved = isNumber(element) ? element : mapper(element);
+        return {
+            summate: accumulator.summate + (isNumber(resolved) ? resolved : 0),
+            summateOfSquares: accumulator.summateOfSquares + (isNumber(resolved) ? Math.pow(resolved, 2) : 0),
+            count: accumulator.count + 1
+        };
+    }, (result) => {
+        if (result.count < 2) {
+            return 0;
+        }
+        let mean = result.summate / result.count;
+        let variance = (result.summateOfSquares / result.count) - Math.pow(mean, 2);
+        return variance;
+    });
+};
+;
+;
+export let useBigIntVariance = (mapper = useToBigInt) => {
+    return Collector.full(() => {
+        return {
+            summate: 0n,
+            summateOfSquares: 0n,
+            count: 0n
+        };
+    }, (accumulator, element) => {
+        let resolved = isBigInt(element) ? element : mapper(element);
+        return {
+            summate: accumulator.summate + (isBigInt(resolved) ? resolved : 0n),
+            summateOfSquares: accumulator.summateOfSquares + (isBigInt(resolved) ? resolved * resolved : 0n),
+            count: accumulator.count + 1n
+        };
+    }, (result) => {
+        if (result.count < 2n) {
+            return 0n;
+        }
+        let mean = result.summate / result.count;
+        let variance = (result.summateOfSquares / result.count) - (mean * mean);
+        return variance;
+    });
+};
+;
+;
+export let useNumericStandardDeviation = (mapper = useToNumber) => {
+    return Collector.full(() => {
+        return {
+            summate: 0,
+            summateOfSquares: 0,
+            count: 0
+        };
+    }, (accumulator, element) => {
+        let resolved = isNumber(element) ? element : mapper(element);
+        return {
+            summate: accumulator.summate + (isNumber(resolved) ? resolved : 0),
+            summateOfSquares: accumulator.summateOfSquares + (isNumber(resolved) ? Math.pow(resolved, 2) : 0),
+            count: accumulator.count + 1
+        };
+    }, (result) => {
+        if (result.count < 2) {
+            return 0;
+        }
+        let mean = result.summate / result.count;
+        let variance = (result.summateOfSquares / result.count) - Math.pow(mean, 2);
+        let standardDeviation = Math.sqrt(variance);
+        return standardDeviation;
+    });
+};
+;
+;
+export let useBigIntStandardDeviation = (mapper = useToBigInt) => {
+    return Collector.full(() => {
+        return {
+            summate: 0n,
+            summateOfSquares: 0n,
+            count: 0n
+        };
+    }, (accumulator, element) => {
+        let resolved = isBigInt(element) ? element : mapper(element);
+        return {
+            summate: accumulator.summate + (isBigInt(resolved) ? resolved : 0n),
+            summateOfSquares: accumulator.summateOfSquares + (isBigInt(resolved) ? resolved * resolved : 0n),
+            count: accumulator.count + 1n
+        };
+    }, (result) => {
+        if (result.count < 2n) {
+            return 0n;
+        }
+        let mean = result.summate / result.count;
+        let variance = (result.summateOfSquares / result.count) - (mean * mean);
+        let standardDeviation = BigInt(Math.sqrt(Number(variance)));
+        return standardDeviation;
+    });
+};
+;
+export let useNumericMedian = (mapper = useToNumber) => {
+    return Collector.full(() => [], (array, element) => {
+        let resolved = isNumber(element) ? element : mapper(element);
+        array.push(resolved);
+        array.sort((a, b) => a - b);
+        return array;
+    }, (array) => {
+        let length = array.length;
+        if (length % 2 === 0) {
+            let mid = length / 2;
+            return (array[mid - 1] + array[mid]) / 2;
+        }
+        else {
+            let mid = Math.floor(length / 2);
+            return array[mid];
+        }
+    });
+};
+;
+export let useBigIntMedian = (mapper = useToBigInt) => {
+    return Collector.full(() => [], (array, element) => {
+        let resolved = isBigInt(element) ? element : mapper(element);
+        array.push(resolved);
+        array.sort((a, b) => Number(a - b));
+        return array;
+    }, (array) => {
+        let length = array.length;
+        if (length % 2 === 0) {
+            let mid = length / 2;
+            return (array[Number(mid - 1)] + array[mid]) / 2n;
+        }
+        else {
+            let mid = Math.floor(length / 2);
+            return array[mid];
+        }
+    });
+};
+export let useToGeneratorFunction = () => {
+    return Collector.full(() => [], (array, element) => {
+        array.push(element);
+        return array;
+    }, (array) => {
+        return (function* () {
+            for (let element of array) {
+                yield element;
+            }
+        })();
+    });
+};
+export let useToAsyncGeneratorFunction = () => {
+    return Collector.full(() => [], (array, element) => {
+        array.push(element);
+        return array;
+    }, (array) => {
+        return (async function* () {
+            for (let element of array) {
+                yield element;
+            }
+        })();
+    });
 };

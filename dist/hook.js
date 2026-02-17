@@ -1,5 +1,5 @@
 import { useToArray } from "./collector";
-import { isFunction, isIterable, isNumber, isObject, isPrimitive } from "./guard";
+import { isBigInt, isFunction, isIterable, isNumber, isObject, isPrimitive } from "./guard";
 import { validate } from "./utility";
 export let useCompare = (t1, t2) => {
     if (t1 === t2 || Object.is(t1, t2)) {
@@ -164,4 +164,17 @@ export let useArrange = (source, comparator) => {
         }
     }
     return useGenerator([]);
+};
+export let useToNumber = (target) => {
+    if (isNumber(target)) {
+        return target;
+    }
+    let resolved = Reflect.apply(Reflect.get(target, Symbol.toPrimitive), target, ["default"]);
+    return isNumber(resolved) ? resolved : 0;
+};
+export let useToBigInt = (target) => {
+    if (isBigInt(target)) {
+        return target;
+    }
+    return BigInt(useToNumber(target));
 };

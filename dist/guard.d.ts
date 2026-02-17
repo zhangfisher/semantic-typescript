@@ -22,4 +22,6 @@ export declare let isStatistics: (t: unknown) => t is Statistics<unknown, number
 export declare let isNumericStatistics: (t: unknown) => t is Statistics<unknown, number | bigint>;
 export declare let isBigIntStatistics: (t: unknown) => t is Statistics<unknown, number | bigint>;
 export declare let isPromise: (t: unknown) => t is Promise<unknown>;
-export declare let isAsync: (t: unknown) => t is AsyncFunction;
+export declare let isAsyncFunction: (t: unknown) => t is AsyncFunction;
+export declare let isGeneratorFunction: (t: unknown) => t is Generator<unknown, unknown, unknown>;
+export declare let isAsyncGeneratorFunction: (t: unknown) => t is AsyncGenerator<unknown, unknown, unknown>;
