@@ -163,7 +163,7 @@ if(isIterable(value)){
 |------|------|------------|------------|
 | `useCompare<T>(t1: T, t2: T): number` | Generic comparison function | O(1) | O(1) |
 | `useRandom<T = number \| bigint>(index: T): T` | Pseudo-random number generator | O(log n) | O(1) |
-| `useTraverse(t, callback)` | Deep traverse an object without cyclic references | O(n) | O(1) |
+| `useTraverse(t, callback: BiPredicate<keyof T, T[keyof T]>)` | Deep traverse an object without cyclic references | O(n) | O(1) |
 | `useToNumber(t: unknown): number` | Convert a value to a number | O(1) | O(1) |
 | `useToBigInt(t: unknown): bigint` | Convert a value to a BigInt | O(1) | O(1) |
 
@@ -228,30 +228,30 @@ console.log(empty.get(100)); // Outputs 100
 
 | Method | Description | Time Complexity | Space Complexity |
 |------|------|------------|------------|
-| `Collector.full(identity, accumulator, finisher)` | Create a full collector | O(1) | O(1) |
-| `Collector.shortable(identity, interruptor, accumulator, finisher)` | Create an interruptible collector | O(1) | O(1) |
-| `useAnyMatch<E>(predicate)` | Create a shortable collector returning true if any element matches the predicate | O(n) | O(1) |
-| `useAllMatch<E>(predicate)` | Create a shortable collector returning true if all elements match the predicate | O(n) | O(1) |
-| `useCollect<E, A, R>(identity, accumulator, finisher)` | Create a full collector with identity, accumulator, finisher | O(1) | O(1) |
-| `useCollect<E, A, R>(identity, interruptor, accumulator, finisher)` | Create a shortable collector with identity, interruptor, accumulator, finisher | O(1) | O(1) |
+| `Collector.full(identity: Supplier<A>, accumulator: TriFunctional<A, E, bigint, A>, finisher: Functional<A, R>)` | Create a full collector | O(1) | O(1) |
+| `Collector.shortable(identity: Supplier<A>, interrupt: BiPredicate<E, bigint>, accumulator: TriFunctional<A, E, bigint, A>, finisher: Functional<A, R>)` | Create an interruptible collector | O(1) | O(1) |
+| `useAnyMatch<E>(predicate: Predicate<E>)` | Create a shortable collector returning true if any element matches the predicate | O(n) | O(1) |
+| `useAllMatch<E>(predicate: Predicate<E>)` | Create a shortable collector returning true if all elements match the predicate | O(n) | O(1) |
+| `useCollect<E, A, R>(identity: Supplier<A>, accumulator: TriFunctional<A, E, bigint, A>, finisher: Functional<A, R>)` | Create a full collector with identity, accumulator, finisher | O(1) | O(1) |
+| `useCollect<E, A, R>(identity: Supplier<A>, interrupt: BiPredicate<E, bigint>, accumulator: TriFunctional<A, E, bigint, A>, finisher: Functional<A, R>)` | Create a shortable collector with identity, interrupt, accumulator, finisher | O(1) | O(1) |
 | `useCount<E>()` | Create a full collector counting elements | O(n) | O(1) |
 | `useError<E>()` | Create a collector printing an error | O(n) | O(1) |
-| `useError<E>(accumulator)` | Create a collector printing an accumulated error | O(n) | O(1) |
-| `useError<E>(prefix, accumulator, suffix)` | Create a collector printing an accumulated error with prefix and suffix | O(n) | O(1) |
+| `useError<E>(accumulator: TriFunctional<string, E, bigint, string>)` | Create a collector printing an accumulated error | O(n) | O(1) |
+| `useError<E>(prefix: string, accumulator: TriFunctional<string, E, bigint, string>, suffix: string)` | Create a collector printing an accumulated error with prefix and suffix | O(n) | O(1) |
 | `useFindFirst<E>()` | Create a shortable collector returning the first element | O(n) | O(1) |
 | `useFindAny<E>()` | Create a shortable collector returning any element | O(n) | O(1) |
 | `useFindLast<E>()` | Create a full collector returning the last element | O(n) | O(1) |
 | `useFindMaximum<E>()` | Create a full collector returning the maximum element | O(n) | O(1) |
-| `useFindMaximum<E>(comparator?)` | Create a full collector returning the maximum element | O(n) | O(1) |
+| `useFindMaximum<E>(comparator: Comparator<E>)` | Create a full collector returning the maximum element | O(n) | O(1) |
 | `useFindMinimum<E>()` | Create a full collector returning the minimum element | O(n) | O(1) |
-| `useFindMinimum<E>(comparator?)` | Create a full collector returning the minimum element | O(n) | O(1) |
-| `useForEach<E>(action)` | Create a full collector executing an action for each element | O(n) | O(1) |
-| `useNoneMatch<E>(predicate)` | Create a shortable collector returning true if no element matches the predicate | O(n) | O(1) |
-| `useGroup<E, K>(classifier)` | Create a full collector grouping elements by classifier key | O(n) | O(n) |
-| `useGroupBy<E, K, V>(keyExtractor, valueExtractor)` | Create a full collector grouping elements by key with extracted values | O(n) | O(n) |
+| `useFindMinimum<E>(comparator: Comparator<E>)` | Create a full collector returning the minimum element | O(n) | O(1) |
+| `useForEach<E>(action: BiFunctional<E, bigint>)` | Create a full collector executing an action for each element | O(n) | O(1) |
+| `useNoneMatch<E>(predicate: Predicate<E>)` | Create a shortable collector returning true if no element matches the predicate | O(n) | O(1) |
+| `useGroup<E, K>(classifier: Functional<E, K>)` | Create a full collector grouping elements by classifier key | O(n) | O(n) |
+| `useGroupBy<E, K, V>(keyExtractor: Functional<E, K>, valueExtractor: Functional<E, V>)` | Create a full collector grouping elements by key with extracted values | O(n) | O(n) |
 | `useJoin<E>()` | Create a full collector joining elements into a string with default format | O(n) | O(1) |
-| `useJoin<E>(delimiter)` | Create a full collector joining elements with delimiter | O(n) | O(1) |
-| `useJoin<E>(prefix, delimiter, suffix)` | Create a full collector joining elements with prefix, delimiter, suffix | O(n) | O(1) |
+| `useJoin<E>(delimiter: string)` | Create a full collector joining elements with delimiter | O(n) | O(1) |
+| `useJoin<E>(prefix: string, delimiter: string, suffix: string)` | Create a full collector joining elements with prefix, delimiter, suffix | O(n) | O(1) |
 | `useJoin<E>(prefix, accumulator, suffix)` | Create a full collector joining elements via custom accumulator | O(n) | O(1) |
 | `useLog<E>()` | Create a full collector logging elements to console with default format | O(n) | O(1) |
 | `useLog<E>(accumulator)` | Create a full collector logging elements via custom accumulator | O(n) | O(1) |
