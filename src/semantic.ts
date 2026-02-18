@@ -90,14 +90,16 @@ export class Semantic<E> {
         });
     }
 
-    public dropWhile(predicate: Predicate<E>): Semantic<E> {
+    public dropWhile(predicate: Predicate<E>): Semantic<E>;
+    public dropWhile(predicate: BiPredicate<E, bigint>): Semantic<E>;
+    public dropWhile(predicate: Predicate<E> | BiPredicate<E, bigint>): Semantic<E> {
         if (isFunction(predicate)) {
             return new Semantic<E>((accept: Consumer<E> | BiConsumer<E, bigint>, interrupt: Predicate<E> | BiPredicate<E, bigint>): void => {
                 try {
                     let dropping: boolean = true;
                     this.generator((element: E, index: bigint): void => {
                         if (dropping) {
-                            if (!predicate(element)) {
+                            if (!predicate(element, index)) {
                                 dropping = false;
                                 accept(element, index);
                             }
@@ -113,12 +115,14 @@ export class Semantic<E> {
         throw new TypeError("Invalid arguments.");
     }
 
+    public filter(predicate: Predicate<E>): Semantic<E>;
+    public filter(predicate: BiPredicate<E, bigint>): Semantic<E>
     public filter(predicate: Predicate<E>): Semantic<E> {
         if (isFunction(predicate)) {
             return new Semantic<E>((accept: Consumer<E> | BiConsumer<E, bigint>, interrupt: Predicate<E> | BiPredicate<E, bigint>): void => {
                 try {
                     this.generator((element: E, index: bigint): void => {
-                        if (predicate(element)) {
+                        if (predicate(element, index)) {
                             accept(element, index);
                         }
                     }, interrupt);
@@ -130,14 +134,18 @@ export class Semantic<E> {
         throw new TypeError("Invalid arguments.");
     }
 
-    public flat(mapper: Functional<E, Iterable<E> | Semantic<E>>): Semantic<E> {
+    public flat(mapper: Functional<E, Iterable<E>): Semantic<E>;
+    public flat(mapper: BiFunctional<E, bigint, Iterable<E>): Semantic<E>;
+    public flat(mapper: Functional<E, Semantic<E>>): Semantic<E>;
+    public flat(mapper: BiFunctional<E, bigint, Semantic<E>>): Semantic<E>
+    public flat(mapper: Functional<E, Iterable<E>> | BiFunctional<E, bigint, Iterable<E>> | Functional<E, Semantic<E>> | BiFunctional<E, bigint, Semantic<E>>): Semantic<E> {
         if (isFunction(mapper)) {
             return new Semantic<E>((accept: Consumer<E> | BiConsumer<E, bigint>, interrupt: Predicate<E> | BiPredicate<E, bigint>): void => {
                 try {
                     let count: bigint = 0n;
                     let stop: boolean = false;
-                    this.generator((element: E): void => {
-                        let result: Semantic<E> | Iterable<E> = mapper(element);
+                    this.generator((element: E, index: bigint): void => {
+                        let result: Semantic<E> | Iterable<E> = mapper(element, index);
                         if (isIterable(result)) {
                             for (let subElement of result) {
                                 accept(subElement, count);
@@ -160,14 +168,18 @@ export class Semantic<E> {
         throw new TypeError("Invalid arguments.");
     }
 
+    public flatMap<R>(mapper: Functional<E, Iterable<R>>): Semantic<R>;
+    public flatMap<R>(mapper: BiFunctional<E, bigint, Iterable<R>>): Semantic<R>;
+    public flatMap<R>(mapper: Functional<E, Semantic<R>>): Semantic<R>;
+    public flatMap<R>(mapper: BiFunctional<E, bigint, Semantic<R>>): Semantic<R>;
     public flatMap<R>(mapper: Functional<E, Iterable<R> | Semantic<R>>): Semantic<R> {
         if (isFunction(mapper)) {
             return new Semantic<R>((accept: Consumer<R> | BiConsumer<R, bigint>, interrupt: Predicate<R> | BiPredicate<R, bigint>): void => {
                 try {
                     let count: bigint = 0n;
                     let stop: boolean = false;
-                    this.generator((element: E): void => {
-                        let result: Semantic<R> | Iterable<R> = mapper(element);
+                    this.generator((element: E, index: bigint): void => {
+                        let result: Semantic<R> | Iterable<R> = mapper(element, index);
                         if (isIterable(result)) {
                             for (let subElement of result) {
                                 accept(subElement, count);
@@ -228,13 +240,15 @@ export class Semantic<E> {
         throw new TypeError("Invalid arguments.");
     }
 
-    public map<R>(mapper: Functional<E, R>): Semantic<R> {
+    public map<R>(mapper: Functional<E, R>): Semantic<R>;
+    public map<R>(mapper: BiFunctional<E, bigint, R>): Semantic<R>;
+    public map<R>(mapper: Functional<E, R> | BiFunctional<E, bigint, R>): Semantic<R> {
         if (isFunction(mapper)) {
             return new Semantic<R>((accept: Consumer<R> | BiConsumer<R, bigint>, interrupt: Predicate<R> | BiPredicate<R, bigint>): void => {
                 try {
                     let stop: boolean = false;
                     this.generator((element: E, index: bigint): void => {
-                        let resolved: R = mapper(element);
+                        let resolved: R = mapper(element, index);
                         accept(resolved, index);
                         stop = stop || interrupt(resolved, index);
                     }, (): boolean => stop);
@@ -391,11 +405,13 @@ export class Semantic<E> {
         });
     }
 
-    public takeWhile(predicate: Predicate<E>): Semantic<E> {
+    public takeWhile(predicate: Predicate<E>): Semantic<E>;
+    public takeWhile(predicate: BjPredicate<E, bigint>): Semantic<E>;
+    public takeWhile(predicate: Predicate<E> | BiPredicate<E, bigint>): Semantic<E> {
         return new Semantic<E>((accept: Consumer<E> | BiConsumer<E, bigint>, interrupt: Predicate<E> | BiPredicate<E, bigint>): void => {
             try {
                 this.generator((element: E, index: bigint) => {
-                    if (!predicate(element)) {
+                    if (!predicate(element, index)) {
                         interrupt(element, index);
                         return;
                     }
