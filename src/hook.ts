@@ -174,16 +174,51 @@ export let useArrange: UseArrange = <E>(source: Iterable<E> | Generator<E>, comp
 };
 
 export let useToNumber: <T = unknown>(target: T) => number = <T>(target: T): number => {
-    if (isNumber(target)) {
-        return target;
+    switch(typeof target){
+        case "number":
+            return isNumber(target) ? target : 0;
+        case "boolean":
+            return target ? 1 : 0;
+        case "string":
+            let result: number = Number(target);
+            return isNumber(result) ? result : 0;
+        case "bigint":
+            return Number(target);
+        case "object":
+            if (invalidate(target)) {
+                return 0;
+            }
+            if (Reflect.has(target, Symbol.toPrimitive)) {
+                let resolved: number = Reflect.apply(Reflect.get(target as object, Symbol.toPrimitive), target, ["default"]);
+                return isNumber(resolved) ? resolved : 0;
+            }
+            return 0;
+        default:
+            return 0;
     }
-    let resolved: number = Reflect.apply(Reflect.get(target as object, Symbol.toPrimitive), target, ["default"]);
-    return isNumber(resolved) ? resolved : 0;
 };
 
 export let useToBigInt: <T = unknown>(target: T) => bigint = <T>(target: T): bigint => {
-    if (isBigInt(target)) {
-        return target;
+    switch(typeof target){
+        case "number":
+            return isNumber(target) ? BigInt(target) : 0n;
+        case "boolean":
+            return target ? 1n : 0n;
+        case "string":
+            let regex = /^[-+]?\d+$/;
+            return regex.test(target) ? BigInt(target) : 0n;
+        case "bigint":
+            return target;
+        case "object":
+            if (invalidate(target)) {
+                return 0n;
+            }
+            if (Reflect.has(target, Symbol.toPrimitive)) {
+                let resolved: bigint = Reflect.apply(Reflect.get(target as object, Symbol.toPrimitive), target, ["default"]);
+                return isBigInt(resolved) ? resolved : 0n;
+            }
+            return 0n;
+        default:
+            return 0n;
     }
-    return BigInt(useToNumber(target));
 };
