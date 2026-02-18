@@ -58,29 +58,17 @@ export class Semantic<E> {
     }
 
     public distinct(): Semantic<E>;
-    public distinct(comparator: Comparator<E>): Semantic<E>;
-    public distinct(comparator?: Comparator<E>): Semantic<E> {
-        if (validate(comparator)) {
-            return new Semantic<E>((accept: Consumer<E> | BiConsumer<E, bigint>, interrupt: Predicate<E> | BiPredicate<E, bigint>): void => {
-                try {
-                    let array: Array<E> = [];
-                    this.generator((element: E, index: bigint) => {
-                        if (!array.some((e: E) => comparator(e, element))) {
-                            array.push(element);
-                            accept(element, index);
-                        }
-                    }, interrupt);
-                } catch (error) {
-                    throw new Error("Uncaught error on distinct.");
-                }
-            });
-        }
+    public distinct<K>(key extractor: Functional<E, K>): Semantic<E>;
+    public distinct<K>(keyExtractor: BiFunctional<E, bigint, K>): Semantic<E>;
+    public distinct<K = E>(argument1?: Functional<E, K> | BiFunctional<E, bigint, K>): Semantic<E> {
+        let keyExtractor: Functional<E, K> | BiFunctional<E, bigint, K> = validate(argument1) ? argument1 : (element: E): K => element as unknown as K;
         return new Semantic<E>((accept, interrupt) => {
             try {
-                let set: Set<E> = new Set<E>();
+                let set: Set<K> = new Set<K>();
                 this.generator((element: E, index: bigint) => {
-                    if (!set.has(element)) {
-                        set.add(element);
+                    let key: K = keyExtractor(element, index);
+                    if (!set.has(key)) {
+                        set.add(key);
                         accept(element, index);
                     }
                 }, interrupt);
