@@ -29,6 +29,13 @@ export let isBigInt: (t: unknown) => t is bigint = (t: unknown): t is bigint => 
 export let isPrimitive: (t: MaybePrimitive<unknown>) => t is Primitive = (t: MaybePrimitive<unknown>): t is Primitive => {
     return isBoolean(t) || isString(t) || isNumber(t) || isSymbol(t) || isBigInt(t) || isFunction(t);
 };
+
+export let isAsyncIterable: (t: unknown) => t is Iterable<unknown> = (t: unknown): t is Iterable<unknown> => {
+    if (isObject(t)) {
+        return isFunction(Reflect.get(t, Symbol.asyncIterator));
+    }
+    return false;
+};
 export let isIterable: (t: unknown) => t is Iterable<unknown> = (t: unknown): t is Iterable<unknown> => {
     if (isObject(t)) {
         return isFunction(Reflect.get(t, Symbol.iterator));
