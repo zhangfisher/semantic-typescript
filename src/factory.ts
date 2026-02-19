@@ -1,4 +1,4 @@
-import { isBigInt, isFunction, isIterable, isNumber, isObject, isPromise } from "./guard";
+import { isBigInt, isFunction, isIterable, isNumber, isObject, isPromise, isAayncIterable } from "./guard";
 import { useCompare, useTraverse } from "./hook";
 import { Semantic } from "./semantic";
 import { invalidate, validate } from "./utility";
@@ -150,12 +150,31 @@ export let fill: (<E>(element: E, count: bigint) => Semantic<E>) & (<E>(supplier
     throw new TypeError("Invalid arguments.");
 };
 
-export let from: <E>(iterable: Iterable<E>) => Semantic<E> = <E>(iterable: Iterable<E>): Semantic<E> => {
+export interface From{
+    <E>(iterable: Iterable<E>): Semantic<E>;
+    <E>(iterable: AsyncIterable<E>): Semantic<E>;
+};
+export let from: From = <E>(iterable: Iterable<E> | AsyncIterable<E>): Semantic<E> => {
     if (isIterable(iterable)) {
         return new Semantic<E>((accept: Consumer<E> | BiConsumer<E, bigint>, interrupt: Predicate<E> | BiPredicate<E, bigint>) => {
             try {
                 let index: bigint = 0n;
                 for (let element of iterable) {
+                    if (interrupt(element, index)) {
+                        break;
+                    }
+                    accept(element, index);
+                    index++;
+                }
+            } catch (error) {
+                throw new Error("Uncaught error as creating from semantic.");
+            }
+        });
+    } else if (isAsyncIterable(iterable)) {
+        return new Semantic<E>((accept: Consumer<E> | BiConsumer<E, bigint>, interrupt: Predicate<E> | BiPredicate<E, bigint>) => {
+            try {
+                let index: bigint = 0n;
+                for await (let element of iterable) {
                     if (interrupt(element, index)) {
                         break;
                     }
