@@ -67,9 +67,9 @@ export let isOrderedCollectable: (t: unknown) => t is OrderedCollectable<unknown
     }
     return false;
 };
-export let isWindowCollectable: (t: unknown) => t is OrderedCollectable<unknown> = (t: unknown): t is OrderedCollectable<unknown> => {
+export let isWindowCollectable: (t: unknown) => t is WindowCollectable<unknown> = (t: unknown): t is WindowCollectable<unknown> => {
     if (isObject(t)) {
-        return Reflect.get(t, "WindowCollectable") === OrderedCollectableSymbol;
+        return Reflect.get(t, "WindowCollectable") === WindowCollectableSymbol;
     }
     return false;
 };
