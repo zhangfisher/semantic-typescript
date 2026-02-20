@@ -104,7 +104,7 @@ export class Semantic<E> {
     }
 
     public filter(predicate: Predicate<E>): Semantic<E>;
-    public filter(predicate: BiPredicate<E, bigint>): Semantic<E>
+    public filter(predicate: BiPredicate<E, bigint>): Semantic<E>;
     public filter(predicate: Predicate<E> | BiPredicate<E, bigint>): Semantic<E> {
         if (isFunction(predicate)) {
             return new Semantic<E>((accept: Consumer<E> | BiConsumer<E, bigint>, interrupt: Predicate<E> | BiPredicate<E, bigint>): void => {
@@ -125,7 +125,7 @@ export class Semantic<E> {
     public flat(mapper: Functional<E, Iterable<E>): Semantic<E>;
     public flat(mapper: BiFunctional<E, bigint, Iterable<E>): Semantic<E>;
     public flat(mapper: Functional<E, Semantic<E>>): Semantic<E>;
-    public flat(mapper: BiFunctional<E, bigint, Semantic<E>>): Semantic<E>
+    public flat(mapper: BiFunctional<E, bigint, Semantic<E>>): Semantic<E>;
     public flat(mapper: Functional<E, Iterable<E>> | BiFunctional<E, bigint, Iterable<E>> | Functional<E, Semantic<E>> | BiFunctional<E, bigint, Semantic<E>>): Semantic<E> {
         if (isFunction(mapper)) {
             return new Semantic<E>((accept: Consumer<E> | BiConsumer<E, bigint>, interrupt: Predicate<E> | BiPredicate<E, bigint>): void => {
