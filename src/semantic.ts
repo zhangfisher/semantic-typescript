@@ -58,7 +58,7 @@ export class Semantic<E> {
     }
 
     public distinct(): Semantic<E>;
-    public distinct<K>(key extractor: Functional<E, K>): Semantic<E>;
+    public distinct<K>(keyExtractor: Functional<E, K>): Semantic<E>;
     public distinct<K>(keyExtractor: BiFunctional<E, bigint, K>): Semantic<E>;
     public distinct<K = E>(argument1?: Functional<E, K> | BiFunctional<E, bigint, K>): Semantic<E> {
         let keyExtractor: Functional<E, K> | BiFunctional<E, bigint, K> = validate(argument1) ? argument1 : (element: E): K => element as unknown as K;
@@ -105,7 +105,7 @@ export class Semantic<E> {
 
     public filter(predicate: Predicate<E>): Semantic<E>;
     public filter(predicate: BiPredicate<E, bigint>): Semantic<E>
-    public filter(predicate: Predicate<E>): Semantic<E> {
+    public filter(predicate: Predicate<E> | BiPredicate<E, bigint>): Semantic<E> {
         if (isFunction(predicate)) {
             return new Semantic<E>((accept: Consumer<E> | BiConsumer<E, bigint>, interrupt: Predicate<E> | BiPredicate<E, bigint>): void => {
                 try {
