@@ -19,6 +19,15 @@ export abstract class Statistics<E, D extends number | bigint> extends OrderedCo
     public constructor(generator: Generator<E>, comparator: Comparator<E>);
     public constructor(parameter: Generator<E>, comparator?: Comparator<E>) {
         super(parameter, comparator || useCompare);
+        Object.defineProperties(this, {
+            "Statistics": {
+                value: StatisticsSymbol,
+                enumerable: false,
+                writable: false,
+                configurable: false
+            }
+        });
+        Object.freeze(this);
     }
 
     public override *[Symbol.iterator](): globalThis.Generator<E, void, undefined> {
@@ -83,6 +92,9 @@ export abstract class Statistics<E, D extends number | bigint> extends OrderedCo
     public abstract kurtosis(): D;
     public abstract kurtosis(mapper: Functional<E, D>): D;
 };
+Object.freeze(Statistics);
+Object.freeze(Statistics.prototype);
+Object.freeze(Object.getPrototypeOf(Statistics));
 
 export class NumericStatistics<E> extends Statistics<E, number> {
 
@@ -92,6 +104,15 @@ export class NumericStatistics<E> extends Statistics<E, number> {
     public constructor(generator: Generator<E>, comparator: Comparator<E>);
     public constructor(parameter: Generator<E>, comparator?: Comparator<E>) {
         super(parameter, comparator || useCompare);
+        Object.defineProperties(this, {
+            "NumericStatistics": {
+                value: NumericStatisticsSymbol,
+                enumerable: false,
+                writable: false,
+                configurable: false
+            }
+        });
+        Object.freeze(this);
     }
 
     public override *[Symbol.iterator](): globalThis.Generator<E, void, undefined> {
@@ -318,6 +339,9 @@ export class NumericStatistics<E> extends Statistics<E, number> {
         }
     }
 };
+Object.freeze(NumericStatistics);
+Object.freeze(NumericStatistics.prototype);
+Object.freeze(Object.getPrototypeOf(NumericStatistics));
 
 export class BigIntStatistics<E> extends Statistics<E, bigint> {
 
@@ -327,6 +351,15 @@ export class BigIntStatistics<E> extends Statistics<E, bigint> {
     public constructor(generator: Generator<E>, comparator: Comparator<E>);
     public constructor(parameter: Generator<E>, comparator?: Comparator<E>) {
         super(parameter, comparator || useCompare);
+        Object.defineProperties(this, {
+            "BigIntStatistics": {
+                value: BigIntStatisticsSymbol,
+                enumerable: false,
+                writable: false,
+                configurable: false 
+            }
+        });
+        Object.freeze(this);
     }
 
     public override *[Symbol.iterator](): globalThis.Generator<E, void, undefined> {
@@ -550,3 +583,6 @@ export class BigIntStatistics<E> extends Statistics<E, bigint> {
         }
     }
 };
+Object.freeze(BigIntStatistics);
+Object.freeze(BigIntStatistics.prototype);
+Object.freeze(Object.getPrototypeOf(BigIntStatistics));

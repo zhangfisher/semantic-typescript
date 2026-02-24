@@ -1,8 +1,10 @@
-import { Collector, useAllMatch, useAnyMatch, useCollect, useCount, useError, useFindAny, useFindFirst, useFindLast, useFindMaximum, useFindMinimum, useForEach, useGroup, useGroupBy, useJoin, useLog, useNoneMatch, usePartition, usePartitionBy, useReduce, useToArray, useToAsyncGeneratorFunction, useToGeneratorFunction, useToMap, useToSet, useWrite } from "./collector";
-import { isBigInt, isCollector, isFunction, isObject, isString } from "./guard";
+import { Collector, useAllMatch, useAnyMatch, useCollect, useCount, useError, useFindAny, useFindAt, useFindFirst, useFindLast, useFindMaximum, useFindMinimum, useForEach, useGroup, useGroupBy, useJoin, useLog, useNoneMatch, usePartition, usePartitionBy, useReduce, useToArray, useToAsyncGeneratorFunction, useToGeneratorFunction, useToHashMap, useToHashSet, useToMap, useToSet, useWrite } from "./collector";
+import { isBigInt, isCollector, isFunction, isNumber, isObject, isString } from "./guard";
 import { useCompare } from "./hook";
+import type { HashMap } from "./map";
 import { Optional } from "./optional";
 import { Semantic } from "./semantic";
+import type { HashSet } from "./set";
 import { CollectableSymbol, OrderedCollectableSymbol, UnorderedCollectableSymbol } from "./symbol";
 import { invalidate, validate } from "./utility";
 import type {
@@ -16,7 +18,13 @@ export abstract class Collectable<E> implements Iterable<E>, AsyncIterable<E> {
     protected readonly Collectable: symbol = CollectableSymbol;
 
     public constructor() {
-
+        Object.defineProperty(this, "Collectable", {
+            value: CollectableSymbol,
+            enumerable: false,
+            writable: false,
+            configurable: false
+        });
+        Object.freeze(this);
     }
 
     public abstract [Symbol.iterator](): globalThis.Generator<E, void, undefined>;
@@ -121,6 +129,25 @@ export abstract class Collectable<E> implements Iterable<E>, AsyncIterable<E> {
         }
     }
 
+    public findAt(index: number): Optional<E>;
+    public findAt(index: bigint): Optional<E>;
+    public findAt(index: number | bigint): Optional<E> {
+        if (isBigInt(index)) {
+            try {
+                return useFindAt<E>(index).collect(this.source());
+            } catch (error) {
+                throw new Error("Uncaught error on findAt.");
+            }
+        } else if (isNumber(index)) {
+            try {
+                return useFindAt<E>(index).collect(this.source());
+            } catch (error) {
+                throw new Error("Uncaught error on findAt.");
+            }
+        }
+        throw new TypeError("Index must be a bigint.");
+    }
+
     public findFirst(): Optional<E> {
         try {
             return useFindFirst<E>().collect(this.source());
@@ -173,7 +200,9 @@ export abstract class Collectable<E> implements Iterable<E>, AsyncIterable<E> {
         }
     }
 
-    public group<K>(classifier: Functional<E, K>): Map<K, Array<E>> {
+    public group<K>(classifier: Functional<E, K>): Map<K, Array<E>>;
+    public group<K>(classifier: BiFunctional<E, bigint, K>): Map<K, Array<E>>
+    public group<K>(classifier: Functional<E, K> | BiFunctional<E, bigint, K>): Map<K, Array<E>> {
         if (isFunction(classifier)) {
             try {
                 return useGroup(classifier).collect(this.source());
@@ -184,7 +213,9 @@ export abstract class Collectable<E> implements Iterable<E>, AsyncIterable<E> {
         throw new TypeError("Classifier must be a function.");
     }
 
-    public groupBy<K, V>(keyExtractor: Functional<E, K>, valueExtractor: Functional<E, V>): Map<K, Array<V>> {
+    public groupBy<K, V>(keyExtractor: Functional<E, K>, valueExtractor: Functional<E, V>): Map<K, Array<V>>;
+    public groupBy<K, V>(keyExtractor: BiFunctional<E, bigint, K>, valueExtractor: BiFunctional<E, bigint, K>): Map<K, Array<V>>
+    public groupBy<K, V>(keyExtractor: Functional<E, K> | BiFunctional<E, bigint, K>, valueExtractor: Functional<E, V> | BiFunctional<E, bigint, V>): Map<K, Array<V>> {
         if (isFunction(keyExtractor) && isFunction(valueExtractor)) {
             try {
                 return useGroupBy(keyExtractor, valueExtractor).collect(this.source());
@@ -267,7 +298,9 @@ export abstract class Collectable<E> implements Iterable<E>, AsyncIterable<E> {
         }
     }
 
-    public nonMatch(predicate: Predicate<E>): boolean {
+    public nonMatch(predicate: Predicate<E>): boolean;
+    public nonMatch(predicate: BiPredicate<E, bigint>): boolean
+    public nonMatch(predicate: Predicate<E> | BiPredicate<E, bigint>): boolean {
         if (isFunction(predicate)) {
             try {
                 return useNoneMatch(predicate).collect(this.source());
@@ -289,7 +322,9 @@ export abstract class Collectable<E> implements Iterable<E>, AsyncIterable<E> {
         throw new TypeError("Count must be a BigInt.");
     }
 
-    public partitionBy(classifier: Functional<E, bigint>): Array<Array<E>> {
+    public partitionBy(classifier: Functional<E, bigint>): Array<Array<E>>;
+    public partitionBy(classifier: BiFunctional<E, bigint, bigint>): Array<Array<E>>
+    public partitionBy(classifier: Functional<E, bigint> | BiFunctional<E, bigint, bigint>): Array<Array<E>> {
         if (isFunction(classifier)) {
             try {
                 let collector: Collector<E, Array<E[]>, Array<E[]>> = usePartitionBy(classifier);
@@ -360,11 +395,23 @@ export abstract class Collectable<E> implements Iterable<E>, AsyncIterable<E> {
         }
     }
 
-    public toMap<K, V>(keyExtractor: Functional<E, K>, valueExtractor: Functional<E, V>): Map<K, V> {
+    public toMap<K, V>(keyExtractor: Functional<E, K>, valueExtractor: Functional<E, V>): Map<K, V>;
+    public toMap<K, V>(keyExtractor: BiFunctional<E, bigint, K>, valueExtractor: BiFunctional<E, bigint, V>): Map<K, V>;
+    public toMap<K, V>(keyExtractor: Functional<E, K> | BiFunctional<E, bigint, K>, valueExtractor: Functional<E, V> | BiFunctional<E, bigint, V>): Map<K, V> {
         try {
             return useToMap<E, K, V>(keyExtractor, valueExtractor).collect(this.source());
         } catch (error) {
             throw new Error("Uncaught error on toMap.");
+        }
+    }
+
+    public toHashMap<K, V>(keyExtractor: Functional<E, K>, valueExtractor: Functional<E, V>): HashMap<K, V>;
+    public toHashMap<K, V>(keyExtractor: BiFunctional<E, bigint, K>, valueExtractor: BiFunctional<E, bigint, V>): HashMap<K, V>;
+    public toHashMap<K, V>(keyExtractor: Functional<E, K> | BiFunctional<E, bigint, K>, valueExtractor: Functional<E, V> | BiFunctional<E, bigint, V>): HashMap<K, V> {
+        try {
+            return useToHashMap<E, K, V>(keyExtractor, valueExtractor).collect(this.source());
+        } catch (error) {
+            throw new Error("Uncaught error on toHashMap.");
         }
     }
 
@@ -373,6 +420,14 @@ export abstract class Collectable<E> implements Iterable<E>, AsyncIterable<E> {
             return useToSet<E>().collect(this.source());
         } catch (error) {
             throw new Error("Uncaught error on toSet.");
+        }
+    }
+
+    public toHashSet(): HashSet<E> {
+        try {
+            return useToHashSet<E>().collect(this.source());
+        } catch (error) {
+            throw new Error("Uncaught error on toHashSet.");
         }
     }
 
@@ -396,6 +451,9 @@ export abstract class Collectable<E> implements Iterable<E>, AsyncIterable<E> {
         throw new TypeError("Invalid arguments.");
     }
 };
+Object.freeze(Collectable);
+Object.freeze(Collectable.prototype);
+Object.freeze(Object.getPrototypeOf(Collectable));
 
 export class UnorderedCollectable<E> extends Collectable<E> {
 
@@ -408,6 +466,21 @@ export class UnorderedCollectable<E> extends Collectable<E> {
         super();
         if (isFunction(argument1)) {
             this.generator = argument1;
+            Object.defineProperties(this, {
+                "UnorderedCollectable": {
+                    value: UnorderedCollectableSymbol,
+                    writable: false,
+                    enumerable: false,
+                    configurable: false
+                },
+                "generator": {
+                    value: argument1,
+                    writable: false,
+                    enumerable: false,
+                    configurable: false
+                }
+            });
+            Object.freeze(this);
         } else {
             throw new TypeError("Source must be an iterable or a generator function.");
         }
@@ -436,6 +509,9 @@ export class UnorderedCollectable<E> extends Collectable<E> {
     }
 
 };
+Object.freeze(UnorderedCollectable);
+Object.freeze(UnorderedCollectable.prototype);
+Object.freeze(Object.getPrototypeOf(UnorderedCollectable));
 
 export class OrderedCollectable<E> extends Collectable<E> {
 
@@ -468,6 +544,20 @@ export class OrderedCollectable<E> extends Collectable<E> {
                         return Number(a.index - b.index);
                     });
                 }
+                Object.defineProperties(this, {
+                    "OrderedCollectable": {
+                        value: OrderedCollectableSymbol,
+                        writable: false,
+                        enumerable: false,
+                        configurable: false
+                    },
+                    "buffer": {
+                        value: this.buffer,
+                        writable: false,
+                        enumerable: false,
+                        configurable: false
+                    }
+                });
             } catch (error) {
                 throw new Error("Uncaught error on creating buffer.");
             }
@@ -513,3 +603,6 @@ export class OrderedCollectable<E> extends Collectable<E> {
         return this.buffer.length === 0;
     }
 };
+Object.freeze(OrderedCollectable);
+Object.freeze(OrderedCollectable.prototype);
+Object.freeze(Object.getPrototypeOf(OrderedCollectable));

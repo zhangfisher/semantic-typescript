@@ -1,6 +1,8 @@
 export type Invalid<T> = T extends null | undefined ? T : never;
 export type Valid<T> = T extends null | undefined ? never : T;
 export type MaybeInvalid<T> = T | null | undefined;
+export type MaybeUndefined<T> = T | undefined;
+export type MaybeNull<T> = T | null;
 
 export let validate: <T>(t: MaybeInvalid<T>) => t is T = <T>(t: T | null | undefined): t is T => {
     return t !== null && t !== (void 0);
@@ -10,8 +12,20 @@ export let invalidate: <T>(t: MaybeInvalid<T>) => t is (null | undefined) = <T>(
     return t === null || t === (void 0);
 };
 
-export type Primitive = string | number | boolean | symbol | bigint | Function | ((...args: any[]) => any);
+export type Type = "undefined" | "null" | "boolean" | "number" | "bigint" | "symbol" | "string" | "function" | "object";
+export let typeOf: <T>(t: T) => Type = <T>(t: T): Type => {
+    if(typeof t === "object"){
+        if(t === null){
+            return "null";
+        }
+        return "object";
+    }
+    return typeof t;
+};
+
+export type Primitive = null | undefined | string | number | boolean | symbol | bigint | Function | ((...args: any[]) => any);
 export type MaybePrimitive<T> = T | Primitive;
+
 export type AsyncFunction = (...args: any[]) => Promise<unknown>;
 export type DeepPropertyKey<T extends object> = {
     [K in keyof T]: T[K] extends object? DeepPropertyKey<T[K]> : K;
@@ -19,6 +33,10 @@ export type DeepPropertyKey<T extends object> = {
 export type DeepPropertyValue<T extends object> = {
     [K in keyof T]: T[K] extends object? DeepPropertyValue<T[K]> : T[K];
 };
+
+export interface Constructor<T>{
+    new (...args: any[]): T;
+}
 
 export interface Runnable {
     (): void;

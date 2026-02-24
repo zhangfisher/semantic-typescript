@@ -12,6 +12,21 @@ export class Optional<T> {
 
     protected constructor(value: MaybeInvalid<T>) {
         this.value = value;
+        Object.defineProperties(this, {
+            "Optional": {
+                value: OptionalSymbol,
+                writable: false,
+                enumerable: false,
+                configurable: false
+            },
+            "value": {
+                value: value,
+                writable: false,
+                enumerable: false,
+                configurable: false
+            }
+        });
+        Object.freeze(this);
     }
 
     public filter(predicate: Predicate<T>): Optional<T> {
@@ -61,7 +76,7 @@ export class Optional<T> {
     }
 
     public semantic(): Semantic<T> {
-        if(this.isPresent()){
+        if (this.isPresent()) {
             return generate((): T => {
                 return this.value as T;
             }, (): boolean => {
@@ -90,3 +105,6 @@ export class Optional<T> {
         throw new TypeError("Value is not valid");
     }
 };
+Object.freeze(Optional);
+Object.freeze(Optional.prototype);
+Object.freeze(Object.getPrototypeOf(Optional));

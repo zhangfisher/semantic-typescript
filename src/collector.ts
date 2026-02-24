@@ -1,8 +1,10 @@
 import type { Collectable } from "./collectable";
 import { isBigInt, isBoolean, isCollectable, isFunction, isIterable, isNumber, isObject, isSemantic, isString } from "./guard";
 import { useCompare, useToBigInt, useToNumber } from "./hook";
+import { HashMap } from "./map";
 import { Optional } from "./optional";
 import type { Semantic } from "./semantic";
+import { HashSet } from "./set";
 import { CollectableSymbol } from "./symbol";
 import { type BiFunctional, type BiPredicate, type Functional, type Predicate, type Supplier, type TriFunctional, type Generator, type TriPredicate, validate, type Consumer, type BiConsumer, invalidate, type Comparator } from "./utility";
 
@@ -18,16 +20,49 @@ export class Collector<E, A, R> {
 
     protected readonly Collector: symbol = CollectableSymbol;
 
-    protected constructor(identity: Supplier<A>, interruptor: Predicate<E>, accumulator: BiFunctional<A, E, A>, finisher: Functional<A, R>);
-    protected constructor(identity: Supplier<A>, interruptor: BiPredicate<E, bigint>, accumulator: BiFunctional<A, E, A>, finisher: Functional<A, R>);
-    protected constructor(identity: Supplier<A>, interruptor: Predicate<E>, accumulator: TriFunctional<A, E, bigint, A>, finisher: Functional<A, R>);
-    protected constructor(identity: Supplier<A>, interruptor: BiPredicate<E, bigint>, accumulator: TriFunctional<A, E, bigint, A>, finisher: Functional<A, R>);
-    protected constructor(identity: Supplier<A>, interruptor: Predicate<E> | BiPredicate<E, bigint>, accumulator: BiFunctional<A, E, A> | TriFunctional<A, E, bigint, A>, finisher: Functional<A, R>) {
-        if (isFunction(identity) && isFunction(interruptor) && isFunction(accumulator) && isFunction(finisher)) {
+    protected constructor(identity: Supplier<A>, interrupt: Predicate<E>, accumulator: BiFunctional<A, E, A>, finisher: Functional<A, R>);
+    protected constructor(identity: Supplier<A>, interrupt: BiPredicate<E, bigint>, accumulator: BiFunctional<A, E, A>, finisher: Functional<A, R>);
+    protected constructor(identity: Supplier<A>, interrupt: Predicate<E>, accumulator: TriFunctional<A, E, bigint, A>, finisher: Functional<A, R>);
+    protected constructor(identity: Supplier<A>, interrupt: BiPredicate<E, bigint>, accumulator: TriFunctional<A, E, bigint, A>, finisher: Functional<A, R>);
+    protected constructor(identity: Supplier<A>, interrupt: Predicate<E> | BiPredicate<E, bigint>, accumulator: BiFunctional<A, E, A> | TriFunctional<A, E, bigint, A>, finisher: Functional<A, R>) {
+        if (isFunction(identity) && isFunction(interrupt) && isFunction(accumulator) && isFunction(finisher)) {
             this.identity = identity;
-            this.interrupt = interruptor;
+            this.interrupt = interrupt;
             this.accumulator = accumulator;
             this.finisher = finisher;
+            Object.defineProperties(this, {
+                "identity": {
+                    value: identity,
+                    writable: false,
+                    enumerable: true,
+                    configurable: false
+                },
+                "interrupt": {
+                    value: interrupt,
+                    writable: false,
+                    enumerable: true,
+                    configurable: false
+                },
+                "accumulator": {
+                    value: accumulator,
+                    writable: false,
+                    enumerable: true,
+                    configurable: false
+                },
+                "finisher": {
+                    value: finisher,
+                    writable: false,
+                    enumerable: true,
+                    configurable: false
+                },
+                "Collector": {
+                    value: CollectableSymbol,
+                    writable: false,
+                    enumerable: false,
+                    configurable: false
+                }
+            });
+            Object.freeze(this);
         } else {
             throw new TypeError("Invalid arguments");
         }
@@ -110,35 +145,43 @@ export class Collector<E, A, R> {
         return new Collector(identity, () => false, accumulator, finisher);
     }
 
-    public static shortable<E, A, R>(identity: Supplier<A>, interruptor: Predicate<E>, accumulator: BiFunctional<A, E, A>, finisher: Functional<A, R>): Collector<E, A, R>;
-    public static shortable<E, A, R>(identity: Supplier<A>, interruptor: Predicate<E>, accumulator: TriFunctional<A, E, bigint, A>, finisher: Functional<A, R>): Collector<E, A, R>;
-    public static shortable<E, A, R>(identity: Supplier<A>, interruptor: BiPredicate<E, bigint>, accumulator: BiFunctional<A, E, A>, finisher: Functional<A, R>): Collector<E, A, R>;
-    public static shortable<E, A, R>(identity: Supplier<A>, interruptor: BiPredicate<E, bigint>, accumulator: TriFunctional<A, E, bigint, A>, finisher: Functional<A, R>): Collector<E, A, R>;
-    public static shortable<E, A, R>(identity: Supplier<A>, interruptor: TriPredicate<E, bigint, A>, accumulator: BiFunctional<A, E, A>, finisher: Functional<A, R>): Collector<E, A, R>;
-    public static shortable<E, A, R>(identity: Supplier<A>, interruptor: TriPredicate<E, bigint, A>, accumulator: TriFunctional<A, E, bigint, A>, finisher: Functional<A, R>): Collector<E, A, R>
-    public static shortable<E, A, R>(identity: Supplier<A>, interruptor: Predicate<E> | BiPredicate<E, bigint>, accumulator: BiFunctional<A, E, A> | TriFunctional<A, E, bigint, A>, finisher: Functional<A, R>): Collector<E, A, R> {
-        return new Collector<E, A, R>(identity, interruptor, accumulator, finisher);
+    public static shortable<E, A, R>(identity: Supplier<A>, interrupt: Predicate<E>, accumulator: BiFunctional<A, E, A>, finisher: Functional<A, R>): Collector<E, A, R>;
+    public static shortable<E, A, R>(identity: Supplier<A>, interrupt: Predicate<E>, accumulator: TriFunctional<A, E, bigint, A>, finisher: Functional<A, R>): Collector<E, A, R>;
+    public static shortable<E, A, R>(identity: Supplier<A>, interrupt: BiPredicate<E, bigint>, accumulator: BiFunctional<A, E, A>, finisher: Functional<A, R>): Collector<E, A, R>;
+    public static shortable<E, A, R>(identity: Supplier<A>, interrupt: BiPredicate<E, bigint>, accumulator: TriFunctional<A, E, bigint, A>, finisher: Functional<A, R>): Collector<E, A, R>;
+    public static shortable<E, A, R>(identity: Supplier<A>, interrupt: TriPredicate<E, bigint, A>, accumulator: BiFunctional<A, E, A>, finisher: Functional<A, R>): Collector<E, A, R>;
+    public static shortable<E, A, R>(identity: Supplier<A>, interrupt: TriPredicate<E, bigint, A>, accumulator: TriFunctional<A, E, bigint, A>, finisher: Functional<A, R>): Collector<E, A, R>
+    public static shortable<E, A, R>(identity: Supplier<A>, interrupt: Predicate<E> | BiPredicate<E, bigint>, accumulator: BiFunctional<A, E, A> | TriFunctional<A, E, bigint, A>, finisher: Functional<A, R>): Collector<E, A, R> {
+        return new Collector<E, A, R>(identity, interrupt, accumulator, finisher);
     }
 };
 
-export let useAnyMatch: <E>(predicate: Predicate<E>) => Collector<E, boolean, boolean> = <E>(predicate: Predicate<E>): Collector<E, boolean, boolean> => {
+interface UseAnyMatch {
+    <E>(predicate: Predicate<E>): Collector<E, boolean, boolean>;
+    <E>(predicate: BiPredicate<E, bigint>): Collector<E, boolean, boolean>;
+};
+export let useAnyMatch: UseAnyMatch = <E>(predicate: Predicate<E> | BiPredicate<E, bigint>): Collector<E, boolean, boolean> => {
     if (isFunction(predicate)) {
         return Collector.shortable(
             (): boolean => false,
             (_element: E, _index: bigint, accumulator: boolean): boolean => isBoolean(accumulator) && accumulator,
-            (accumulator: boolean, element: E): boolean => accumulator || predicate(element),
+            (accumulator: boolean, element: E, index: bigint): boolean => accumulator || predicate(element, index),
             (accumulator: boolean): boolean => accumulator
         );
     }
     throw new TypeError("Predicate must be a function.");
 };
 
-export let useAllMatch: <E>(predicate: Predicate<E>) => Collector<E, boolean, boolean> = <E>(predicate: Predicate<E>): Collector<E, boolean, boolean> => {
+interface UseAllMatch {
+    <E>(predicate: Predicate<E>): Collector<E, boolean, boolean>;
+    <E>(predicate: BiPredicate<E, bigint>): Collector<E, boolean, boolean>;
+};
+export let useAllMatch: UseAllMatch = <E>(predicate: Predicate<E> | BiPredicate<E, bigint>): Collector<E, boolean, boolean> => {
     if (isFunction(predicate)) {
         return Collector.shortable(
             (): boolean => true,
             (_element: E, _index: bigint, accumulator: boolean): boolean => isBoolean(accumulator) && !accumulator,
-            (accumulator: boolean, element: E): boolean => accumulator && predicate(element),
+            (accumulator: boolean, element: E, index: bigint): boolean => accumulator && predicate(element, index),
             (accumulator: boolean): boolean => accumulator
         );
     }
@@ -149,14 +192,13 @@ interface UseCollect {
     <E, A, R>(identity: Supplier<A>, accumulator: BiFunctional<A, E, A>, finisher: Functional<A, R>): Collector<E, A, R>;
     <E, A, R>(identity: Supplier<A>, accumulator: TriFunctional<A, E, bigint, A>, finisher: Functional<A, R>): Collector<E, A, R>;
     <E, A, R>(identity: Supplier<A>, accumulator: BiFunctional<A, E, A> | TriFunctional<A, E, bigint, A>, finisher: Functional<A, R>): Collector<E, A, R>;
-    <E, A, R>(identity: Supplier<A>, interruptor: Predicate<E>, accumulator: BiFunctional<A, E, A>, finisher: Functional<A, R>): Collector<E, A, R>;
-    <E, A, R>(identity: Supplier<A>, interruptor: Predicate<E>, accumulator: TriFunctional<A, E, bigint, A>, finisher: Functional<A, R>): Collector<E, A, R>;
-    <E, A, R>(identity: Supplier<A>, interruptor: BiPredicate<E, bigint>, accumulator: BiFunctional<A, E, A>, finisher: Functional<A, R>): Collector<E, A, R>;
-    <E, A, R>(identity: Supplier<A>, interruptor: BiPredicate<E, bigint>, accumulator: TriFunctional<A, E, bigint, A>, finisher: Functional<A, R>): Collector<E, A, R>;
-    <E, A, R>(identity: Supplier<A>, interruptor: TriPredicate<E, bigint, A>, accumulator: BiFunctional<A, E, A>, finisher: Functional<A, R>): Collector<E, A, R>;
-    <E, A, R>(identity: Supplier<A>, interruptor: TriPredicate<E, bigint, A>, accumulator: TriFunctional<A, E, bigint, A>, finisher: Functional<A, R>): Collector<E, A, R>;
+    <E, A, R>(identity: Supplier<A>, interrupt: Predicate<E>, accumulator: BiFunctional<A, E, A>, finisher: Functional<A, R>): Collector<E, A, R>;
+    <E, A, R>(identity: Supplier<A>, interrupt: Predicate<E>, accumulator: TriFunctional<A, E, bigint, A>, finisher: Functional<A, R>): Collector<E, A, R>;
+    <E, A, R>(identity: Supplier<A>, interrupt: BiPredicate<E, bigint>, accumulator: BiFunctional<A, E, A>, finisher: Functional<A, R>): Collector<E, A, R>;
+    <E, A, R>(identity: Supplier<A>, interrupt: BiPredicate<E, bigint>, accumulator: TriFunctional<A, E, bigint, A>, finisher: Functional<A, R>): Collector<E, A, R>;
+    <E, A, R>(identity: Supplier<A>, interrupt: TriPredicate<E, bigint, A>, accumulator: BiFunctional<A, E, A>, finisher: Functional<A, R>): Collector<E, A, R>;
+    <E, A, R>(identity: Supplier<A>, interrupt: TriPredicate<E, bigint, A>, accumulator: TriFunctional<A, E, bigint, A>, finisher: Functional<A, R>): Collector<E, A, R>;
 };
-
 export let useCollect: UseCollect = <E, A, R>(argument1: Supplier<A> | Collector<E, A, R>, argument2?: BiFunctional<A, E, A> | TriFunctional<A, E, bigint, A> | Predicate<E> | BiPredicate<E, bigint> | TriPredicate<E, bigint, A>, argument3?: BiFunctional<A, E, A> | TriFunctional<A, E, bigint, A> | Functional<A, R>, argument4?: Functional<A, R>): Collector<E, A, R> => {
     if (isFunction(argument1) && isFunction(argument2) && isFunction(argument3) && isFunction(argument4)) {
         let identity: Supplier<A> = argument1 as Supplier<A>;
@@ -182,14 +224,13 @@ export let useCount: <E = unknown>() => Collector<E, bigint, bigint> = <E = unkn
     );
 };
 
-export interface UseError {
+interface UseError {
     <E = unknown>(): Collector<E, string, string>;
     <E = unknown>(accumulator: BiFunctional<string, E, string>): Collector<E, string, string>;
     <E = unknown>(accumulator: TriFunctional<string, E, bigint, string>): Collector<E, string, string>;
     <E = unknown>(prefix: string, accumulator: BiFunctional<string, E, string>, suffix: string): Collector<E, string, string>;
     <E = unknown>(prefix: string, accumulator: TriFunctional<string, E, bigint, string>, suffix: string): Collector<E, string, string>;
 };
-
 export let useError: UseError = <E = unknown>(argument1?: string | BiFunctional<string, E, string> | TriFunctional<string, E, bigint, string>, argument2?: BiFunctional<string, E, string> | TriFunctional<string, E, bigint, string>, argument3?: string): Collector<E, string, string> => {
     if (isString(argument1) && isFunction(argument2) && isString(argument3)) {
         let prefix: string = argument1;
@@ -235,6 +276,44 @@ export let useError: UseError = <E = unknown>(argument1?: string | BiFunctional<
     }
 };
 
+interface UseFindAt {
+    <E>(index: number): Collector<E, Array<E>, Optional<E>>;
+    <E>(index: bigint): Collector<E, Array<E>, Optional<E>>;
+};
+export let useFindAt: UseFindAt = <E>(index: number | bigint): Collector<E, Array<E>, Optional<E>> => {
+    let target: bigint = useToBigInt(index);
+    if (target < 0n) {
+        return Collector.full(
+            (): Array<E> => [],
+            (accumulator: Array<E>, element: E): Array<E> => {
+                accumulator.push(element);
+                return accumulator;
+            },
+            (accumulator: Array<E>): Optional<E> => {
+                if (accumulator.length === 0) {
+                    return Optional.empty();
+                }
+                let limited: bigint = (((BigInt(accumulator.length)) % target) + target) % target;
+                return Optional.ofNullable(accumulator[Number(limited)]);
+            }
+        );
+    }
+    return Collector.shortable(
+        (): Array<E> => [],
+        (_element: E, _index: bigint, accumulator: Array<E>): boolean => BigInt(accumulator.length) - 1n === target,
+        (accumulator: Array<E>, element: E): Array<E> => {
+            accumulator.push(element);
+            return accumulator;
+        },
+        (accumulator: Array<E>): Optional<E> => {
+            if (accumulator.length === 0) {
+                return Optional.empty();
+            }
+            return Optional.ofNullable(accumulator[Number(target)]);
+        }
+    );
+};
+
 export let useFindFirst: <E>() => Collector<E, Optional<E>, Optional<E>> = <E>(): Collector<E, Optional<E>, Optional<E>> => {
     return Collector.shortable(
         (): Optional<E> => Optional.empty(),
@@ -276,7 +355,7 @@ export let useFindLast: <E>() => Collector<E, Optional<E>, Optional<E>> = <E>():
     );
 };
 
-export interface UseFindMaximum{
+interface UseFindMaximum {
     <E>(): Collector<E, Optional<E>, Optional<E>>;
     <E>(comparator: Comparator<E>): Collector<E, Optional<E>, Optional<E>>;
 }
@@ -284,7 +363,7 @@ export let useFindMaximum: UseFindMaximum = <E>(comparator: Comparator<E> = useC
     return Collector.full(
         (): Optional<E> => Optional.ofNullable(),
         (accumulator: Optional<E>, element: E): Optional<E> => {
-            if(accumulator.isPresent()){
+            if (accumulator.isPresent()) {
                 return comparator(accumulator.get(), element) > 0 ? accumulator : Optional.ofNullable(element);
             }
             return Optional.ofNullable(element);
@@ -293,7 +372,7 @@ export let useFindMaximum: UseFindMaximum = <E>(comparator: Comparator<E> = useC
     );
 };
 
-export interface UseFindMinimum{
+interface UseFindMinimum {
     <E>(): Collector<E, Optional<E>, Optional<E>>;
     <E>(comparator: Comparator<E>): Collector<E, Optional<E>, Optional<E>>;
 }
@@ -301,7 +380,7 @@ export let useFindMinimum: UseFindMinimum = <E>(comparator: Comparator<E> = useC
     return Collector.full(
         (): Optional<E> => Optional.ofNullable(),
         (accumulator: Optional<E>, element: E): Optional<E> => {
-            if(accumulator.isPresent()){
+            if (accumulator.isPresent()) {
                 return comparator(accumulator.get(), element) < 0 ? accumulator : Optional.ofNullable(element);
             }
             return Optional.ofNullable(element);
@@ -310,7 +389,7 @@ export let useFindMinimum: UseFindMinimum = <E>(comparator: Comparator<E> = useC
     );
 };
 
-export interface UseForEach {
+interface UseForEach {
     <E>(action: Consumer<E>): Collector<E, bigint, bigint>;
     <E>(action: BiConsumer<E, bigint>): Collector<E, bigint, bigint>;
 };
@@ -328,24 +407,32 @@ export let useForEach: UseForEach = <E>(action: Consumer<E> | BiConsumer<E, bigi
     throw new TypeError("Action must be a function.");
 };
 
-export let useNoneMatch: <E>(predicate: Predicate<E>) => Collector<E, boolean, boolean> = <E>(predicate: Predicate<E>): Collector<E, boolean, boolean> => {
+interface UseNonMatch {
+    <E>(predicate: Predicate<E>): Collector<E, boolean, boolean>;
+    <E>(predicate: BiPredicate<E, bigint>): Collector<E, boolean, boolean>;
+};
+export let useNoneMatch: UseNonMatch = <E>(predicate: Predicate<E> | BiPredicate<E, bigint>): Collector<E, boolean, boolean> => {
     if (isFunction(predicate)) {
         return Collector.shortable(
             (): boolean => true,
             (_element: E, _index: bigint, accumulator: boolean): boolean => !accumulator,
-            (accumulator: boolean, element: E): boolean => accumulator && !predicate(element),
+            (accumulator: boolean, element: E, index: bigint): boolean => accumulator && !predicate(element, index),
             (accumulator: boolean): boolean => !accumulator
         );
     }
     throw new TypeError("Predicate must be a function.");
 };
 
-export let useGroup: <E, K>(classifier: Functional<E, K>) => Collector<E, Map<K, E[]>, Map<K, E[]>> = <E, K>(classifier: Functional<E, K>): Collector<E, Map<K, E[]>, Map<K, E[]>> => {
+interface UseGroup {
+    <E, K>(classifier: Functional<E, K>): Collector<E, Map<K, E[]>, Map<K, E[]>>;
+    <E, K>(classifier: BiFunctional<E, bigint, K>): Collector<E, Map<K, E[]>, Map<K, E[]>>;
+};
+export let useGroup: UseGroup = <E, K>(classifier: Functional<E, K> | BiFunctional<E, bigint, K>): Collector<E, Map<K, E[]>, Map<K, E[]>> => {
     if (isFunction(classifier)) {
         return Collector.full(
             (): Map<K, E[]> => new Map<K, E[]>(),
-            (accumulator: Map<K, E[]>, element: E): Map<K, E[]> => {
-                let key: K = classifier(element);
+            (accumulator: Map<K, E[]>, element: E, index: bigint): Map<K, E[]> => {
+                let key: K = classifier(element, index);
                 let group: E[] = accumulator.get(key) || [];
                 group.push(element);
                 accumulator.set(key, group);
@@ -357,14 +444,18 @@ export let useGroup: <E, K>(classifier: Functional<E, K>) => Collector<E, Map<K,
     throw new TypeError("Classifier must be a function.");
 };
 
-export let useGroupBy: <E, K, V>(keyExtractor: Functional<E, K>, valueExtractor: Functional<E, V>) => Collector<E, Map<K, V[]>, Map<K, V[]>> = <E, K, V>(keyExtractor: Functional<E, K>, valueExtractor: Functional<E, V>): Collector<E, Map<K, V[]>, Map<K, V[]>> => {
+interface UseGroupBy {
+    <E, K, V>(keyExtractor: Functional<E, K>, valueExtractor: Functional<E, V>): Collector<E, Map<K, V[]>, Map<K, V[]>>;
+    <E, K, V>(keyExtractor: BiFunctional<E, bigint, K>, valueExtractor: BiFunctional<E, bigint, V>): Collector<E, Map<K, V[]>, Map<K, V[]>>;
+}
+export let useGroupBy: UseGroupBy = <E, K, V>(keyExtractor: Functional<E, K> | BiFunctional<E, bigint, K>, valueExtractor: Functional<E, V> | BiFunctional<E, bigint, V>): Collector<E, Map<K, V[]>, Map<K, V[]>> => {
     if (isFunction(keyExtractor) && isFunction(valueExtractor)) {
         return Collector.full(
             (): Map<K, V[]> => new Map<K, V[]>(),
-            (accumulator: Map<K, V[]>, element: E): Map<K, V[]> => {
-                let key: K = keyExtractor(element);
+            (accumulator: Map<K, V[]>, element: E, index: bigint): Map<K, V[]> => {
+                let key: K = keyExtractor(element, index);
                 let group: V[] = accumulator.get(key) || [];
-                group.push(valueExtractor(element));
+                group.push(valueExtractor(element, index));
                 accumulator.set(key, group);
                 return accumulator;
             },
@@ -374,7 +465,7 @@ export let useGroupBy: <E, K, V>(keyExtractor: Functional<E, K>, valueExtractor:
     throw new TypeError("Key extractor and value extractor must be functions.");
 };
 
-export interface UseJoin {
+interface UseJoin {
     <E = unknown>(): Collector<E, string, string>;
     <E = unknown>(delimiter: string): Collector<E, string, string>;
     <E = unknown>(prefix: string, delimiter: string, suffix: string): Collector<E, string, string>;
@@ -420,7 +511,7 @@ export let useJoin: UseJoin = <E = unknown>(argument1?: string, argument2?: stri
     throw new TypeError("Invalid arguments.");
 };
 
-export interface UseLog {
+interface UseLog {
     <E = unknown>(): Collector<E, string, string>;
     <E = unknown>(accumulator: BiFunctional<string, E, string>): Collector<E, string, string>;
     <E = unknown>(accumulator: TriFunctional<string, E, bigint, string>): Collector<E, string, string>;
@@ -494,14 +585,18 @@ export let usePartition: <E>(count: bigint) => Collector<E, Array<Array<E>>, Arr
     throw new TypeError("Count must be a BigInt.");
 };
 
-export let usePartitionBy: <E>(classifier: Functional<E, bigint>) => Collector<E, Array<E[]>, Array<E[]>> = <E>(classifier: Functional<E, bigint>): Collector<E, Array<E[]>, Array<E[]>> => {
+interface UsePartitionBy {
+    <E>(classifier: Functional<E, bigint>): Collector<E, Array<E[]>, Array<E[]>>;
+    <E>(classifier: BiFunctional<E, bigint, bigint>): Collector<E, Array<E[]>, Array<E[]>>;
+};
+export let usePartitionBy: UsePartitionBy = <E>(classifier: Functional<E, bigint> | BiFunctional<E, bigint, bigint>): Collector<E, Array<E[]>, Array<E[]>> => {
     if (isFunction(classifier)) {
         return Collector.full(
             (): Array<Array<E>> => {
                 return [];
-            }, (array: Array<Array<E>>, element: E): Array<Array<E>> => {
-                let index: bigint = classifier(element);
-                while (index > BigInt(array.length) - 1n) {
+            }, (array: Array<Array<E>>, element: E, index: bigint): Array<Array<E>> => {
+                let resolved: bigint = classifier(element, index);
+                while (resolved > BigInt(array.length) - 1n) {
                     array.push([]);
                 }
                 array[Number(index)].push(element);
@@ -513,7 +608,7 @@ export let usePartitionBy: <E>(classifier: Functional<E, bigint>) => Collector<E
     throw new TypeError("Classifier must be a function.");
 };
 
-export interface UseReduce {
+interface UseReduce {
     <E>(accumulator: BiFunctional<E, E, E>): Collector<E, Optional<E>, Optional<E>>;
     <E>(accumulator: TriFunctional<E, E, bigint, E>): Collector<E, Optional<E>, Optional<E>>;
     <E>(identity: E, accumulator: BiFunctional<E, E, E>): Collector<E, E, E>;
@@ -562,17 +657,41 @@ export let useToArray: <E>() => Collector<E, E[], E[]> = <E>(): Collector<E, E[]
     );
 };
 
-export let useToMap: <E, K, V>(keyExtractor: Functional<E, K>, valueExtractor: Functional<E, V>) => Collector<E, Map<K, V>, Map<K, V>> = <E, K, V>(keyExtractor: Functional<E, K>, valueExtractor: Functional<E, V>): Collector<E, Map<K, V>, Map<K, V>> => {
+interface UseToMap {
+    <E, K, V>(keyExtractor: Functional<E, K>, valueExtractor: Functional<E, V>): Collector<E, Map<K, V>, Map<K, V>>;
+    <E, K, V>(keyExtractor: BiFunctional<E, bigint, K>, valueExtractor: BiFunctional<E, bigint, V>): Collector<E, Map<K, V>, Map<K, V>>;
+};
+export let useToMap: UseToMap = <E, K, V>(keyExtractor: Functional<E, K> | BiFunctional<E, bigint, K>, valueExtractor: Functional<E, V> | BiFunctional<E, bigint, V>): Collector<E, Map<K, V>, Map<K, V>> => {
     if (isFunction(keyExtractor) && isFunction(valueExtractor)) {
         return Collector.full<E, Map<K, V>, Map<K, V>>(
             (): Map<K, V> => new Map<K, V>(),
-            (map: Map<K, V>, element: E): Map<K, V> => {
-                let key: K = keyExtractor(element);
-                let value: V = valueExtractor(element);
+            (map: Map<K, V>, element: E, index: bigint): Map<K, V> => {
+                let key: K = keyExtractor(element, index);
+                let value: V = valueExtractor(element, index);
                 map.set(key, value);
                 return map;
             },
             (map: Map<K, V>): Map<K, V> => map
+        );
+    }
+    throw new TypeError("Key extractor and value extractor must be functions.");
+};
+
+interface UseToHashMap{
+    <E, K, V>(keyExtractor: Functional<E, K>, valueExtractor: Functional<E, V>): Collector<E, HashMap<K, V>, HashMap<K, V>>;
+    <E, K, V>(keyExtractor: BiFunctional<E, bigint, K>, valueExtractor: BiFunctional<E, bigint, V>): Collector<E, HashMap<K, V>, HashMap<K, V>>;
+};
+export let useToHashMap: UseToHashMap = <E, K, V>(keyExtractor: Functional<E, K> | BiFunctional<E, bigint, K>, valueExtractor: Functional<E, V> | BiFunctional<E, bigint, V>): Collector<E, HashMap<K, V>, HashMap<K, V>> => {
+    if(isFunction(keyExtractor) && isFunction(valueExtractor)){
+        return Collector.full<E, HashMap<K, V>, HashMap<K, V>>(
+            (): HashMap<K, V> => new HashMap<K, V>(),
+            (map: HashMap<K, V>, element: E, index: bigint): HashMap<K, V> => {
+                let key: K = keyExtractor(element, index);
+                let value: V = valueExtractor(element, index);
+                map.set(key, value);
+                return map;
+            },
+            (map: HashMap<K, V>): HashMap<K, V> => map
         );
     }
     throw new TypeError("Key extractor and value extractor must be functions.");
@@ -589,7 +708,18 @@ export let useToSet: <E>() => Collector<E, Set<E>, Set<E>> = <E>(): Collector<E,
     );
 };
 
-export interface UseWrite {
+export let useToHashSet: <E>() => Collector<E, HashSet<E>, HashSet<E>> = <E>(): Collector<E, HashSet<E>, HashSet<E>> => {
+    return Collector.full<E, HashSet<E>, HashSet<E>>(
+        (): HashSet<E> => new HashSet<E>(),
+        (set: HashSet<E>, element: E): HashSet<E> => {
+            set.add(element);
+            return set;
+        },
+        (set: HashSet<E>): HashSet<E> => set
+    );
+};
+
+interface UseWrite {
     <E, S = string>(stream: WritableStream<S>): Collector<E, Promise<WritableStream<S>>, Promise<WritableStream<S>>>;
     <E, S = string>(stream: WritableStream<S>, accumulator: BiFunctional<WritableStream<S>, E, WritableStream<S>>): Collector<E, Promise<WritableStream<S>>, Promise<WritableStream<S>>>;
     <E, S = string>(stream: WritableStream<S>, accumulator: TriFunctional<WritableStream<S>, E, bigint, WritableStream<S>>): Collector<E, Promise<WritableStream<S>>, Promise<WritableStream<S>>>;
@@ -637,7 +767,7 @@ export let useWrite: UseWrite = <E, S = string>(argument1: WritableStream<S>, ar
     throw new TypeError("Invalid arguments.");
 };
 
-export interface UseNumericSummate {
+interface UseNumericSummate {
     <E>(): Collector<E, number, number>;
     <E>(mapper: Functional<E, number>): Collector<E, number, number>;
 };
@@ -649,10 +779,10 @@ export let useNumericSummate: UseNumericSummate = <E>(mapper: Functional<E, numb
             return accumulator + (isNumber(resolved) ? resolved : 0);
         },
         (result: number): number => result
-    );
+    ) as Collector<number, number, number> | Collector<E, number, number>;
 };
 
-export interface UseBigIntSummate {
+interface UseBigIntSummate {
     <E>(): Collector<E, bigint, bigint>;
     <E>(mapper: Functional<E, bigint>): Collector<E, bigint, bigint>;
 };
@@ -664,14 +794,14 @@ export let useBigIntSummate: UseBigIntSummate = <E>(mapper: Functional<E, bigint
             return accumulator + (isBigInt(resolved) ? resolved : 0n);
         },
         (result: bigint): bigint => result
-    );
+    ) as Collector<bigint, bigint, bigint> | Collector<E, bigint, bigint>;
 };
 
-export interface UseNumericAverage {
+interface UseNumericAverage {
     <E>(): Collector<E, NumericAverageAccumulator, number>;
     <E>(mapper: Functional<E, number>): Collector<E, NumericAverageAccumulator, number>;
 };
-export interface NumericAverageAccumulator {
+interface NumericAverageAccumulator {
     summate: number;
     count: number;
 };
@@ -696,14 +826,14 @@ export let useNumericAverage: UseNumericAverage = <E>(mapper: Functional<E, numb
             }
             return result.summate / result.count;
         }
-    );
+    ) as Collector<number, NumericAverageAccumulator, number> | Collector<E, NumericAverageAccumulator, number>;
 };
 
-export interface UseBigIntAverage {
+interface UseBigIntAverage {
     <E>(): Collector<E, BigIntAverageAccumulator, bigint>;
     <E>(mapper: Functional<E, bigint>): Collector<E, BigIntAverageAccumulator, bigint>;
 };
-export interface BigIntAverageAccumulator {
+interface BigIntAverageAccumulator {
     summate: bigint;
     count: bigint;
 };
@@ -728,7 +858,7 @@ export let useBigIntAverage: UseBigIntAverage = <E>(mapper: Functional<E, bigint
             }
             return result.summate / result.count;
         }
-    );
+    ) as Collector<bigint, BigIntAverageAccumulator, bigint> | Collector<E, BigIntAverageAccumulator, bigint>;
 };
 
 export let useFrequency: <E>() => Collector<E, Map<E, bigint>, Map<E, bigint>> = <E>(): Collector<E, Map<E, bigint>, Map<E, bigint>> => {
@@ -743,7 +873,7 @@ export let useFrequency: <E>() => Collector<E, Map<E, bigint>, Map<E, bigint>> =
     );
 };
 
-export interface UseNumericMode{
+interface UseNumericMode {
     <E>(): Collector<E, Map<number, bigint>, number>;
     <E>(mapper: Functional<E, number>): Collector<E, Map<number, bigint>, number>;
 };
@@ -767,10 +897,10 @@ export let useNumericMode: UseNumericMode = <E>(mapper: Functional<E, number> = 
             }
             return mode;
         }
-    );
+    ) as Collector<number, Map<number, bigint>, number> | Collector<E, Map<number, bigint>, number>;
 };
 
-export interface UseBigIntMode{
+interface UseBigIntMode {
     <E>(): Collector<E, Map<bigint, bigint>, bigint>;
     <E>(mapper: Functional<E, bigint>): Collector<E, Map<bigint, bigint>, bigint>;
 };
@@ -794,14 +924,14 @@ export let useBigIntMode: UseBigIntMode = <E>(mapper: Functional<E, bigint> = us
             }
             return mode;
         }
-    );
+    ) as Collector<bigint, Map<bigint, bigint>, bigint> | Collector<E, Map<bigint, bigint>, bigint>;
 };
 
-export interface UseNumericVariance {
+interface UseNumericVariance {
     <E>(): Collector<E, VarianceAccumulator, number>;
     <E>(mapper: Functional<E, number>): Collector<E, VarianceAccumulator, number>;
 };
-export interface VarianceAccumulator {
+interface VarianceAccumulator {
     summate: number;
     summateOfSquares: number;
     count: number;
@@ -831,14 +961,14 @@ export let useNumericVariance: UseNumericVariance = <E>(mapper: Functional<E, nu
             let variance: number = (result.summateOfSquares / result.count) - Math.pow(mean, 2);
             return variance;
         }
-    );
+    ) as Collector<number, VarianceAccumulator, number> | Collector<E, VarianceAccumulator, number>;
 };
 
-export interface UseBigIntVariance {
+interface UseBigIntVariance {
     <E>(): Collector<E, BigIntVarianceAccumulator, bigint>;
     <E>(mapper: Functional<E, bigint>): Collector<E, BigIntVarianceAccumulator, bigint>;
 };
-export interface BigIntVarianceAccumulator {
+interface BigIntVarianceAccumulator {
     summate: bigint;
     summateOfSquares: bigint;
     count: bigint;
@@ -868,14 +998,14 @@ export let useBigIntVariance: UseBigIntVariance = <E>(mapper: Functional<E, bigi
             let variance: bigint = (result.summateOfSquares / result.count) - (mean * mean);
             return variance;
         }
-    );
+    ) as Collector<bigint, BigIntVarianceAccumulator, bigint> | Collector<E, BigIntVarianceAccumulator, bigint>;
 };
 
-export interface UseNumericStandardDeviation {
+interface UseNumericStandardDeviation {
     <E>(): Collector<E, StandardDeviationAccumulator, number>;
     <E>(mapper: Functional<E, number>): Collector<E, StandardDeviationAccumulator, number>;
 };
-export interface StandardDeviationAccumulator {
+interface StandardDeviationAccumulator {
     summate: number;
     summateOfSquares: number;
     count: number;
@@ -906,14 +1036,14 @@ export let useNumericStandardDeviation: UseNumericStandardDeviation = <E>(mapper
             let standardDeviation: number = Math.sqrt(variance);
             return standardDeviation;
         }
-    );
+    ) as Collector<number, StandardDeviationAccumulator, number> | Collector<E, StandardDeviationAccumulator, number>;
 };
 
-export interface UseBigIntStandardDeviation {
+interface UseBigIntStandardDeviation {
     <E>(): Collector<E, BigIntStandardDeviationAccumulator, bigint>;
     <E>(mapper: Functional<E, bigint>): Collector<E, BigIntStandardDeviationAccumulator, bigint>;
 };
-export interface BigIntStandardDeviationAccumulator {
+interface BigIntStandardDeviationAccumulator {
     summate: bigint;
     summateOfSquares: bigint;
     count: bigint;
@@ -944,10 +1074,10 @@ export let useBigIntStandardDeviation: UseBigIntStandardDeviation = <E>(mapper: 
             let standardDeviation: bigint = BigInt(Math.sqrt(Number(variance)));
             return standardDeviation;
         }
-    );
+    ) as Collector<bigint, BigIntStandardDeviationAccumulator, bigint> | Collector<E, BigIntStandardDeviationAccumulator, bigint>;
 };
 
-export interface UseNumericMedian {
+interface UseNumericMedian {
     <E>(): Collector<E, number[], number>;
     <E>(mapper: Functional<E, number>): Collector<E, number[], number>;
 };
@@ -970,10 +1100,10 @@ export let useNumericMedian: UseNumericMedian = <E>(mapper: Functional<E, number
                 return array[mid];
             }
         }
-    );
+    ) as Collector<number, number[], number> | Collector<E, number[], number>;
 };
 
-export interface UseBigIntMedian {
+interface UseBigIntMedian {
     <E>(): Collector<E, bigint[], bigint>;
     <E>(mapper: Functional<E, bigint>): Collector<E, bigint[], bigint>;
 };
@@ -996,7 +1126,7 @@ export let useBigIntMedian: UseBigIntMedian = <E>(mapper: Functional<E, bigint> 
                 return array[mid];
             }
         }
-    );
+    ) as Collector<bigint, bigint[], bigint> | Collector<E, bigint[], bigint>;
 };
 
 export let useToGeneratorFunction: <E>() => Collector<E, Array<E>, globalThis.Generator<E, void, undefined>> = <E>(): Collector<E, Array<E>, globalThis.Generator<E, void, undefined>> => {

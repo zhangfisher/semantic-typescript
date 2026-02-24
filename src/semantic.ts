@@ -1,6 +1,7 @@
 import { Collectable, OrderedCollectable, UnorderedCollectable } from "./collectable";
 import { isBigInt, isCollectable, isFunction, isIterable, isNumber, isSemantic } from "./guard";
-import { useCompare, useRandom } from "./hook";
+import { useHash } from "./hash";
+import { useCompare } from "./hook";
 import { BigIntStatistics, NumericStatistics } from "./statistics";
 import { SemanticSymbol } from "./symbol";
 import { validate, type Predicate } from "./utility";
@@ -15,6 +16,21 @@ export class Semantic<E> {
 
     constructor(generator: Generator<E>) {
         this.generator = generator;
+        Object.defineProperties(this, {
+            "Semantic": {
+                value: SemanticSymbol,
+                writable: false,
+                enumerable: false,
+                configurable: false
+            },
+            "generator": {
+                value: generator,
+                writable: false,
+                enumerable: false,
+                configurable: false
+            }
+        });
+        Object.freeze(this);
     }
 
     public concat(other: Semantic<E>): Semantic<E>;
@@ -122,8 +138,8 @@ export class Semantic<E> {
         throw new TypeError("Invalid arguments.");
     }
 
-    public flat(mapper: Functional<E, Iterable<E>): Semantic<E>;
-    public flat(mapper: BiFunctional<E, bigint, Iterable<E>): Semantic<E>;
+    public flat(mapper: Functional<E, Iterable<E>>): Semantic<E>;
+    public flat(mapper: BiFunctional<E, bigint, Iterable<E>>): Semantic<E>;
     public flat(mapper: Functional<E, Semantic<E>>): Semantic<E>;
     public flat(mapper: BiFunctional<E, bigint, Semantic<E>>): Semantic<E>;
     public flat(mapper: Functional<E, Iterable<E>> | BiFunctional<E, bigint, Iterable<E>> | Functional<E, Semantic<E>> | BiFunctional<E, bigint, Semantic<E>>): Semantic<E> {
@@ -160,7 +176,7 @@ export class Semantic<E> {
     public flatMap<R>(mapper: BiFunctional<E, bigint, Iterable<R>>): Semantic<R>;
     public flatMap<R>(mapper: Functional<E, Semantic<R>>): Semantic<R>;
     public flatMap<R>(mapper: BiFunctional<E, bigint, Semantic<R>>): Semantic<R>;
-    public flatMap<R>(mapper: Functional<E, Iterable<R> | Semantic<R>>): Semantic<R> {
+    public flatMap<R>(mapper: Functional<E, Iterable<R> | Semantic<R>> | BiFunctional<E, bigint, Iterable<R> | Semantic<R>>): Semantic<R> {
         if (isFunction(mapper)) {
             return new Semantic<R>((accept: Consumer<R> | BiConsumer<R, bigint>, interrupt: Predicate<R> | BiPredicate<R, bigint>): void => {
                 try {
@@ -310,7 +326,7 @@ export class Semantic<E> {
         return new Semantic<E>((accept: Consumer<E> | BiConsumer<E, bigint>, interrupt: Predicate<E> | BiPredicate<E, bigint>): void => {
             try {
                 this.generator((element: E, index: bigint): void => {
-                    accept(element, useRandom(index));
+                    accept(element, useHash(element, index));
                 }, interrupt);
             } catch (error) {
                 throw new Error("Uncaught error on shuffle.");
@@ -394,7 +410,7 @@ export class Semantic<E> {
     }
 
     public takeWhile(predicate: Predicate<E>): Semantic<E>;
-    public takeWhile(predicate: BjPredicate<E, bigint>): Semantic<E>;
+    public takeWhile(predicate: BiPredicate<E, bigint>): Semantic<E>;
     public takeWhile(predicate: Predicate<E> | BiPredicate<E, bigint>): Semantic<E> {
         return new Semantic<E>((accept: Consumer<E> | BiConsumer<E, bigint>, interrupt: Predicate<E> | BiPredicate<E, bigint>): void => {
             try {
@@ -512,3 +528,6 @@ export class Semantic<E> {
         throw new TypeError("Invalid arguments.");
     }
 };
+Object.freeze(Semantic);
+Object.freeze(Semantic.prototype);
+Object.freeze(Object.getPrototypeOf(Semantic));

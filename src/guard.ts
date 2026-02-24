@@ -1,9 +1,12 @@
 import type { Collectable, OrderedCollectable, UnorderedCollectable } from "./collectable";
 import type { Collector } from "./collector";
+import type { HashMap, SemanticMap } from "./map";
 import type { Semantic } from "./semantic";
+import type { HashSet } from "./set";
 import type { Statistics } from "./statistics";
-import { BigIntStatisticsSymbol, CollectableSymbol, CollectorsSymbol, NumericStatisticsSymbol, OrderedCollectableSymbol, SemanticSymbol, StatisticsSymbol, UnorderedCollectableSymbol } from "./symbol";
+import { BigIntStatisticsSymbol, CollectableSymbol, CollectorsSymbol, NumericStatisticsSymbol, OrderedCollectableSymbol, SemanticMapSymbol, SemanticSymbol, StatisticsSymbol, UnorderedCollectableSymbol, WindowCollectableSymbol } from "./symbol";
 import type { AsyncFunction, MaybePrimitive, Primitive } from "./utility";
+import type { WindowCollectable } from "./window";
 
 export let isBoolean: (t: unknown) => t is boolean = (t: unknown): t is boolean => {
     return typeof t === "boolean";
@@ -97,6 +100,26 @@ export let isBigIntStatistics: (t: unknown) => t is Statistics<unknown, number |
     }
     return false;
 };
+export let isSemanticMap: (t: unknown) => t is SemanticMap<unknown, unknown> = (t: unknown): t is SemanticMap<unknown, unknown> => {
+    if (isObject(t)) {
+        return Reflect.get(t, "SemanticMap") === SemanticMapSymbol;
+    }
+    return false;
+};
+export let isHashMap: (t: unknown) => t is HashMap<unknown, unknown> = (t: unknown): t is HashMap<unknown, unknown> => {
+    if (isObject(t)) {
+        return Reflect.get(t, "HashMap") === SemanticMapSymbol;
+    }
+    return false;
+};
+export let isHashSet: (t: unknown) => t is HashSet<unknown> = (t: unknown): t is HashSet<unknown> => {
+    if (isObject(t)) {
+        return false;
+    }
+    return false;
+};
+
+
 export let isPromise: (t: unknown) => t is Promise<unknown> = (t: unknown): t is Promise<unknown> => {
     if(isObject(t)){
         return isFunction(Reflect.get(t, "then")) && isFunction(Reflect.get(t, "catch"));

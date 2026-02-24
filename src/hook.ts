@@ -1,6 +1,6 @@
 import { useToArray, type Collector } from "./collector";
 import { isBigInt, isFunction, isIterable, isNumber, isObject, isPrimitive } from "./guard";
-import { validate, type BiPredicate, type DeepPropertyKey, type DeepPropertyValue, type MaybePrimitive } from "./utility";
+import { invalidate, validate, type BiPredicate, type DeepPropertyKey, type DeepPropertyValue, type MaybePrimitive } from "./utility";
 import type { BiConsumer, Comparator, Consumer, Generator, Indexed, Predicate } from "./utility";
 
 export let useCompare: <T>(t1: T, t2: T) => number = <T>(t1: T, t2: T): number => {
@@ -18,7 +18,10 @@ export let useCompare: <T>(t1: T, t2: T) => number = <T>(t1: T, t2: T): number =
             case "boolean":
                 return t1 === t2 ? 0 : (t1 ? 1 : -1);
             case "symbol":
-                return Object.prototype.toString.call(t1).localeCompare(Object.prototype.toString.call(t2));
+                if (t1.description === (t2 as symbol).description) {
+                    return 0;
+                }
+                return (t1.description || "").localeCompare(((t2 as symbol).description) || "");
             case "function":
                 throw new TypeError("Cannot compare functions.");
             case "undefined":
@@ -44,7 +47,7 @@ export let useCompare: <T>(t1: T, t2: T) => number = <T>(t1: T, t2: T): number =
     throw new TypeError("Cannot compare values of different types.");
 };
 
-export let useRandom: <T = number | bigint>(index: T) => T = <T = number | bigint>(index: T): T => {
+export let Useandom: <T = number | bigint>(index: T) => T = <T = number | bigint>(index: T): T => {
     if (isNumber(index)) {
         let x = Number(index);
         let phi = (1 + Math.sqrt(5)) / 2;
@@ -68,15 +71,30 @@ export let useRandom: <T = number | bigint>(index: T) => T = <T = number | bigin
     throw new TypeError("Invalid input type");
 };
 
-export let useTraverse: <T extends object>(t: T, callback: BiPredicate<DeepPropertyKey<T>, DeepPropertyValue<T>>) => void = <T extends object>(t: T, callback: BiPredicate<DeepPropertyKey<T>, DeepPropertyValue<T>>): void => {
+export type UseTraverseKey<T extends object> = DeepPropertyKey<T> & (symbol | string | number);
+export type UseTraverseValue<T extends object> = DeepPropertyValue<T>;
+export type UseTraversePath<T extends object> = Array<UseTraverseKey<T> & (symbol | string | number)>;
+export interface UseTraverseCallback<T extends object> {
+    (key: UseTraverseKey<T>, value: UseTraverseValue<T>): boolean;
+};
+export interface UseTraversePathCallback<T extends object> {
+    (key: UseTraverseKey<T>, value: UseTraverseValue<T>, path: UseTraversePath<T>): boolean;
+};
+interface UseTraverse{
+    <T extends object>(t: T, callback: UseTraverseCallback<T>): void;
+    <T extends object>(t: T, callback: UseTraversePathCallback<T>): void;
+};
+export let useTraverse: UseTraverse = <T extends object>(t: T, callback: UseTraverseCallback<T> | UseTraversePathCallback<T>): void => {
     if (isObject(t)) {
         let seen: WeakSet<object> = new WeakSet<object>();
+        let path: UseTraversePath<T> = [];
         let traverse = (target: object): void => {
             if (!seen.has(target)) {
                 seen.add(target);
                 let stop: boolean = false;
                 let properties: Array<string | symbol> = Reflect.ownKeys(target);
                 for (let property of properties) {
+                    path.push(property as DeepPropertyKey<T> & (symbol | string | number));
                     let value: T[keyof T] = Reflect.get(target, property) as T[keyof T];
                     if (stop) {
                         break;
@@ -86,11 +104,12 @@ export let useTraverse: <T extends object>(t: T, callback: BiPredicate<DeepPrope
                             if (isIterable(value)) {
                                 let index: number = 0;
                                 for (let item of value) {
+                                    path.push(index as DeepPropertyKey<T> & (symbol | string | number));
                                     if (validate(item)) {
                                         if (isObject(item)) {
                                             traverse(item);
                                         } else {
-                                            if (!callback(index as DeepPropertyKey<T>, item as DeepPropertyValue<T>)) {
+                                            if (!callback(index as UseTraverseKey<T>, item as UseTraverseValue<T>, path)) {
                                                 stop = true;
                                                 break;
                                             }
@@ -98,9 +117,11 @@ export let useTraverse: <T extends object>(t: T, callback: BiPredicate<DeepPrope
                                     }
                                     index++;
                                 }
+                            } else {
+                                traverse(value);
                             }
                         } else {
-                            if (!callback(property as DeepPropertyKey<T>, value as DeepPropertyValue<T>)) {
+                            if (!callback(property as UseTraverseKey<T>, value as UseTraverseValue<T>, path)) {
                                 stop = true;
                                 break;
                             }
@@ -174,7 +195,7 @@ export let useArrange: UseArrange = <E>(source: Iterable<E> | Generator<E>, comp
 };
 
 export let useToNumber: <T = unknown>(target: T) => number = <T>(target: T): number => {
-    switch(typeof target){
+    switch (typeof target) {
         case "number":
             return isNumber(target) ? target : 0;
         case "boolean":
@@ -199,7 +220,7 @@ export let useToNumber: <T = unknown>(target: T) => number = <T>(target: T): num
 };
 
 export let useToBigInt: <T = unknown>(target: T) => bigint = <T>(target: T): bigint => {
-    switch(typeof target){
+    switch (typeof target) {
         case "number":
             return isNumber(target) ? BigInt(target) : 0n;
         case "boolean":

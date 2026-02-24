@@ -8,3 +8,12 @@ export let StatisticsSymbol = Symbol.for("Statistics");
 export let NumericStatisticsSymbol = Symbol.for("NumericStatistics");
 export let BigIntStatisticsSymbol = Symbol.for("BigIntStatistics");
 export let UnorderedCollectableSymbol = Symbol.for("UnorderedCollectable");
+
+export let SemanticMapSymbol = Symbol.for("SemanticMap");
+export let HashMapSymbol = Symbol.for("HashMap");
+export let HashSetSymbol = Symbol.for("HashSet");
+export let TreeMapSymbol = Symbol.for("TreeMap");
+export let TreeSetSymbol = Symbol.for("TreeSet");
+
+export let BinaryNodeSymbol = Symbol.for("BinaryNode");
+export let ReadBlackNodeSymbol = Symbol.for("BlackAndRedNode");

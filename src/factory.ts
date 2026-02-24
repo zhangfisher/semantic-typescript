@@ -1,4 +1,4 @@
-import { isBigInt, isFunction, isIterable, isNumber, isObject, isPromise, isAayncIterable } from "./guard";
+import { isBigInt, isFunction, isIterable, isNumber, isObject, isPromise, isAsyncIterable } from "./guard";
 import { useCompare, useTraverse } from "./hook";
 import { Semantic } from "./semantic";
 import { invalidate, validate } from "./utility";
@@ -171,7 +171,7 @@ export let from: From = <E>(iterable: Iterable<E> | AsyncIterable<E>): Semantic<
             }
         });
     } else if (isAsyncIterable(iterable)) {
-        return new Semantic<E>((accept: Consumer<E> | BiConsumer<E, bigint>, interrupt: Predicate<E> | BiPredicate<E, bigint>) => {
+        return new Semantic<E>(async (accept: Consumer<E> | BiConsumer<E, bigint>, interrupt: Predicate<E> | BiPredicate<E, bigint>) => {
             try {
                 let index: bigint = 0n;
                 for await (let element of iterable) {
