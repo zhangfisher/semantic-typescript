@@ -1,4 +1,4 @@
-import { BigIntStatisticsSymbol, CollectableSymbol, CollectorsSymbol, NumericStatisticsSymbol, OrderedCollectableSymbol, SemanticSymbol, StatisticsSymbol, UnorderedCollectableSymbol } from "./symbol";
+import { BigIntStatisticsSymbol, CollectableSymbol, CollectorsSymbol, NumericStatisticsSymbol, OrderedCollectableSymbol, SemanticMapSymbol, SemanticSymbol, StatisticsSymbol, UnorderedCollectableSymbol, WindowCollectableSymbol } from "./symbol";
 export let isBoolean = (t) => {
     return typeof t === "boolean";
 };
@@ -22,6 +22,12 @@ export let isBigInt = (t) => {
 };
 export let isPrimitive = (t) => {
     return isBoolean(t) || isString(t) || isNumber(t) || isSymbol(t) || isBigInt(t) || isFunction(t);
+};
+export let isAsyncIterable = (t) => {
+    if (isObject(t)) {
+        return isFunction(Reflect.get(t, Symbol.asyncIterator));
+    }
+    return false;
 };
 export let isIterable = (t) => {
     if (isObject(t)) {
@@ -55,7 +61,7 @@ export let isOrderedCollectable = (t) => {
 };
 export let isWindowCollectable = (t) => {
     if (isObject(t)) {
-        return Reflect.get(t, "WindowCollectable") === OrderedCollectableSymbol;
+        return Reflect.get(t, "WindowCollectable") === WindowCollectableSymbol;
     }
     return false;
 };
@@ -80,6 +86,24 @@ export let isNumericStatistics = (t) => {
 export let isBigIntStatistics = (t) => {
     if (isObject(t)) {
         return Reflect.get(t, "BigIntStatistics") === BigIntStatisticsSymbol;
+    }
+    return false;
+};
+export let isSemanticMap = (t) => {
+    if (isObject(t)) {
+        return Reflect.get(t, "SemanticMap") === SemanticMapSymbol;
+    }
+    return false;
+};
+export let isHashMap = (t) => {
+    if (isObject(t)) {
+        return Reflect.get(t, "HashMap") === SemanticMapSymbol;
+    }
+    return false;
+};
+export let isHashSet = (t) => {
+    if (isObject(t)) {
+        return false;
     }
     return false;
 };

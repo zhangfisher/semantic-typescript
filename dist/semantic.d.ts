@@ -1,7 +1,7 @@
 import { Collectable, OrderedCollectable, UnorderedCollectable } from "./collectable";
 import { BigIntStatistics, NumericStatistics } from "./statistics";
 import { type Predicate } from "./utility";
-import type { Generator, Functional, BiFunctional, Consumer, BiConsumer, Comparator } from "./utility";
+import type { Generator, Functional, BiFunctional, Consumer, BiConsumer, Comparator, BiPredicate } from "./utility";
 import { WindowCollectable } from "./window";
 export declare class Semantic<E> {
     protected generator: Generator<E>;
@@ -10,14 +10,24 @@ export declare class Semantic<E> {
     concat(other: Semantic<E>): Semantic<E>;
     concat(other: Iterable<E>): Semantic<E>;
     distinct(): Semantic<E>;
-    distinct(comparator: Comparator<E>): Semantic<E>;
+    distinct<K>(keyExtractor: Functional<E, K>): Semantic<E>;
+    distinct<K>(keyExtractor: BiFunctional<E, bigint, K>): Semantic<E>;
     dropWhile(predicate: Predicate<E>): Semantic<E>;
+    dropWhile(predicate: BiPredicate<E, bigint>): Semantic<E>;
     filter(predicate: Predicate<E>): Semantic<E>;
-    flat(mapper: Functional<E, Iterable<E> | Semantic<E>>): Semantic<E>;
-    flatMap<R>(mapper: Functional<E, Iterable<R> | Semantic<R>>): Semantic<R>;
+    filter(predicate: BiPredicate<E, bigint>): Semantic<E>;
+    flat(mapper: Functional<E, Iterable<E>>): Semantic<E>;
+    flat(mapper: BiFunctional<E, bigint, Iterable<E>>): Semantic<E>;
+    flat(mapper: Functional<E, Semantic<E>>): Semantic<E>;
+    flat(mapper: BiFunctional<E, bigint, Semantic<E>>): Semantic<E>;
+    flatMap<R>(mapper: Functional<E, Iterable<R>>): Semantic<R>;
+    flatMap<R>(mapper: BiFunctional<E, bigint, Iterable<R>>): Semantic<R>;
+    flatMap<R>(mapper: Functional<E, Semantic<R>>): Semantic<R>;
+    flatMap<R>(mapper: BiFunctional<E, bigint, Semantic<R>>): Semantic<R>;
     limit(n: number): Semantic<E>;
     limit(n: bigint): Semantic<E>;
     map<R>(mapper: Functional<E, R>): Semantic<R>;
+    map<R>(mapper: BiFunctional<E, bigint, R>): Semantic<R>;
     peek(consumer: Consumer<E>): Semantic<E>;
     peek(consumer: BiConsumer<E, bigint>): Semantic<E>;
     redirect(redirector: BiFunctional<E, bigint, bigint>): Semantic<E>;
@@ -30,6 +40,7 @@ export declare class Semantic<E> {
     sorted(comparator: Comparator<E>): OrderedCollectable<E>;
     sub(start: bigint, end: bigint): Semantic<E>;
     takeWhile(predicate: Predicate<E>): Semantic<E>;
+    takeWhile(predicate: BiPredicate<E, bigint>): Semantic<E>;
     toCollectable(): Collectable<E>;
     toCollectable<C extends Collectable<E>>(mapper: Functional<Generator<E>, C>): C;
     toBigintStatistics(): BigIntStatistics<E>;

@@ -7,6 +7,21 @@ export class Optional {
     Optional = OptionalSymbol;
     constructor(value) {
         this.value = value;
+        Object.defineProperties(this, {
+            "Optional": {
+                value: OptionalSymbol,
+                writable: false,
+                enumerable: false,
+                configurable: false
+            },
+            "value": {
+                value: value,
+                writable: false,
+                enumerable: false,
+                configurable: false
+            }
+        });
+        Object.freeze(this);
     }
     filter(predicate) {
         if (this.isPresent() && isFunction(predicate) && predicate(this.value)) {
@@ -74,3 +89,6 @@ export class Optional {
     }
 }
 ;
+Object.freeze(Optional);
+Object.freeze(Optional.prototype);
+Object.freeze(Object.getPrototypeOf(Optional));

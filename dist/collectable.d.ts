@@ -1,6 +1,8 @@
 import { Collector } from "./collector";
+import type { HashMap } from "./map";
 import { Optional } from "./optional";
 import { Semantic } from "./semantic";
+import type { HashSet } from "./set";
 import type { BiConsumer, BiFunctional, Comparator, Consumer, Functional, Predicate, Supplier, TriFunctional, Generator, BiPredicate, TriPredicate, Indexed } from "./utility";
 export declare abstract class Collectable<E> implements Iterable<E>, AsyncIterable<E> {
     protected readonly Collectable: symbol;
@@ -26,6 +28,8 @@ export declare abstract class Collectable<E> implements Iterable<E>, AsyncIterab
     error(prefix: string, accumulator: TriFunctional<string, E, bigint, string>, suffix: string): void;
     isEmpty(): boolean;
     findAny(): Optional<E>;
+    findAt(index: number): Optional<E>;
+    findAt(index: bigint): Optional<E>;
     findFirst(): Optional<E>;
     findLast(): Optional<E>;
     findMaximum(): Optional<E>;
@@ -35,7 +39,9 @@ export declare abstract class Collectable<E> implements Iterable<E>, AsyncIterab
     forEach(action: Consumer<E>): void;
     forEach(action: BiConsumer<E, bigint>): void;
     group<K>(classifier: Functional<E, K>): Map<K, Array<E>>;
+    group<K>(classifier: BiFunctional<E, bigint, K>): Map<K, Array<E>>;
     groupBy<K, V>(keyExtractor: Functional<E, K>, valueExtractor: Functional<E, V>): Map<K, Array<V>>;
+    groupBy<K, V>(keyExtractor: BiFunctional<E, bigint, K>, valueExtractor: BiFunctional<E, bigint, K>): Map<K, Array<V>>;
     join(): string;
     join(delimiter: string): string;
     join(prefix: string, delimiter: string, suffix: string): string;
@@ -47,8 +53,10 @@ export declare abstract class Collectable<E> implements Iterable<E>, AsyncIterab
     log(prefix: string, accumulator: BiFunctional<string, E, string>, suffix: string): void;
     log(prefix: string, accumulator: TriFunctional<string, E, bigint, string>, suffix: string): void;
     nonMatch(predicate: Predicate<E>): boolean;
+    nonMatch(predicate: BiPredicate<E, bigint>): boolean;
     partition(count: bigint): Array<Array<E>>;
     partitionBy(classifier: Functional<E, bigint>): Array<Array<E>>;
+    partitionBy(classifier: BiFunctional<E, bigint, bigint>): Array<Array<E>>;
     reduce(accumulator: BiFunctional<E, E, E>): Optional<E>;
     reduce(accumulator: TriFunctional<E, E, bigint, E>): Optional<E>;
     reduce(identity: E, accumulator: BiFunctional<E, E, E>): E;
@@ -59,7 +67,11 @@ export declare abstract class Collectable<E> implements Iterable<E>, AsyncIterab
     abstract source(): Generator<E>;
     toArray(): Array<E>;
     toMap<K, V>(keyExtractor: Functional<E, K>, valueExtractor: Functional<E, V>): Map<K, V>;
+    toMap<K, V>(keyExtractor: BiFunctional<E, bigint, K>, valueExtractor: BiFunctional<E, bigint, V>): Map<K, V>;
+    toHashMap<K, V>(keyExtractor: Functional<E, K>, valueExtractor: Functional<E, V>): HashMap<K, V>;
+    toHashMap<K, V>(keyExtractor: BiFunctional<E, bigint, K>, valueExtractor: BiFunctional<E, bigint, V>): HashMap<K, V>;
     toSet(): Set<E>;
+    toHashSet(): HashSet<E>;
     write<S = string>(stream: WritableStream<S>): Promise<WritableStream<S>>;
     write<S = string>(stream: WritableStream<S>, accumulator: BiFunctional<WritableStream<S>, E, WritableStream<S>>): Promise<WritableStream<S>>;
     write<S = string>(stream: WritableStream<S>, accumulator: TriFunctional<WritableStream<S>, E, bigint, WritableStream<S>>): Promise<WritableStream<S>>;

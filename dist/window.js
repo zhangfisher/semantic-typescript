@@ -7,6 +7,15 @@ export class WindowCollectable extends OrderedCollectable {
     WindowCollectable = WindowCollectableSymbol;
     constructor(parameter, comparator = useCompare) {
         super(parameter, comparator);
+        Object.defineProperties(this, {
+            "WindowCollectable": {
+                value: WindowCollectableSymbol,
+                writable: false,
+                enumerable: false,
+                configurable: false
+            }
+        });
+        Object.freeze(this);
     }
     *[Symbol.iterator]() {
         try {
@@ -58,3 +67,6 @@ export class WindowCollectable extends OrderedCollectable {
     }
 }
 ;
+Object.freeze(WindowCollectable);
+Object.freeze(WindowCollectable.prototype);
+Object.freeze(Object.getPrototypeOf(WindowCollectable));

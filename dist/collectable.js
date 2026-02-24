@@ -1,5 +1,5 @@
-import { Collector, useAllMatch, useAnyMatch, useCollect, useCount, useError, useFindAny, useFindFirst, useFindLast, useFindMaximum, useFindMinimum, useForEach, useGroup, useGroupBy, useJoin, useLog, useNoneMatch, usePartition, usePartitionBy, useReduce, useToArray, useToAsyncGeneratorFunction, useToGeneratorFunction, useToMap, useToSet, useWrite } from "./collector";
-import { isBigInt, isCollector, isFunction, isObject, isString } from "./guard";
+import { Collector, useAllMatch, useAnyMatch, useCollect, useCount, useError, useFindAny, useFindAt, useFindFirst, useFindLast, useFindMaximum, useFindMinimum, useForEach, useGroup, useGroupBy, useJoin, useLog, useNoneMatch, usePartition, usePartitionBy, useReduce, useToArray, useToAsyncGeneratorFunction, useToGeneratorFunction, useToHashMap, useToHashSet, useToMap, useToSet, useWrite } from "./collector";
+import { isBigInt, isCollector, isFunction, isNumber, isObject, isString } from "./guard";
 import { useCompare } from "./hook";
 import { Optional } from "./optional";
 import { Semantic } from "./semantic";
@@ -8,6 +8,13 @@ import { invalidate, validate } from "./utility";
 export class Collectable {
     Collectable = CollectableSymbol;
     constructor() {
+        Object.defineProperty(this, "Collectable", {
+            value: CollectableSymbol,
+            enumerable: false,
+            writable: false,
+            configurable: false
+        });
+        Object.freeze(this);
     }
     anyMatch(predicate) {
         if (isFunction(predicate)) {
@@ -94,6 +101,25 @@ export class Collectable {
         catch (error) {
             throw new Error("Uncaught error on findAny.");
         }
+    }
+    findAt(index) {
+        if (isBigInt(index)) {
+            try {
+                return useFindAt(index).collect(this.source());
+            }
+            catch (error) {
+                throw new Error("Uncaught error on findAt.");
+            }
+        }
+        else if (isNumber(index)) {
+            try {
+                return useFindAt(index).collect(this.source());
+            }
+            catch (error) {
+                throw new Error("Uncaught error on findAt.");
+            }
+        }
+        throw new TypeError("Index must be a bigint.");
     }
     findFirst() {
         try {
@@ -335,12 +361,28 @@ export class Collectable {
             throw new Error("Uncaught error on toMap.");
         }
     }
+    toHashMap(keyExtractor, valueExtractor) {
+        try {
+            return useToHashMap(keyExtractor, valueExtractor).collect(this.source());
+        }
+        catch (error) {
+            throw new Error("Uncaught error on toHashMap.");
+        }
+    }
     toSet() {
         try {
             return useToSet().collect(this.source());
         }
         catch (error) {
             throw new Error("Uncaught error on toSet.");
+        }
+    }
+    toHashSet() {
+        try {
+            return useToHashSet().collect(this.source());
+        }
+        catch (error) {
+            throw new Error("Uncaught error on toHashSet.");
         }
     }
     write(argument1, argument2) {
@@ -363,6 +405,9 @@ export class Collectable {
     }
 }
 ;
+Object.freeze(Collectable);
+Object.freeze(Collectable.prototype);
+Object.freeze(Object.getPrototypeOf(Collectable));
 export class UnorderedCollectable extends Collectable {
     UnorderedCollectable = UnorderedCollectableSymbol;
     generator;
@@ -370,6 +415,21 @@ export class UnorderedCollectable extends Collectable {
         super();
         if (isFunction(argument1)) {
             this.generator = argument1;
+            Object.defineProperties(this, {
+                "UnorderedCollectable": {
+                    value: UnorderedCollectableSymbol,
+                    writable: false,
+                    enumerable: false,
+                    configurable: false
+                },
+                "generator": {
+                    value: argument1,
+                    writable: false,
+                    enumerable: false,
+                    configurable: false
+                }
+            });
+            Object.freeze(this);
         }
         else {
             throw new TypeError("Source must be an iterable or a generator function.");
@@ -398,6 +458,9 @@ export class UnorderedCollectable extends Collectable {
     }
 }
 ;
+Object.freeze(UnorderedCollectable);
+Object.freeze(UnorderedCollectable.prototype);
+Object.freeze(Object.getPrototypeOf(UnorderedCollectable));
 export class OrderedCollectable extends Collectable {
     OrderedCollectable = OrderedCollectableSymbol;
     buffer;
@@ -425,6 +488,20 @@ export class OrderedCollectable extends Collectable {
                         return Number(a.index - b.index);
                     });
                 }
+                Object.defineProperties(this, {
+                    "OrderedCollectable": {
+                        value: OrderedCollectableSymbol,
+                        writable: false,
+                        enumerable: false,
+                        configurable: false
+                    },
+                    "buffer": {
+                        value: this.buffer,
+                        writable: false,
+                        enumerable: false,
+                        configurable: false
+                    }
+                });
             }
             catch (error) {
                 throw new Error("Uncaught error on creating buffer.");
@@ -472,3 +549,6 @@ export class OrderedCollectable extends Collectable {
     }
 }
 ;
+Object.freeze(OrderedCollectable);
+Object.freeze(OrderedCollectable.prototype);
+Object.freeze(Object.getPrototypeOf(OrderedCollectable));

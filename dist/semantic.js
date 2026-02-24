@@ -1,6 +1,7 @@
 import { Collectable, OrderedCollectable, UnorderedCollectable } from "./collectable";
 import { isBigInt, isCollectable, isFunction, isIterable, isNumber, isSemantic } from "./guard";
-import { useCompare, useRandom } from "./hook";
+import { useHash } from "./hash";
+import { useCompare } from "./hook";
 import { BigIntStatistics, NumericStatistics } from "./statistics";
 import { SemanticSymbol } from "./symbol";
 import { validate } from "./utility";
@@ -10,6 +11,21 @@ export class Semantic {
     Semantic = SemanticSymbol;
     constructor(generator) {
         this.generator = generator;
+        Object.defineProperties(this, {
+            "Semantic": {
+                value: SemanticSymbol,
+                writable: false,
+                enumerable: false,
+                configurable: false
+            },
+            "generator": {
+                value: generator,
+                writable: false,
+                enumerable: false,
+                configurable: false
+            }
+        });
+        Object.freeze(this);
     }
     concat(other) {
         if (isSemantic(other)) {
@@ -50,29 +66,15 @@ export class Semantic {
         }
         throw new TypeError("Invalid arguments.");
     }
-    distinct(comparator) {
-        if (validate(comparator)) {
-            return new Semantic((accept, interrupt) => {
-                try {
-                    let array = [];
-                    this.generator((element, index) => {
-                        if (!array.some((e) => comparator(e, element))) {
-                            array.push(element);
-                            accept(element, index);
-                        }
-                    }, interrupt);
-                }
-                catch (error) {
-                    throw new Error("Uncaught error on distinct.");
-                }
-            });
-        }
+    distinct(argument1) {
+        let keyExtractor = validate(argument1) ? argument1 : (element) => element;
         return new Semantic((accept, interrupt) => {
             try {
                 let set = new Set();
                 this.generator((element, index) => {
-                    if (!set.has(element)) {
-                        set.add(element);
+                    let key = keyExtractor(element, index);
+                    if (!set.has(key)) {
+                        set.add(key);
                         accept(element, index);
                     }
                 }, interrupt);
@@ -89,7 +91,7 @@ export class Semantic {
                     let dropping = true;
                     this.generator((element, index) => {
                         if (dropping) {
-                            if (!predicate(element)) {
+                            if (!predicate(element, index)) {
                                 dropping = false;
                                 accept(element, index);
                             }
@@ -110,7 +112,7 @@ export class Semantic {
             return new Semantic((accept, interrupt) => {
                 try {
                     this.generator((element, index) => {
-                        if (predicate(element)) {
+                        if (predicate(element, index)) {
                             accept(element, index);
                         }
                     }, interrupt);
@@ -128,8 +130,8 @@ export class Semantic {
                 try {
                     let count = 0n;
                     let stop = false;
-                    this.generator((element) => {
-                        let result = mapper(element);
+                    this.generator((element, index) => {
+                        let result = mapper(element, index);
                         if (isIterable(result)) {
                             for (let subElement of result) {
                                 accept(subElement, count);
@@ -159,8 +161,8 @@ export class Semantic {
                 try {
                     let count = 0n;
                     let stop = false;
-                    this.generator((element) => {
-                        let result = mapper(element);
+                    this.generator((element, index) => {
+                        let result = mapper(element, index);
                         if (isIterable(result)) {
                             for (let subElement of result) {
                                 accept(subElement, count);
@@ -227,7 +229,7 @@ export class Semantic {
                 try {
                     let stop = false;
                     this.generator((element, index) => {
-                        let resolved = mapper(element);
+                        let resolved = mapper(element, index);
                         accept(resolved, index);
                         stop = stop || interrupt(resolved, index);
                     }, () => stop);
@@ -298,7 +300,7 @@ export class Semantic {
         return new Semantic((accept, interrupt) => {
             try {
                 this.generator((element, index) => {
-                    accept(element, useRandom(index));
+                    accept(element, useHash(element, index));
                 }, interrupt);
             }
             catch (error) {
@@ -384,7 +386,7 @@ export class Semantic {
         return new Semantic((accept, interrupt) => {
             try {
                 this.generator((element, index) => {
-                    if (!predicate(element)) {
+                    if (!predicate(element, index)) {
                         interrupt(element, index);
                         return;
                     }
@@ -499,3 +501,6 @@ export class Semantic {
     }
 }
 ;
+Object.freeze(Semantic);
+Object.freeze(Semantic.prototype);
+Object.freeze(Object.getPrototypeOf(Semantic));

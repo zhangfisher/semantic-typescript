@@ -1,4 +1,4 @@
-import { isBigInt, isFunction, isIterable, isNumber, isObject, isPromise } from "./guard";
+import { isBigInt, isFunction, isIterable, isNumber, isObject, isPromise, isAsyncIterable } from "./guard";
 import { useCompare, useTraverse } from "./hook";
 import { Semantic } from "./semantic";
 import { invalidate, validate } from "./utility";
@@ -148,12 +148,30 @@ export let fill = (element, count) => {
     }
     throw new TypeError("Invalid arguments.");
 };
+;
 export let from = (iterable) => {
     if (isIterable(iterable)) {
         return new Semantic((accept, interrupt) => {
             try {
                 let index = 0n;
                 for (let element of iterable) {
+                    if (interrupt(element, index)) {
+                        break;
+                    }
+                    accept(element, index);
+                    index++;
+                }
+            }
+            catch (error) {
+                throw new Error("Uncaught error as creating from semantic.");
+            }
+        });
+    }
+    else if (isAsyncIterable(iterable)) {
+        return new Semantic(async (accept, interrupt) => {
+            try {
+                let index = 0n;
+                for await (let element of iterable) {
                     if (interrupt(element, index)) {
                         break;
                     }

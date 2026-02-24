@@ -1,6 +1,6 @@
 import { useToArray } from "./collector";
 import { isBigInt, isFunction, isIterable, isNumber, isObject, isPrimitive } from "./guard";
-import { validate } from "./utility";
+import { invalidate, validate } from "./utility";
 export let useCompare = (t1, t2) => {
     if (t1 === t2 || Object.is(t1, t2)) {
         return 0;
@@ -16,7 +16,10 @@ export let useCompare = (t1, t2) => {
             case "boolean":
                 return t1 === t2 ? 0 : (t1 ? 1 : -1);
             case "symbol":
-                return Object.prototype.toString.call(t1).localeCompare(Object.prototype.toString.call(t2));
+                if (t1.description === t2.description) {
+                    return 0;
+                }
+                return (t1.description || "").localeCompare((t2.description) || "");
             case "function":
                 throw new TypeError("Cannot compare functions.");
             case "undefined":
@@ -41,7 +44,7 @@ export let useCompare = (t1, t2) => {
     }
     throw new TypeError("Cannot compare values of different types.");
 };
-export let useRandom = (index) => {
+export let Useandom = (index) => {
     if (isNumber(index)) {
         let x = Number(index);
         let phi = (1 + Math.sqrt(5)) / 2;
@@ -64,15 +67,20 @@ export let useRandom = (index) => {
     }
     throw new TypeError("Invalid input type");
 };
+;
+;
+;
 export let useTraverse = (t, callback) => {
     if (isObject(t)) {
         let seen = new WeakSet();
+        let path = [];
         let traverse = (target) => {
             if (!seen.has(target)) {
                 seen.add(target);
                 let stop = false;
                 let properties = Reflect.ownKeys(target);
                 for (let property of properties) {
+                    path.push(property);
                     let value = Reflect.get(target, property);
                     if (stop) {
                         break;
@@ -82,12 +90,13 @@ export let useTraverse = (t, callback) => {
                             if (isIterable(value)) {
                                 let index = 0;
                                 for (let item of value) {
+                                    path.push(index);
                                     if (validate(item)) {
                                         if (isObject(item)) {
                                             traverse(item);
                                         }
                                         else {
-                                            if (!callback(index, item)) {
+                                            if (!callback(index, item, path)) {
                                                 stop = true;
                                                 break;
                                             }
@@ -96,9 +105,12 @@ export let useTraverse = (t, callback) => {
                                     index++;
                                 }
                             }
+                            else {
+                                traverse(value);
+                            }
                         }
                         else {
-                            if (!callback(property, value)) {
+                            if (!callback(property, value, path)) {
                                 stop = true;
                                 break;
                             }
@@ -166,15 +178,50 @@ export let useArrange = (source, comparator) => {
     return useGenerator([]);
 };
 export let useToNumber = (target) => {
-    if (isNumber(target)) {
-        return target;
+    switch (typeof target) {
+        case "number":
+            return isNumber(target) ? target : 0;
+        case "boolean":
+            return target ? 1 : 0;
+        case "string":
+            let result = Number(target);
+            return isNumber(result) ? result : 0;
+        case "bigint":
+            return Number(target);
+        case "object":
+            if (invalidate(target)) {
+                return 0;
+            }
+            if (Reflect.has(target, Symbol.toPrimitive)) {
+                let resolved = Reflect.apply(Reflect.get(target, Symbol.toPrimitive), target, ["default"]);
+                return isNumber(resolved) ? resolved : 0;
+            }
+            return 0;
+        default:
+            return 0;
     }
-    let resolved = Reflect.apply(Reflect.get(target, Symbol.toPrimitive), target, ["default"]);
-    return isNumber(resolved) ? resolved : 0;
 };
 export let useToBigInt = (target) => {
-    if (isBigInt(target)) {
-        return target;
+    switch (typeof target) {
+        case "number":
+            return isNumber(target) ? BigInt(target) : 0n;
+        case "boolean":
+            return target ? 1n : 0n;
+        case "string":
+            let regex = /^[-+]?\d+$/;
+            return regex.test(target) ? BigInt(target) : 0n;
+        case "bigint":
+            return target;
+        case "object":
+            if (invalidate(target)) {
+                return 0n;
+            }
+            if (Reflect.has(target, Symbol.toPrimitive)) {
+                let resolved = Reflect.apply(Reflect.get(target, Symbol.toPrimitive), target, ["default"]);
+                return isBigInt(resolved) ? resolved : 0n;
+            }
+            return 0n;
+        default:
+            return 0n;
     }
-    return BigInt(useToNumber(target));
 };

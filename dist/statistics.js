@@ -7,6 +7,15 @@ export class Statistics extends OrderedCollectable {
     Statistics = StatisticsSymbol;
     constructor(parameter, comparator) {
         super(parameter, comparator || useCompare);
+        Object.defineProperties(this, {
+            "Statistics": {
+                value: StatisticsSymbol,
+                enumerable: false,
+                writable: false,
+                configurable: false
+            }
+        });
+        Object.freeze(this);
     }
     *[Symbol.iterator]() {
         try {
@@ -34,10 +43,22 @@ export class Statistics extends OrderedCollectable {
     }
 }
 ;
+Object.freeze(Statistics);
+Object.freeze(Statistics.prototype);
+Object.freeze(Object.getPrototypeOf(Statistics));
 export class NumericStatistics extends Statistics {
     NumericStatistics = NumericStatisticsSymbol;
     constructor(parameter, comparator) {
         super(parameter, comparator || useCompare);
+        Object.defineProperties(this, {
+            "NumericStatistics": {
+                value: NumericStatisticsSymbol,
+                enumerable: false,
+                writable: false,
+                configurable: false
+            }
+        });
+        Object.freeze(this);
     }
     *[Symbol.iterator]() {
         try {
@@ -241,10 +262,22 @@ export class NumericStatistics extends Statistics {
     }
 }
 ;
+Object.freeze(NumericStatistics);
+Object.freeze(NumericStatistics.prototype);
+Object.freeze(Object.getPrototypeOf(NumericStatistics));
 export class BigIntStatistics extends Statistics {
     BigIntStatistics = BigIntStatisticsSymbol;
     constructor(parameter, comparator) {
         super(parameter, comparator || useCompare);
+        Object.defineProperties(this, {
+            "BigIntStatistics": {
+                value: BigIntStatisticsSymbol,
+                enumerable: false,
+                writable: false,
+                configurable: false
+            }
+        });
+        Object.freeze(this);
     }
     *[Symbol.iterator]() {
         try {
@@ -445,3 +478,6 @@ export class BigIntStatistics extends Statistics {
     }
 }
 ;
+Object.freeze(BigIntStatistics);
+Object.freeze(BigIntStatistics.prototype);
+Object.freeze(Object.getPrototypeOf(BigIntStatistics));
