@@ -134,6 +134,7 @@ let comparator: Comparator<number> = (a: number, b: number): number => a - b;
 | `isBigIntStatistics(t: unknown): t is BigIntStatistics<unknown>` | Check if it is a BigIntStatistics instance | O(1) | O(1) |
 | `isPromise(t: unknown): t is Promise<unknown>` | Check if it is a Promise object  | O(1) | O(1) |
 | `isAsyncFunction(t: unknown): t is AsyncFunction` | Check if it is an AsyncFunction | O(1) | O(1) |
+| `isGenerator(t: unknown): t is Generator<unknown>` | Check if it is a Generator | O(1) | O(1) |
 | `isGeneratorFunction(t: unknown): t is GeneratorFunction` | Check if it is a GeneratorFunction | O(1) | O(1) |
 | `isAsyncGeneratorFunction(t: unknown): t is AsyncGeneratorFunction` | Check if it is an AsyncGeneratorFunction | O(1) | O(1) |
 
@@ -163,7 +164,7 @@ if(isIterable(value)){
 |------|------|------------|------------|
 | `useCompare<T>(t1: T, t2: T): number` | Generic comparison function | O(1) | O(1) |
 | `useRandom<T = number \| bigint>(index: T): T` | Pseudo-random number generator | O(log n) | O(1) |
-| `useTraverse(t, callback: BiPredicate<keyof T, T[keyof T]>)` | Deep traverse an object without cyclic references | O(n) | O(1) |
+| `useTraverse(t, callback: BiPredicate<keyof T, T[keyof T]>): void` | Deep traverse an object without cyclic references | O(n) | O(1) |
 | `useToNumber(t: unknown): number` | Convert a value to a number | O(1) | O(1) |
 | `useToBigInt(t: unknown): bigint` | Convert a value to a BigInt | O(1) | O(1) |
 
@@ -208,10 +209,10 @@ let resolvedBigInt: bigint = useToBigInt(toBeResolved); // 5n
 
 | Method | Description | Time Complexity | Space Complexity |
 |------|------|------------|------------|
-| `Optional.empty<T>()` | Create an empty Optional | O(1) | O(1) |
-| `Optional.of<T>(value)` | Create an Optional containing a value | O(1) | O(1) |
-| `Optional.ofNullable<T>(value)` | Create a potentially empty Optional | O(1) | O(1) |
-| `Optional.ofNonNull<T>(value)` | Create a non-null Optional | O(1) | O(1) |
+| `Optional.empty<T>(): Optional<T>` | Create an empty Optional | O(1) | O(1) |
+| `Optional.of<T>(value): Optional<T>` | Create an Optional containing a value | O(1) | O(1) |
+| `Optional.ofNullable<T>(value): Optional<T>` | Create a potentially empty Optional | O(1) | O(1) |
+| `Optional.ofNonNull<T>(value): Optional<T>` | Create a non-null Optional | O(1) | O(1) |
 
 ```typescript
 // Optional usage examples
@@ -228,76 +229,94 @@ console.log(empty.get(100)); // Outputs 100
 
 | Method | Description | Time Complexity | Space Complexity |
 |------|------|------------|------------|
-| `Collector.full(identity: Supplier<A>, accumulator: TriFunctional<A, E, bigint, A>, finisher: Functional<A, R>)` | Create a full collector | O(1) | O(1) |
-| `Collector.shortable(identity: Supplier<A>, interrupt: BiPredicate<E, bigint>, accumulator: TriFunctional<A, E, bigint, A>, finisher: Functional<A, R>)` | Create an interruptible collector | O(1) | O(1) |
-| `useAnyMatch<E>(predicate: Predicate<E>)` | Create a shortable collector returning true if any element matches the predicate | O(n) | O(1) |
-| `useAllMatch<E>(predicate: Predicate<E>)` | Create a shortable collector returning true if all elements match the predicate | O(n) | O(1) |
-| `useCollect<E, A, R>(identity: Supplier<A>, accumulator: TriFunctional<A, E, bigint, A>, finisher: Functional<A, R>)` | Create a full collector with identity, accumulator, finisher | O(1) | O(1) |
-| `useCollect<E, A, R>(identity: Supplier<A>, interrupt: BiPredicate<E, bigint>, accumulator: TriFunctional<A, E, bigint, A>, finisher: Functional<A, R>)` | Create a shortable collector with identity, interrupt, accumulator, finisher | O(1) | O(1) |
-| `useCount<E>()` | Create a full collector counting elements | O(n) | O(1) |
-| `useError<E>()` | Create a collector printing an error | O(n) | O(1) |
-| `useError<E>(accumulator: TriFunctional<string, E, bigint, string>)` | Create a collector printing an accumulated error | O(n) | O(1) |
-| `useError<E>(prefix: string, accumulator: TriFunctional<string, E, bigint, string>, suffix: string)` | Create a collector printing an accumulated error with prefix and suffix | O(n) | O(1) |
-| `useFindFirst<E>()` | Create a shortable collector returning the first element | O(n) | O(1) |
-| `useFindAny<E>()` | Create a shortable collector returning any element | O(n) | O(1) |
-| `useFindLast<E>()` | Create a full collector returning the last element | O(n) | O(1) |
-| `useFindMaximum<E>()` | Create a full collector returning the maximum element | O(n) | O(1) |
-| `useFindMaximum<E>(comparator: Comparator<E>)` | Create a full collector returning the maximum element | O(n) | O(1) |
-| `useFindMinimum<E>()` | Create a full collector returning the minimum element | O(n) | O(1) |
-| `useFindMinimum<E>(comparator: Comparator<E>)` | Create a full collector returning the minimum element | O(n) | O(1) |
-| `useForEach<E>(action: BiFunctional<E, bigint>)` | Create a full collector executing an action for each element | O(n) | O(1) |
-| `useNoneMatch<E>(predicate: Predicate<E>)` | Create a shortable collector returning true if no element matches the predicate | O(n) | O(1) |
-| `useGroup<E, K>(classifier: Functional<E, K>)` | Create a full collector grouping elements by classifier key | O(n) | O(n) |
-| `useGroupBy<E, K, V>(keyExtractor: Functional<E, K>, valueExtractor: Functional<E, V>)` | Create a full collector grouping elements by key with extracted values | O(n) | O(n) |
-| `useJoin<E>()` | Create a full collector joining elements into a string with default format | O(n) | O(1) |
-| `useJoin<E>(delimiter: string)` | Create a full collector joining elements with delimiter | O(n) | O(1) |
-| `useJoin<E>(prefix: string, delimiter: string, suffix: string)` | Create a full collector joining elements with prefix, delimiter, suffix | O(n) | O(1) |
-| `useJoin<E>(prefix, accumulator, suffix)` | Create a full collector joining elements via custom accumulator | O(n) | O(1) |
-| `useLog<E>()` | Create a full collector logging elements to console with default format | O(n) | O(1) |
-| `useLog<E>(accumulator)` | Create a full collector logging elements via custom accumulator | O(n) | O(1) |
-| `useLog<E>(prefix, accumulator, suffix)` | Create a full collector logging elements with prefix/suffix via accumulator | O(n) | O(1) |
-| `usePartition<E>(count)` | Create a full collector partitioning elements into chunks of specified size | O(n) | O(n) |
-| `usePartitionBy<E>(classifier)` | Create a full collector partitioning elements by classifier result | O(n) | O(n) |
-| `useReduce<E>(accumulator)` | Create a full collector reducing elements without identity | O(n) | O(1) |
-| `useReduce<E>(identity, accumulator)` | Create a full collector reducing elements with identity | O(n) | O(1) |
-| `useReduce<E, R>(identity, accumulator, finisher)` | Create a full collector reducing elements with identity, accumulator, finisher | O(n) | O(1) |
-| `useToArray<E>()` | Create a full collector gathering elements into an array | O(n) | O(n) |
-| `useToMap<E, K, V>(keyExtractor, valueExtractor)` | Create a full collector gathering elements into a Map | O(n) | O(n) |
-| `useToSet<E>()` | Create a full collector gathering elements into a Set | O(n) | O(n) |
-| `useWrite<E, S>(stream)` | Create a full collector writing elements to a stream | O(n) | O(1) |
-| `useWrite<E, S>(stream, accumulator)` | Create a full collector writing elements via custom accumulator | O(n) | O(1) |
-| `useNumericAverage<E>(mapper)` | Create a full collector computing numeric average with mapper | O(n) | O(1) |
-| `useNumericAverage<E>()` | Create a full collector computing numeric average | O(n) | O(1) |
-| `useBigIntAverage<E>(mapper)` | Create a full collector computing bigint average with mapper | O(n) | O(1) |
-| `useBigIntAverage<E>()` | Create a full collector computing bigint average | O(n) | O(1) |
-| `useFrequency<E>()` | Create a full collector counting element frequencies | O(n) | O(n) |
-| `useNumericSummate<E>()` | Create a full collector summing numeric elements | O(n) | O(1) |
-| `useNumericSummate<E>(mapper)` | Create a full collector summing mapped numeric values | O(n) | O(1) |
-| `useBigIntSummate<E>()` | Create a full collector summing numeric elements | O(n) | O(1) |
-| `useBigIntSummate<E>(mapper)` | Create a full collector summing mapped numeric values | O(n) | O(1) |
-| `useNumericAverage<E>()` | Create a full collector computing numeric average | O(n) | O(1) |
-| `useNumericAverage<E>(mapper)` | Create a full collector computing numeric average with mapper | O(n) | O(1) |
-| `useBigIntAverage<E>()` | Create a full collector computing bigint average | O(n) | O(1) |
-| `useBigIntAverage<E>(mapper)` | Create a full collector computing bigint average with mapper | O(n) | O(1) |
-| `useFrequency<E>()` | Create a full collector counting element frequencies | O(n) | O(n) |
-| `useNumericMode<E>()` | Create a full collector computing numeric mode | O(n) | O(n) |
-| `useNumericMode<E>(mapper)` | Create a full collector computing numeric mode with mapper | O(n) | O(n) |
-| `useBigIntMode<E>()` | Create a full collector computing bigint mode | O(n) | O(n) |
-| `useBigIntMode<E>(mapper)` | Create a full collector computing bigint mode with mapper | O(n) | O(n) |
-| `useNumericVariance<E>()` | Create a full collector computing numeric variance | O(n) | O(1) |
-| `useNumericVariance<E>(mapper)` | Create a full collector computing numeric variance with mapper | O(n) | O(1) |
-| `useBigIntVariance<E>()` | Create a full collector computing bigint variance | O(n) | O(1) |
-| `useBigIntVariance<E>(mapper)` | Create a full collector computing bigint variance with mapper | O(n) | O(1) |
-| `useNumericStandardDeviation<E>()` | Create a full collector computing numeric standard deviation | O(n) | O(1) |
-| `useNumericStandardDeviation<E>(mapper)` | Create a full collector computing numeric standard deviation with mapper | O(n) | O(1) |
-| `useBigIntStandardDeviation<E>()` | Create a full collector computing bigint standard deviation | O(n) | O(1) |
-| `useBigIntStandardDeviation<E>(mapper)` | Create a full collector computing bigint standard deviation with mapper | O(n) | O(1) |
-| `useNumericMedian<E>()` | Create a full collector computing numeric median | O(n) | O(1) |
-| `useNumericMedian<E>(mapper)` | Create a full collector computing numeric median with mapper | O(n) | O(1) |
-| `useBigIntMedian<E>()` | Create a full collector computing bigint median | O(n) | O(1) |
-| `useBigIntMedian<E>(mapper)` | Create a full collector computing bigint median with mapper | O(n) | O(1) |
-| `useToGeneratorFunction<E>()` | Create a full collector converting a stream to a generator function | O(n) | O(1) |
-| `useToAsyncGeneratorFunction<E>()` | Create a full collector converting a stream to an async generator function | O(n) | O(1) |
+| `Collector.full(identity: Supplier<A>, accumulator: BiFunctional<A, E, A>, finisher: Functional<A, R>): Collector<E, A, R>` | Create a full collector | O(1) | O(1) |
+| `Collector.full(identity: Supplier<A>, accumulator: TriFunctional<A, E, bigint, A>, finisher: Functional<A, R>): Collector<E, A, R>` | Create a full collector | O(1) | O(1) |
+| `Collector.shortable(identity: Supplier<A>, interruptor: Predicate<E>, accumulator: BiFunctional<A, E, A>, finisher: Functional<A, R>): Collector<E, A, R>` | Create an interruptible collector | O(1) | O(1) |
+| `Collector.shortable(identity: Supplier<A>, interruptor: Predicate<E>, accumulator: TriFunctional<A, E, bigint, A>, finisher: Functional<A, R>): Collector<E, A, R>` | Create an interruptible collector | O(1) | O(1) |
+| `Collector.shortable(identity: Supplier<A>, interruptor: BiPredicate<E, bigint>, accumulator: BiFunctional<A, E, A>, finisher: Functional<A, R>): Collector<E, A, R>` | Create an interruptible collector | O(1) | O(1) |
+| `Collector.shortable(identity: Supplier<A>, interruptor: BiPredicate<E, bigint>, accumulator: TriFunctional<A, E, bigint, A>, finisher: Functional<A, R>): Collector<E, A, R>` | Create an interruptible collector | O(1) | O(1) |
+| `Collector.shortable(identity: Supplier<A>, interruptor: TriPredicate<E, bigint, A>, accumulator: BiFunctional<A, E, A>, finisher: Functional<A, R>): Collector<E, A, R>` | Create an interruptible collector | O(1) | O(1) |
+| `Collector.shortable(identity: Supplier<A>, interruptor: TriPredicate<E, bigint, A>, accumulator: TriFunctional<A, E, bigint, A>, finisher: Functional<A, R>): Collector<E, A, R>` | Create an interruptible collector | O(1) | O(1) |
+| `useAnyMatch<E>(predicate: Predicate<E>): Collector<E, boolean, boolean>` | Creates a collector that checks if any element matches the predicate | `predicate: Predicate<E>` | `Collector<E, boolean, boolean>` |
+| `useAllMatch<E>(predicate: Predicate<E>): Collector<E, boolean, boolean>` | Creates a collector that checks if all elements match the predicate | `predicate: Predicate<E>` | `Collector<E, boolean, boolean>` |
+| `useCollect<E, A, R>(identity: Supplier<A>, accumulator: BiFunctional<A, E, A>, finisher: Functional<A, R>): Collector<E, A, R>` | Creates a full collector | `identity: Supplier<A>`, `accumulator: BiFunctional<A, E, A>`, `finisher: Functional<A, R>` | `Collector<E, A, R>` |
+| `useCollect<E, A, R>(identity: Supplier<A>, accumulator: TriFunctional<A, E, bigint, A>, finisher: Functional<A, R>): Collector<E, A, R>` | Creates a full collector | `identity: Supplier<A>`, `accumulator: TriFunctional<A, E, bigint, A>`, `finisher: Functional<A, R>` | `Collector<E, A, R>` |
+| `useCollect<E, A, R>(identity: Supplier<A>, interruptor: Predicate<E>, accumulator: BiFunctional<A, E, A>, finisher: Functional<A, R>): Collector<E, A, R>` | Creates an interruptible collector | `identity: Supplier<A>`, `interruptor: Predicate<E>`, `accumulator: BiFunctional<A, E, A>`, `finisher: Functional<A, R>` | `Collector<E, A, R>` |
+| `useCollect<E, A, R>(identity: Supplier<A>, interruptor: Predicate<E>, accumulator: TriFunctional<A, E, bigint, A>, finisher: Functional<A, R>): Collector<E, A, R>` | Creates an interruptible collector | `identity: Supplier<A>`, `interruptor: Predicate<E>`, `accumulator: TriFunctional<A, E, bigint, A>`, `finisher: Functional<A, R>` | `Collector<E, A, R>` |
+| `useCollect<E, A, R>(identity: Supplier<A>, interruptor: BiPredicate<E, bigint>, accumulator: BiFunctional<A, E, A>, finisher: Functional<A, R>): Collector<E, A, R>` | Creates an interruptible collector | `identity: Supplier<A>`, `interruptor: BiPredicate<E, bigint>`, `accumulator: BiFunctional<A, E, A>`, `finisher: Functional<A, R>` | `Collector<E, A, R>` |
+| `useCollect<E, A, R>(identity: Supplier<A>, interruptor: BiPredicate<E, bigint>, accumulator: TriFunctional<A, E, bigint, A>, finisher: Functional<A, R>): Collector<E, A, R>` | Creates an interruptible collector | `identity: Supplier<A>`, `interruptor: BiPredicate<E, bigint>`, `accumulator: TriFunctional<A, E, bigint, A>`, `finisher: Functional<A, R>` | `Collector<E, A, R>` |
+| `useCollect<E, A, R>(identity: Supplier<A>, interruptor: TriPredicate<E, bigint, A>, accumulator: BiFunctional<A, E, A>, finisher: Functional<A, R>): Collector<E, A, R>` | Creates an interruptible collector | `identity: Supplier<A>`, `interruptor: TriPredicate<E, bigint, A>`, `accumulator: BiFunctional<A, E, A>`, `finisher: Functional<A, R>` | `Collector<E, A, R>` |
+| `useCollect<E, A, R>(identity: Supplier<A>, interruptor: TriPredicate<E, bigint, A>, accumulator: TriFunctional<A, E, bigint, A>, finisher: Functional<A, R>): Collector<E, A, R>` | Creates an interruptible collector | `identity: Supplier<A>`, `interruptor: TriPredicate<E, bigint, A>`, `accumulator: TriFunctional<A, E, bigint, A>`, `finisher: Functional<A, R>` | `Collector<E, A, R>` |
+| `useCount<E = unknown>(): Collector<E, bigint, bigint>` | Creates a collector that counts elements | None | `Collector<E, bigint, bigint>` |
+| `useError<E = unknown>(): Collector<E, string, string>` | Creates a collector that accumulates errors to console.error | None | `Collector<E, string, string>` |
+| `useError<E = unknown>(accumulator: BiFunctional<string, E, string>): Collector<E, string, string>` | Creates a collector that accumulates errors with custom accumulator | `accumulator: BiFunctional<string, E, string>` | `Collector<E, string, string>` |
+| `useError<E = unknown>(accumulator: TriFunctional<string, E, bigint, string>): Collector<E, string, string>` | Creates a collector that accumulates errors with custom accumulator | `accumulator: TriFunctional<string, E, bigint, string>` | `Collector<E, string, string>` |
+| `useError<E = unknown>(prefix: string, accumulator: BiFunctional<string, E, string>, suffix: string): Collector<E, string, string>` | Creates a collector that accumulates errors with prefix and suffix | `prefix: string`, `accumulator: BiFunctional<string, E, string>`, `suffix: string` | `Collector<E, string, string>` |
+| `useError<E = unknown>(prefix: string, accumulator: TriFunctional<string, E, bigint, string>, suffix: string): Collector<E, string, string>` | Creates a collector that accumulates errors with prefix and suffix | `prefix: string`, `accumulator: TriFunctional<string, E, bigint, string>`, `suffix: string` | `Collector<E, string, string>` |
+| `useFindFirst<E>(): Collector<E, Optional<E>, Optional<E>>` | Creates a collector that finds the first element | None | `Collector<E, Optional<E>, Optional<E>>` |
+| `useFindAny<E>(): Collector<E, Optional<E>, Optional<E>>` | Creates a collector that finds any element randomly | None | `Collector<E, Optional<E>, Optional<E>>` |
+| `useFindLast<E>(): Collector<E, Optional<E>, Optional<E>>` | Creates a collector that finds the last element | None | `Collector<E, Optional<E>, Optional<E>>` |
+| `useFindMaximum<E>(): Collector<E, Optional<E>, Optional<E>>` | Creates a collector that finds the maximum element | None | `Collector<E, Optional<E>, Optional<E>>` |
+| `useFindMaximum<E>(comparator: Comparator<E>): Collector<E, Optional<E>, Optional<E>>` | Creates a collector that finds the maximum element with custom comparator | `comparator: Comparator<E>` | `Collector<E, Optional<E>, Optional<E>>` |
+| `useFindMinimum<E>(): Collector<E, Optional<E>, Optional<E>>` | Creates a collector that finds the minimum element | None | `Collector<E, Optional<E>, Optional<E>>` |
+| `useFindMinimum<E>(comparator: Comparator<E>): Collector<E, Optional<E>, Optional<E>>` | Creates a collector that finds the minimum element with custom comparator | `comparator: Comparator<E>` | `Collector<E, Optional<E>, Optional<E>>` |
+| `useForEach<E>(action: Consumer<E>): Collector<E, bigint, bigint>` | Creates a collector that performs an action on each element | `action: Consumer<E>` | `Collector<E, bigint, bigint>` |
+| `useForEach<E>(action: BiConsumer<E, bigint>): Collector<E, bigint, bigint>` | Creates a collector that performs an action on each element with index | `action: BiConsumer<E, bigint>` | `Collector<E, bigint, bigint>` |
+| `useNoneMatch<E>(predicate: Predicate<E>): Collector<E, boolean, boolean>` | Creates a collector that checks if no element matches the predicate | `predicate: Predicate<E>` | `Collector<E, boolean, boolean>` |
+| `useGroup<E, K>(classifier: Functional<E, K>): Collector<E, Map<K, E[]>, Map<K, E[]>>` | Creates a collector that groups elements by classifier | `classifier: Functional<E, K>` | `Collector<E, Map<K, E[]>, Map<K, E[]>>` |
+| `useGroupBy<E, K, V>(keyExtractor: Functional<E, K>, valueExtractor: Functional<E, V>): Collector<E, Map<K, V[]>, Map<K, V[]>>` | Creates a collector that groups elements by key and extracts values | `keyExtractor: Functional<E, K>`, `valueExtractor: Functional<E, V>` | `Collector<E, Map<K, V[]>, Map<K, V[]>>` |
+| `useJoin<E = unknown>(): Collector<E, string, string>` | Creates a collector that joins elements into a string | None | `Collector<E, string, string>` |
+| `useJoin<E = unknown>(delimiter: string): Collector<E, string, string>` | Creates a collector that joins elements with delimiter | `delimiter: string` | `Collector<E, string, string>` |
+| `useJoin<E = unknown>(prefix: string, delimiter: string, suffix: string): Collector<E, string, string>` | Creates a collector that joins elements with prefix, delimiter, and suffix | `prefix: string`, `delimiter: string`, `suffix: string` | `Collector<E, string, string>` |
+| `useJoin<E = unknown>(prefix: string, accumulator: BiFunctional<string, E, string>, suffix: string): Collector<E, string, string>` | Creates a collector that joins elements with custom accumulator | `prefix: string`, `accumulator: BiFunctional<string, E, string>`, `suffix: string` | `Collector<E, string, string>` |
+| `useJoin<E = unknown>(prefix: string, accumulator: TriFunctional<string, E, bigint, string>, suffix: string): Collector<E, string, string>` | Creates a collector that joins elements with custom accumulator | `prefix: string`, `accumulator: TriFunctional<string, E, bigint, string>`, `suffix: string` | `Collector<E, string, string>` |
+| `useLog<E = unknown>(): Collector<E, string, string>` | Creates a collector that accumulates logs to console.log | None | `Collector<E, string, string>` |
+| `useLog<E = unknown>(accumulator: BiFunctional<string, E, string>): Collector<E, string, string>` | Creates a collector that accumulates logs with custom accumulator | `accumulator: BiFunctional<string, E, string>` | `Collector<E, string, string>` |
+| `useLog<E = unknown>(accumulator: TriFunctional<string, E, bigint, string>): Collector<E, string, string>` | Creates a collector that accumulates logs with custom accumulator | `accumulator: TriFunctional<string, E, bigint, string>` | `Collector<E, string, string>` |
+| `useLog<E = unknown>(prefix: string, accumulator: BiFunctional<string, E, string>, suffix: string): Collector<E, string, string>` | Creates a collector that accumulates logs with prefix and suffix | `prefix: string`, `accumulator: BiFunctional<string, E, string>`, `suffix: string` | `Collector<E, string, string>` |
+| `useLog<E = unknown>(prefix: string, accumulator: TriFunctional<string, E, bigint, string>, suffix: string): Collector<E, string, string>` | Creates a collector that accumulates logs with prefix and suffix | `prefix: string`, `accumulator: TriFunctional<string, E, bigint, string>`, `suffix: string` | `Collector<E, string, string>` |
+| `usePartition<E>(count: bigint): Collector<E, Array<Array<E>>, Array<Array<E>>>` | Creates a collector that partitions elements into groups | `count: bigint` | `Collector<E, Array<Array<E>>, Array<Array<E>>>` |
+| `usePartitionBy<E>(classifier: Functional<E, bigint>): Collector<E, Array<E[]>, Array<E[]>>` | Creates a collector that partitions elements by classifier | `classifier: Functional<E, bigint>` | `Collector<E, Array<E[]>, Array<E[]>>` |
+| `useReduce<E>(accumulator: BiFunctional<E, E, E>): Collector<E, Optional<E>, Optional<E>>` | Creates a collector that reduces elements | `accumulator: BiFunctional<E, E, E>` | `Collector<E, Optional<E>, Optional<E>>` |
+| `useReduce<E>(accumulator: TriFunctional<E, E, bigint, E>): Collector<E, Optional<E>, Optional<E>>` | Creates a collector that reduces elements | `accumulator: TriFunctional<E, E, bigint, E>` | `Collector<E, Optional<E>, Optional<E>>` |
+| `useReduce<E>(identity: E, accumulator: BiFunctional<E, E, E>): Collector<E, E, E>` | Creates a collector that reduces elements with identity | `identity: E`, `accumulator: BiFunctional<E, E, E>` | `Collector<E, E, E>` |
+| `useReduce<E>(identity: E, accumulator: TriFunctional<E, E, bigint, E>): Collector<E, E, E>` | Creates a collector that reduces elements with identity | `identity: E`, `accumulator: TriFunctional<E, E, bigint, E>` | `Collector<E, E, E>` |
+| `useReduce<E, R>(identity: R, accumulator: BiFunctional<R, E, R>, finisher: Functional<R, R>): Collector<E, R, R>` | Creates a collector that reduces elements with identity and finisher | `identity: R`, `accumulator: BiFunctional<R, E, R>`, `finisher: Functional<R, R>` | `Collector<E, R, R>` |
+| `useReduce<E, R>(identity: R, accumulator: TriFunctional<R, E, bigint, R>, finisher: Functional<R, R>): Collector<E, R, R>` | Creates a collector that reduces elements with identity and finisher | `identity: R`, `accumulator: TriFunctional<R, E, bigint, R>`, `finisher: Functional<R, R>` | `Collector<E, R, R>` |
+| `useToArray<E>(): Collector<E, E[], E[]>` | Creates a collector that accumulates elements into an array | None | `Collector<E, E[], E[]>` |
+| `useToMap<E, K, V>(keyExtractor: Functional<E, K>, valueExtractor: Functional<E, V>): Collector<E, Map<K, V>, Map<K, V>>` | Creates a collector that accumulates elements into a map | `keyExtractor: Functional<E, K>`, `valueExtractor: Functional<E, V>` | `Collector<E, Map<K, V>, Map<K, V>>` |
+| `useToHashMap<E, K, V>(keyExtractor: Functional<E, K>, valueExtractor: Functional<E, V>): Collector<E, Map<K, V>, Map<K, V>>` | Creates a collector that accumulates elements into a hash map | `keyExtractor: Functional<E, K>`, `valueExtractor: Functional<E, V>` | `Collector<E, Map<K, V>, Map<K, V>>` |
+| `useToSet<E>(): Collector<E, Set<E>, Set<E>>` | Creates a collector that accumulates elements into a set | None | `Collector<E, Set<E>, Set<E>>` |
+| `useWrite<E, S = string>(stream: WritableStream<S>): Collector<E, Promise<WritableStream<S>>, Promise<WritableStream<S>>>` | Creates a collector that writes elements to a stream | `stream: WritableStream<S>` | `Collector<E, Promise<WritableStream<S>>, Promise<WritableStream<S>>>` |
+| `useWrite<E, S = string>(stream: WritableStream<S>, accumulator: BiFunctional<WritableStream<S>, E, WritableStream<S>>): Collector<E, Promise<WritableStream<S>>, Promise<WritableStream<S>>>` | Creates a collector that writes elements to a stream with custom accumulator | `stream: WritableStream<S>`, `accumulator: BiFunctional<WritableStream<S>, E, WritableStream<S>>` | `Collector<E, Promise<WritableStream<S>>, Promise<WritableStream<S>>>` |
+| `useWrite<E, S = string>(stream: WritableStream<S>, accumulator: TriFunctional<WritableStream<S>, E, bigint, WritableStream<S>>): Collector<E, Promise<WritableStream<S>>, Promise<WritableStream<S>>>` | Creates a collector that writes elements to a stream with custom accumulator | `stream: WritableStream<S>`, `accumulator: TriFunctional<WritableStream<S>, E, bigint, WritableStream<S>>` | `Collector<E, Promise<WritableStream<S>>, Promise<WritableStream<S>>>` |
+| `useNumericSummate<E>(): Collector<E, number, number>` | Creates a collector that sums numeric values | None | `Collector<number, number, number>` or `Collector<E, number, number>` |
+| `useNumericSummate<E>(mapper: Functional<E, number>): Collector<E, number, number>` | Creates a collector that sums mapped numeric values | `mapper: Functional<E, number>` | `Collector<E, number, number>` |
+| `useBigIntSummate<E>(): Collector<E, bigint, bigint>` | Creates a collector that sums bigint values | None | `Collector<bigint, bigint, bigint>` or `Collector<E, bigint, bigint>` |
+| `useBigIntSummate<E>(mapper: Functional<E, bigint>): Collector<E, bigint, bigint>` | Creates a collector that sums mapped bigint values | `mapper: Functional<E, bigint>` | `Collector<E, bigint, bigint>` |
+| `useNumericAverage<E>(): Collector<E, NumericAverageAccumulator, number>` | Creates a collector that calculates numeric average | None | `Collector<number, NumericAverageAccumulator, number>` or `Collector<E, NumericAverageAccumulator, number>` |
+| `useNumericAverage<E>(mapper: Functional<E, number>): Collector<E, NumericAverageAccumulator, number>` | Creates a collector that calculates numeric average of mapped values | `mapper: Functional<E, number>` | `Collector<E, NumericAverageAccumulator, number>` |
+| `useBigIntAverage<E>(): Collector<E, BigIntAverageAccumulator, bigint>` | Creates a collector that calculates bigint average | None | `Collector<bigint, BigIntAverageAccumulator, bigint>` or `Collector<E, BigIntAverageAccumulator, bigint>` |
+| `useBigIntAverage<E>(mapper: Functional<E, bigint>): Collector<E, BigIntAverageAccumulator, bigint>` | Creates a collector that calculates bigint average of mapped values | `mapper: Functional<E, bigint>` | `Collector<E, BigIntAverageAccumulator, bigint>` |
+| `useFrequency<E>(): Collector<E, Map<E, bigint>, Map<E, bigint>>` | Creates a collector that counts frequency of elements | None | `Collector<E, Map<E, bigint>, Map<E, bigint>>` |
+| `useNumericMode<E>(): Collector<E, Map<number, bigint>, number>` | Creates a collector that finds numeric mode | None | `Collector<number, Map<number, bigint>, number>` or `Collector<E, Map<number, bigint>, number>` |
+| `useNumericMode<E>(mapper: Functional<E, number>): Collector<E, Map<number, bigint>, number>` | Creates a collector that finds numeric mode of mapped values | `mapper: Functional<E, number>` | `Collector<E, Map<number, bigint>, number>` |
+| `useBigIntMode<E>(): Collector<E, Map<bigint, bigint>, bigint>` | Creates a collector that finds bigint mode | None | `Collector<bigint, Map<bigint, bigint>, bigint>` or `Collector<E, Map<bigint, bigint>, bigint>` |
+| `useBigIntMode<E>(mapper: Functional<E, bigint>): Collector<E, Map<bigint, bigint>, bigint>` | Creates a collector that finds bigint mode of mapped values | `mapper: Functional<E, bigint>` | `Collector<E, Map<bigint, bigint>, bigint>` |
+| `useNumericVariance<E>(): Collector<E, VarianceAccumulator, number>` | Creates a collector that calculates numeric variance | None | `Collector<number, VarianceAccumulator, number>` or `Collector<E, VarianceAccumulator, number>` |
+| `useNumericVariance<E>(mapper: Functional<E, number>): Collector<E, VarianceAccumulator, number>` | Creates a collector that calculates numeric variance of mapped values | `mapper: Functional<E, number>` | `Collector<E, VarianceAccumulator, number>` |
+| `useBigIntVariance<E>(): Collector<E, BigIntVarianceAccumulator, bigint>` | Creates a collector that calculates bigint variance | None | `Collector<bigint, BigIntVarianceAccumulator, bigint>` or `Collector<E, BigIntVarianceAccumulator, bigint>` |
+| `useBigIntVariance<E>(mapper: Functional<E, bigint>): Collector<E, BigIntVarianceAccumulator, bigint>` | Creates a collector that calculates bigint variance of mapped values | `mapper: Functional<E, bigint>` | `Collector<E, BigIntVarianceAccumulator, bigint>` |
+| `useNumericStandardDeviation<E>(): Collector<E, StandardDeviationAccumulator, number>` | Creates a collector that calculates numeric standard deviation | None | `Collector<number, StandardDeviationAccumulator, number>` or `Collector<E, StandardDeviationAccumulator, number>` |
+| `useNumericStandardDeviation<E>(mapper: Functional<E, number>): Collector<E, StandardDeviationAccumulator, number>` | Creates a collector that calculates numeric standard deviation of mapped values | `mapper: Functional<E, number>` | `Collector<E, StandardDeviationAccumulator, number>` |
+| `useBigIntStandardDeviation<E>(): Collector<E, BigIntStandardDeviationAccumulator, bigint>` | Creates a collector that calculates bigint standard deviation | None | `Collector<bigint, BigIntStandardDeviationAccumulator, bigint>` or `Collector<E, BigIntStandardDeviationAccumulator, bigint>` |
+| `useBigIntStandardDeviation<E>(mapper: Functional<E, bigint>): Collector<E, BigIntStandardDeviationAccumulator, bigint>` | Creates a collector that calculates bigint standard deviation of mapped values | `mapper: Functional<E, bigint>` | `Collector<E, BigIntStandardDeviationAccumulator, bigint>` |
+| `useNumericMedian<E>(): Collector<E, number[], number>` | Creates a collector that calculates numeric median | None | `Collector<number, number[], number>` or `Collector<E, number[], number>` |
+| `useNumericMedian<E>(mapper: Functional<E, number>): Collector<E, number[], number>` | Creates a collector that calculates numeric median of mapped values | `mapper: Functional<E, number>` | `Collector<E, number[], number>` |
+| `useBigIntMedian<E>(): Collector<E, bigint[], bigint>` | Creates a collector that calculates bigint median | None | `Collector<bigint, bigint[], bigint>` or `Collector<E, bigint[], bigint>` |
+| `useBigIntMedian<E>(mapper: Functional<E, bigint>): Collector<E, bigint[], bigint>` | Creates a collector that calculates bigint median of mapped values | `mapper: Functional<E, bigint>` | `Collector<E, bigint[], bigint>` |
+| `useToGeneratorFunction<E>(): Collector<E, Array<E>, globalThis.Generator<E, void, undefined>>` | Creates a collector that converts elements to a generator function | None | `Collector<E, Array<E>, globalThis.Generator<E, void, undefined>>` |
+| `useToAsyncGeneratorFunction<E>(): Collector<E, Array<E>, globalThis.AsyncGenerator<E, void, undefined>>` | Creates a collector that converts elements to an async generator function | None | `Collector<E, Array<E>, globalThis.AsyncGenerator<E, void, undefined>>` |
 
 ```typescript
 // Collector conversion examples
@@ -336,29 +355,39 @@ average.collect([1,2,3,4,5]); // Averages from an iterable object
 ## Collector Class Methods
 
 | Method | Description | Time Complexity | Space Complexity |
-|------------|------------|------------|------------|
-| `collect(stream)` | Collect elements from a stream | O(n) | O(1) |
-| `collect(iterable)` | Collect elements from an iterable object | O(n) | O(1) |
-| `collect(generator)` | Collect elements from a generator | O(n) | O(1) |
-| `collect(semantic)` | Collect elements from a semantic stream | O(n) | O(1) |
-| `collect(collectable)` | Collect elements from a collectable stream | O(n) | O(1) |
-| `collect(start, endExelusive)` | Collect elements from a range | O(n) | O(1) |
+|--------|-------------|-----------------|------------------|
+| `collect(generator: Generator<E>): R` | Collect elements from a generator function | O(n) | O(1) |
+| `collect(iterable: Iterable<E>): R` | Collect elements from an iterable object | O(n) | O(1) |
+| `collect(semantic: Semantic<E>): R` | Collect elements from a semantic stream | O(n) | O(1) |
+| `collect(collectable: Collectable<E>): R` | Collect elements from a collectable stream | O(n) | O(1) |
+| `collect(start: number, end: number): R` | Collect elements from a numeric range | O(n) | O(1) |
+| `collect(start: bigint, end: bigint): R` | Collect elements from a bigint range | O(n) | O(1) |
 
 ### Semantic Factory Methods
 
-| Method | Description | Time Complexity | Space Complexity |
-|------|------|------------|------------|
-| `animationFrame(period: number, delay: number = 0)` | Create a timed animation frame stream | O(1)* | O(1) |
-| `attribute(target)` | Create a stream from an object deep attributes | O(n) | O(1) |
-| `blob(blob, chunkSize)` | Create a stream from a Blob | O(n) | O(chunkSize) |
-| `empty<E>()` | Create an empty stream | O(1) | O(1) |
-| `fill<E>(element, count)` | Create a filled stream | O(n) | O(1) |
-| `from<E>(iterable)` | Create a stream from an iterable object | O(1) | O(1) |
-| `interval(period, delay?)` | Create a timed interval stream | O(1)* | O(1) |
-| `iterate<E>(generator)` | Create a stream from a generator | O(1) | O(1) |
-| `promise<E>(promise)` | Create a stream from a promise | O(1) | O(1) |
-| `range(start, end, step)` | Create a numerical range stream | O(n) | O(1) |
-| `websocket(websocket)` | Create a stream from a WebSocket | O(1) | O(1) |
+| Function | Description | Parameters | Return Type |
+|----------|-------------|------------|-------------|
+| `animationFrame(period: number): Semantic<number>` | Creates a semantic that emits animation frame timestamps | `period: number` | `Semantic<number>` |
+| `animationFrame(period: number, delay: number): Semantic<number>` | Creates a semantic that emits animation frame timestamps with delay | `period: number`, `delay: number` | `Semantic<number>` |
+| `attribute<T extends object>(target: T): Semantic<Attribute<T>>` | Creates a semantic that emits object attributes | `target: T` | `Semantic<Attribute<T>>` |
+| `blob(blob: Blob): Semantic<Uint8Array>` | Creates a semantic that emits blob data in chunks | `blob: Blob` | `Semantic<Uint8Array>` |
+| `blob(blob: Blob, chunk: bigint): Semantic<Uint8Array>` | Creates a semantic that emits blob data with custom chunk size | `blob: Blob`, `chunk: bigint` | `Semantic<Uint8Array>` |
+| `empty<E>(): Semantic<E>` | Creates an empty semantic that emits no elements | None | `Semantic<E>` |
+| `fill<E>(element: E, count: bigint): Semantic<E>` | Creates a semantic that emits a repeated element | `element: E`, `count: bigint` | `Semantic<E>` |
+| `fill<E>(supplier: Supplier<E>, count: bigint): Semantic<E>` | Creates a semantic that emits values from a supplier | `supplier: Supplier<E>`, `count: bigint` | `Semantic<E>` |
+| `from<E>(iterable: Iterable<E>): Semantic<E>` | Creates a semantic from an iterable | `iterable: Iterable<E>` | `Semantic<E>` |
+| `from<E>(iterable: AsyncIterable<E>): Semantic<E>` | Creates a semantic from an async iterable | `iterable: AsyncIterable<E>` | `Semantic<E>` |
+| `generate<E>(supplier: Supplier<E>, count: bigint): Semantic<E>` | Creates a semantic that generates a fixed number of values | `supplier: Supplier<E>`, `count: bigint` | `Semantic<E>` |
+| `generate<E>(element: E, count: bigint): Semantic<E>` | Creates a semantic that repeats an element | `element: E`, `count: bigint` | `Semantic<E>` |
+| `generate<E>(supplier: Supplier<E>, interrupt: Predicate<E>): Semantic<E>` | Creates a semantic that generates until condition is met | `supplier: Supplier<E>`, `interrupt: Predicate<E>` | `Semantic<E>` |
+| `generate<E>(supplier: Supplier<E>, interrupt: BiPredicate<E, bigint>): Semantic<E>` | Creates a semantic that generates until condition is met | `supplier: Supplier<E>`, `interrupt: BiPredicate<E, bigint>` | `Semantic<E>` |
+| `interval(period: number): Semantic<number>` | Creates a semantic that emits at regular intervals | `period: number` | `Semantic<number>` |
+| `interval(period: number, delay: number): Semantic<number>` | Creates a semantic that emits at intervals with initial delay | `period: number`, `delay: number` | `Semantic<number>` |
+| `iterate<E>(generator: Generator<E>): Semantic<E>` | Creates a semantic from a generator function | `generator: Generator<E>` | `Semantic<E>` |
+| `promise<T>(promise: Promise<T>): Semantic<T>` | Creates a semantic that emits a promise's result | `promise: Promise<T>` | `Semantic<T>` |
+| `range(start: number, end: number): Semantic<number>` | Creates a semantic that emits a range of numbers | `start: number`, `end: number` | `Semantic<number>` |
+| `range(start: number, end: number, step: number): Semantic<number>` | Creates a semantic that emits a range with custom step | `start: number`, `end: number`, `step: number` | `Semantic<number>` |
+| `websocket(websocket: WebSocket): Semantic<MessageEvent \| CloseEvent \| Event>` | Creates a semantic that emits WebSocket events | `websocket: WebSocket` | `Semantic<MessageEvent \| CloseEvent \| Event>` |
 
 ```typescript
 // Semantic factory method usage examples
@@ -407,29 +436,42 @@ websocket(ws)
 ## Semantic Class Methods
 
 | Method | Description | Time Complexity | Space Complexity |
-|------|------|------------|------------|
-| `concat(semantic)` | Concatenate two streams | O(n) | O(1) |
-| `concat(iterable)` | Concatenate from an iterable object | O(n) | O(1) |
-| `distinct()` | Remove duplicates | O(n) | O(n) |
-| `distinct(comparator)` | Remove duplicates using a comparator | O(n²) | O(n) |
-| `dropWhile(predicate)` | Discard elements satisfying condition | O(n) | O(1) |
-| `filter(predicate)` | Filter elements | O(n) | O(1) |
-| `flat(mapper)` | Flattening map | O(n × m) | O(1) |
-| `flatMap(mapper)` | Flattening map to new type | O(n × m) | O(1) |
-| `limit(n)` | Limit number of elements | O(n) | O(1) |
-| `map(mapper)` | Map transformation | O(n) | O(1) |
-| `peek(consumer)` | Peek at elements | O(n) | O(1) |
-| `redirect(redirector)` | Redirect index | O(n) | O(1) |
-| `reverse()` | Reverse stream | O(n) | O(1) |
-| `shuffle()` | Randomly shuffle | O(n) | O(1) |
-| `shuffle(mapper)` | Shuffle using a mapper | O(n) | O(1) |
-| `skip(n)` | Skip first n elements | O(n) | O(1) |
-| `sorted()` | Sort | O(n log n) | O(n) |
-| `sorted(comparator)` | Sort using a comparator | O(n log n) | O(n) |
-| `sub(start, end)` | Get substream | O(n) | O(1) |
-| `takeWhile(predicate)` | Get elements satisfying condition | O(n) | O(1) |
-| `translate(offset)` | Translate index | O(n) | O(1) |
-| `translate(translator)` | Translate index using a translator | O(n) | O(1) |
+|--------|-------------|-----------------|------------------|
+| `concat(other: Semantic<E>): Semantic<E>` | Concatenates two semantics | O(m+n) | O(1) |
+| `concat(other: Iterable<E>): Semantic<E>` | Concatenates semantic with an iterable | O(m+n) | O(1) |
+| `distinct(): Semantic<E>` | Returns distinct elements | O(n) | O(n) |
+| `distinct<K>(keyExtractor: Functional<E, K>): Semantic<E>` | Returns distinct elements by key | O(n) | O(n) |
+| `distinct<K>(keyExtractor: BiFunctional<E, bigint, K>): Semantic<E>` | Returns distinct elements by key with index | O(n) | O(n) |
+| `dropWhile(predicate: Predicate<E>): Semantic<E>` | Drops elements while predicate is true | O(n) | O(1) |
+| `dropWhile(predicate: BiPredicate<E, bigint>): Semantic<E>` | Drops elements while predicate is true with index | O(n) | O(1) |
+| `filter(predicate: Predicate<E>): Semantic<E>` | Filters elements by predicate | O(n) | O(1) |
+| `filter(predicate: BiPredicate<E, bigint>): Semantic<E>` | Filters elements by predicate with index | O(n) | O(1) |
+| `flat(mapper: Functional<E, Iterable<E>>): Semantic<E>` | Flattens iterable results | O(n) | O(1) |
+| `flat(mapper: BiFunctional<E, bigint, Iterable<E>>): Semantic<E>` | Flattens iterable results with index | O(n) | O(1) |
+| `flat(mapper: Functional<E, Semantic<E>>): Semantic<E>` | Flattens semantic results | O(n) | O(1) |
+| `flat(mapper: BiFunctional<E, bigint, Semantic<E>>): Semantic<E>` | Flattens semantic results with index | O(n) | O(1) |
+| `flatMap<R>(mapper: Functional<E, Iterable<R>>): Semantic<R>` | Maps and flattens to different type | O(n) | O(1) |
+| `flatMap<R>(mapper: BiFunctional<E, bigint, Iterable<R>>): Semantic<R>` | Maps and flattens with index | O(n) | O(1) |
+| `flatMap<R>(mapper: Functional<E, Semantic<R>>): Semantic<R>` | Maps and flattens semantics | O(n) | O(1) |
+| `flatMap<R>(mapper: BiFunctional<E, bigint, Semantic<R>>): Semantic<R>` | Maps and flattens semantics with index | O(n) | O(1) |
+| `limit(n: number): Semantic<E>` | Limits number of elements | O(n) | O(1) |
+| `limit(n: bigint): Semantic<E>` | Limits number of elements (bigint) | O(n) | O(1) |
+| `map<R>(mapper: Functional<E, R>): Semantic<R>` | Maps elements to different type | O(n) | O(1) |
+| `map<R>(mapper: BiFunctional<E, bigint, R>): Semantic<R>` | Maps elements with index | O(n) | O(1) |
+| `peek(consumer: Consumer<E>): Semantic<E>` | Performs action on elements | O(n) | O(1) |
+| `peek(consumer: BiConsumer<E, bigint>): Semantic<E>` | Performs action on elements with index | O(n) | O(1) |
+| `redirect(redirector: BiFunctional<E, bigint, bigint>): Semantic<E>` | Redirects element indices | O(n) | O(1) |
+| `reverse(): Semantic<E>` | Reverses element indices | O(n) | O(1) |
+| `shuffle(): Semantic<E>` | Shuffles element indices randomly | O(n) | O(1) |
+| `shuffle(mapper: BiFunctional<E, bigint, bigint>): Semantic<E>` | Shuffles element indices with mapper | O(n) | O(1) |
+| `skip(n: number): Semantic<E>` | Skips first n elements | O(n) | O(1) |
+| `skip(n: bigint): Semantic<E>` | Skips first n elements (bigint) | O(n) | O(1) |
+| `sub(start: bigint, end: bigint): Semantic<E>` | Returns sub-semantic range | O(n) | O(1) |
+| `takeWhile(predicate: Predicate<E>): Semantic<E>` | Takes elements while predicate is true | O(n) | O(1) |
+| `takeWhile(predicate: BiPredicate<E, bigint>): Semantic<E>` | Takes elements while predicate is true with index | O(n) | O(1) |
+| `translate(offset: number): Semantic<E>` | Translates element indices by offset | O(n) | O(1) |
+| `translate(offset: bigint): Semantic<E>` | Translates element indices by offset (bigint) | O(n) | O(1) |
+| `translate(translator: BiFunctional<E, bigint, bigint>): Semantic<E>` | Translates element indices with translator | O(n) | O(1) |
 
 ```typescript
 // Semantic operation examples
@@ -456,15 +498,15 @@ let complexResult = range(1, 100, 1)
 
 | Method | Description | Time Complexity | Space Complexity |
 |------------|------------|------------|------------|
-| `sorted()` | Convert to ordered collector | O(n log n) | O(n) |
-| `sorted(comparator)` | Convert to ordered collector with comparator | O(n log n) | O(n) |
-| `toUnordered()` | Convert to unordered collector | O(1) | O(1) |
-| `toOrdered()` | Convert to ordered collector | O(1) | O(1) |
-| `toNumericStatistics()` | Convert to numeric statistics | O(n) | O(1) |
-| `toBigintStatistics()` | Convert to bigint statistics | O(n) | O(1) |
-| `toWindow()` | Convert to window collector | O(1) | O(1) |
-| `toCollectable()` | Convert to `UnorderdCollectable` | O(n) | O(1) |
-| `toCollectable(mapper)` | Convert to customized collectable | O(n) | O(1) |
+| `sorted(): OrderedCollectable<E>` | Returns sorted collectable | O(n log n) | O(n) |
+| `sorted(comparator: Comparator<E>): OrderedCollectable<E>` | Returns sorted collectable with comparator | O(n log n) | O(n) |
+| `toCollectable(): Collectable<E>` | Converts to collectable | O(1) | O(1) |
+| `toCollectable<C extends Collectable<E>>(mapper: Functional<Generator<E>, C>): C` | Converts to collectable with mapper | O(1) | O(1) |
+| `toBigintStatistics(): BigIntStatistics<E>` | Converts to bigint statistics | O(1) | O(1) |
+| `toNumericStatistics(): NumericStatistics<E>` | Converts to numeric statistics | O(1) | O(1) |
+| `toOrdered(): OrderedCollectable<E>` | Converts to ordered collectable | O(1) | O(1) |
+| `toUnordered(): UnorderedCollectable<E>` | Converts to unordered collectable | O(1) | O(1) |
+| `toWindow(): WindowCollectable<E>` | Converts to window collectable | O(1) | O(1) |
 
 ```typescript
 // Convert to an ascending sorted array
@@ -517,47 +559,65 @@ let customizedCollector = from([1, 2, 3, 4, 5]).toCollectable((generator: Genera
 ## Collectable Collection Methods
 
 | Method | Description | Time Complexity | Space Complexity |
-|------|------|------------|------------|
-| `anyMatch(predicate)` | Whether any element matches the predicate | O(n) | O(1) |
-| `allMatch(predicate)` | Whether all elements match the predicate | O(n) | O(1) |
-| `collect(collector)` | Collect elements using the given collector | O(n) | O(1) |
-| `collect(identity, accumulator, finisher)` | Collect elements with identity, accumulator, and finisher | O(n) | O(1) |
-| `collect(identity, interruptor, accumulator, finisher)` | Collect elements with identity, interruptor, accumulator, and finisher | O(n) | O(1) |
-| `count()` | Count the number of elements | O(n) | O(1) |
-| `error()` | Log elements to console with default error format | O(n) | O(1) |
-| `error(accumulator)` | Log elements via custom accumulator error format | O(n) | O(1) |
-| `error(prefix, accumulator, suffix)` | Log elements with prefix, custom accumulator, and suffix | O(n) | O(1) |
-| `isEmpty()` | Check whether the collectable is empty | O(n) | O(1) |
-| `findAny()` | Find any element in the collectable | O(n) | O(1) |
-| `findFirst()` | Find the first element in the collectable | O(n) | O(1) |
-| `findLast()` | Find the last element in the collectable | O(n) | O(1) |
-| `findMaximum()` | Find the maximum element in the collectable | O(n) | O(1) |
-| `findMaximum(comparator)` | Find the maximum element in the collectable using a comparator | O(n) | O(1) |
-| `findMinimum()` | Find the minimum element in the collectable | O(n) | O(1) |
-| `findMinimum(comparator)` | Find the minimum element in the collectable using a comparator | O(n) | O(1) |
-| `forEach(action)` | Iterate over all elements with a consumer or bi-consumer | O(n) | O(1) |
-| `group(classifier)` | Group elements by a classifier function | O(n) | O(n) |
-| `groupBy(keyExtractor, valueExtractor)` | Group elements by key and value extractors | O(n) | O(n) |
-| `join()` | Join elements into a string with default format | O(n) | O(n) |
-| `join(delimiter)` | Join elements into a string with a delimiter | O(n) | O(n) |
-| `join(prefix, delimiter, suffix)` | Join elements with prefix, delimiter, and suffix | O(n) | O(n) |
-| `join(prefix, accumulator, suffix)` | Join elements via custom accumulator with prefix and suffix | O(n) | O(n) |
-| `log()` | Log elements to console with default format | O(n) | O(1) |
-| `log(accumulator)` | Log elements via custom accumulator | O(n) | O(1) |
-| `log(prefix, accumulator, suffix)` | Log elements with prefix, custom accumulator, and suffix | O(n) | O(1) |
-| `nonMatch(predicate)` | Whether no elements match the predicate | O(n) | O(1) |
-| `partition(count)` | Partition elements into chunks of specified size | O(n) | O(n) |
-| `partitionBy(classifier)` | Partition elements by a classifier function | O(n) | O(n) |
-| `reduce(accumulator)` | Reduce elements using an accumulator (no initial value) | O(n) | O(1) |
-| `reduce(identity, accumulator)` | Reduce elements with an initial value and accumulator | O(n) | O(1) |
-| `reduce(identity, accumulator, finisher)` | Reduce elements with initial value, accumulator, and finisher | O(n) | O(1) |
-| `semantic()` | Convert the collectable to a semantic object | O(1) | O(1) |
-| `source()` | Get the source of the collectable | O(1) | O(1) |
-| `toArray()` | Convert elements to an array | O(n) | O(n) |
-| `toMap(keyExtractor, valueExtractor)` | Convert elements to a Map via key and value extractors | O(n) | O(n) |
-| `toSet()` | Convert elements to a Set | O(n) | O(n) |
-| `write(stream)` | Write elements to a stream (default format) | O(n) | O(1) |
-| `write(stream, accumulator)` | Write elements to a stream via custom accumulator | O(n) | O(1) |
+|--------|-------------|-----------------|------------------|
+| `anyMatch(predicate: Predicate<E>): boolean` | Returns true if any element matches the predicate | O(n) | O(1) |
+| `allMatch(predicate: Predicate<E>): boolean` | Returns true if all elements match the predicate | O(n) | O(1) |
+| `collect<A, R>(collector: Collector<E, A, R>): R` | Collects elements using a collector | O(n) | O(1) |
+| `collect<A, R>(identity: Supplier<A>, accumulator: BiFunctional<A, E, A>, finisher: Functional<A, R>): R` | Collects elements with accumulator and finisher | O(n) | O(1) |
+| `collect<A, R>(identity: Supplier<A>, accumulator: TriFunctional<A, E, bigint, A>, finisher: Functional<A, R>): R` | Collects elements with index-aware accumulator | O(n) | O(1) |
+| `collect<A, R>(identity: Supplier<A>, interruptor: Predicate<E>, accumulator: BiFunctional<A, E, A>, finisher: Functional<A, R>): R` | Collects with interruptor and accumulator | O(n) | O(1) |
+| `collect<A, R>(identity: Supplier<A>, interruptor: BiPredicate<E, bigint>, accumulator: BiFunctional<A, E, A>, finisher: Functional<A, R>): R` | Collects with index-aware interruptor | O(n) | O(1) |
+| `collect<A, R>(identity: Supplier<A>, interruptor: TriPredicate<E, bigint, A>, accumulator: BiFunctional<A, E, A>, finisher: Functional<A, R>): R` | Collects with state-aware interruptor | O(n) | O(1) |
+| `collect<A, R>(identity: Supplier<A>, interruptor: Predicate<E>, accumulator: TriFunctional<A, E, bigint, A>, finisher: Functional<A, R>): R` | Collects with index-aware accumulator | O(n) | O(1) |
+| `collect<A, R>(identity: Supplier<A>, interruptor: BiPredicate<E, bigint>, accumulator: TriFunctional<A, E, bigint, A>, finisher: Functional<A, R>): R` | Collects with both index-aware | O(n) | O(1) |
+| `collect<A, R>(identity: Supplier<A>, interruptor: TriPredicate<E, bigint, A>, accumulator: TriFunctional<A, E, bigint, A>, finisher: Functional<A, R>): R` | Collects with state and index awareness | O(n) | O(1) |
+| `count(): bigint` | Counts number of elements | O(n) | O(1) |
+| `error(): void` | Logs elements to console.error | O(n) | O(1) |
+| `error(accumulator: BiFunctional<string, E, string>): void` | Logs with custom accumulator | O(n) | O(1) |
+| `error(accumulator: TriFunctional<string, E, bigint, string>): void` | Logs with index-aware accumulator | O(n) | O(1) |
+| `error(prefix: string, accumulator: BiFunctional<string, E, string>, suffix: string): void` | Logs with prefix and suffix | O(n) | O(1) |
+| `error(prefix: string, accumulator: TriFunctional<string, E, bigint, string>, suffix: string): void` | Logs with index-aware accumulator | O(n) | O(1) |
+| `isEmpty(): boolean` | Returns true if no elements | O(1) | O(1) |
+| `findAny(): Optional<E>` | Returns any element randomly | O(1) | O(1) |
+| `findFirst(): Optional<E>` | Returns the first element | O(1) | O(1) |
+| `findLast(): Optional<E>` | Returns the last element | O(n) | O(1) |
+| `findMaximum(): Optional<E>` | Returns maximum element | O(n) | O(1) |
+| `findMaximum(comparator: Comparator<E>): Optional<E>` | Returns maximum with comparator | O(n) | O(1) |
+| `findMinimum(): Optional<E>` | Returns minimum element | O(n) | O(1) |
+| `findMinimum(comparator: Comparator<E>): Optional<E>` | Returns minimum with comparator | O(n) | O(1) |
+| `forEach(action: Consumer<E>): void` | Performs action on each element | O(n) | O(1) |
+| `forEach(action: BiConsumer<E, bigint>): void` | Performs action with index | O(n) | O(1) |
+| `group<K>(classifier: Functional<E, K>): Map<K, Array<E>>` | Groups elements by classifier | O(n) | O(n) |
+| `groupBy<K, V>(keyExtractor: Functional<E, K>, valueExtractor: Functional<E, V>): Map<K, Array<V>>` | Groups with key-value mapping | O(n) | O(n) |
+| `join(): string` | Joins elements into string | O(n) | O(1) |
+| `join(delimiter: string): string` | Joins with delimiter | O(n) | O(1) |
+| `join(prefix: string, delimiter: string, suffix: string): string` | Joins with prefix and suffix | O(n) | O(1) |
+| `join(prefix: string, accumulator: BiFunctional<string, E, string>, suffix: string): string` | Joins with custom accumulator | O(n) | O(1) |
+| `join(prefix: string, accumulator: TriFunctional<string, E, bigint, string>, suffix: string): string` | Joins with index-aware accumulator | O(n) | O(1) |
+| `log(): void` | Logs elements to console.log | O(n) | O(1) |
+| `log(accumulator: BiFunctional<string, E, string>): void` | Logs with custom accumulator | O(n) | O(1) |
+| `log(accumulator: TriFunctional<string, E, bigint, string>): void` | Logs with index-aware accumulator | O(n) | O(1) |
+| `log(prefix: string, accumulator: BiFunctional<string, E, string>, suffix: string): void` | Logs with prefix and suffix | O(n) | O(1) |
+| `log(prefix: string, accumulator: TriFunctional<string, E, bigint, string>, suffix: string): void` | Logs with index-aware accumulator | O(n) | O(1) |
+| `nonMatch(predicate: Predicate<E>): boolean` | Returns true if no element matches | O(n) | O(1) |
+| `partition(count: bigint): Array<Array<E>>` | Partitions into groups of size | O(n) | O(n) |
+| `partitionBy(classifier: Functional<E, bigint>): Array<Array<E>>` | Partitions by classifier | O(n) | O(n) |
+| `reduce(accumulator: BiFunctional<E, E, E>): Optional<E>` | Reduces elements | O(n) | O(1) |
+| `reduce(accumulator: TriFunctional<E, E, bigint, E>): Optional<E>` | Reduces with index | O(n) | O(1) |
+| `reduce(identity: E, accumulator: BiFunctional<E, E, E>): E` | Reduces with identity | O(n) | O(1) |
+| `reduce(identity: E, accumulator: TriFunctional<E, E, bigint, E>): E` | Reduces with identity and index | O(n) | O(1) |
+| `reduce<R>(identity: R, accumulator: BiFunctional<R, E, R>, finisher: Functional<R, R>): R` | Reduces with finisher | O(n) | O(1) |
+| `reduce<R>(identity: R, accumulator: TriFunctional<R, E, bigint, R>, finisher: Functional<R, R>): R` | Reduces with index and finisher | O(n) | O(1) |
+| `semantic(): Semantic<E>` | Converts to semantic | O(1) | O(1) |
+| `source(): Generator<E>` | Returns generator source | O(1) | O(1) |
+| `toArray(): Array<E>` | Converts to array | O(n) | O(n) |
+| `toMap<K, V>(keyExtractor: Functional<E, K>, valueExtractor: Functional<E, V>): Map<K, V>` | Converts to map | O(n) | O(n) |
+| `toHashMap<K, V>(keyExtractor: Functional<E, K>, valueExtractor: Functional<E, V>): Map<K, V>` | Converts to hash map | O(n) | O(n) |
+| `toSet(): Set<E>` | Converts to set | O(n) | O(n) |
+| `toHashSet(): Set<E>` | Converts to hash set | O(n) | O(n) |
+| `write<S = string>(stream: WritableStream<S>): Promise<WritableStream<S>>` | Writes to stream | O(n) | O(1) |
+| `write<S = string>(stream: WritableStream<S>, accumulator: BiFunctional<WritableStream<S>, E, WritableStream<S>>): Promise<WritableStream<S>>` | Writes with accumulator | O(n) | O(1) |
+| `write<S = string>(stream: WritableStream<S>, accumulator: TriFunctional<WritableStream<S>, E, bigint, WritableStream<S>>): Promise<WritableStream<S>>` | Writes with index-aware accumulator | O(n) | O(1) |
 
 ```typescript
 // Collectable operation examples
@@ -590,58 +650,95 @@ data.join(", "); // "[2, 4, 6, 8, 10]"
 ## Unordered Collectable Methods
 
 | Method | Description | Time Complexity | Space Complexity |
-|------------|------------|------------|------------|
-| `*[Symbol.iterator]()` | Iterate over all elements | O(n) | O(1) |
-| `*[Symbol.asyncIterator]()` | Iterate over all elements asynchronously | O(n) | O(1) |
+|--------|-------------|-----------------|------------------|
+| `constructor(generator: Generator<E>)` | Creates unordered collectable | O(1) | O(1) |
+| `source(): Generator<E>` | Returns generator source | O(1) | O(1) |
+| `[Symbol.iterator](): Generator<E, void, undefined>` | Returns iterator | O(n) | O(1) |
+| `[Symbol.asyncIterator](): AsyncGenerator<E, void, undefined>` | Returns async iterator | O(n) | O(1) |
 
 ## Ordered Collectable Methods
 
 | Method | Description | Time Complexity | Space Complexity |
-|------------|------------|------------|------------|
-| `*[Symbol.iterator]()` | Iterate over all elements | O(n) | O(1) |
-| `*[Symbol.asyncIterator]()` | Iterate over all elements asynchronously | O(n) | O(1) |
+|--------|-------------|-----------------|------------------|
+| `constructor(generator: Generator<E>)` | Creates ordered collectable | O(n log n) | O(n) |
+| `constructor(generator: Generator<E>, comparator: Comparator<E>)` | Creates ordered collectable with comparator | O(n log n) | O(n) |
+| `[Symbol.iterator](): Generator<E, void, undefined>` | Returns iterator | O(n) | O(1) |
+| `[Symbol.asyncIterator](): AsyncGenerator<E, void, undefined>` | Returns async iterator | O(n) | O(1) |
+| `source(): Generator<E>` | Returns indexed generator source | O(1) | O(1) |
+| `isEmpty(): boolean` | Returns true if buffer is empty | O(1) | O(1) |
 
 ## Statistical Analysis Methods
 
 ### Statisttics Methods
 
 | Method | Description | Time Complexity | Space Complexity |
-|------------|------------|------------|------------|
-| `*[Symbol.iterator]()` | Iterate over all elements | O(n) | O(1) |
-| `*[Symbol.asyncIterator]()` | Iterate over all elements asynchronously | O(n) | O(1) |
-| `count()` | Count the number of elements | O(n) | O(1) |
-| `frequency()` | Frequency distribution | O(n) | O(n) |
+|--------|-------------|-----------------|------------------|
+| `constructor(generator: Generator<E>)` | Creates a statistics instance | O(n log n) | O(n) |
+| `constructor(generator: Generator<E>, comparator: Comparator<E>)` | Creates a statistics instance with comparator | O(n log n) | O(n) |
+| `[Symbol.iterator](): Generator<E, void, undefined>` | Returns iterator | O(n) | O(1) |
+| `[Symbol.asyncIterator](): AsyncGenerator<E, void, undefined>` | Returns async iterator | O(n) | O(1) |
+| `count(): bigint` | Returns the number of elements | O(1) | O(1) |
+| `average(): D` | Returns the average (arithmetic mean) | O(n) | O(1) |
+| `average(mapper: Functional<E, D>): D` | Returns the average of mapped values | O(n) | O(1) |
+| `range(): D` | Returns the range (max-min) | O(1) | O(1) |
+| `range(mapper: Functional<E, D>): D` | Returns the range of mapped values | O(1) | O(1) |
+| `variance(): D` | Returns the variance | O(n) | O(1) |
+| `variance(mapper: Functional<E, D>): D` | Returns the variance of mapped values | O(n) | O(1) |
+| `standardDeviation(): D` | Returns the standard deviation | O(n) | O(1) |
+| `standardDeviation(mapper: Functional<E, D>): D` | Returns the standard deviation of mapped values | O(n) | O(1) |
+| `mean(): D` | Returns the mean (same as average) | O(n) | O(1) |
+| `mean(mapper: Functional<E, D>): D` | Returns the mean of mapped values | O(n) | O(1) |
+| `median(): D` | Returns the median | O(n) | O(n) |
+| `median(mapper: Functional<E, D>): D` | Returns the median of mapped values | O(n) | O(n) |
+| `mode(): D` | Returns the mode | O(n) | O(n) |
+| `mode(mapper: Functional<E, D>): D` | Returns the mode of mapped values | O(n) | O(n) |
+| `frequency(): Map<E, bigint>` | Returns the frequency distribution | O(n) | O(n) |
+| `summate(): D` | Returns the sum of elements | O(n) | O(1) |
+| `summate(mapper: Functional<E, D>): D` | Returns the sum of mapped values | O(n) | O(1) |
+| `quantile(quantile: number): D` | Returns the specified quantile | O(1) | O(1) |
+| `quantile(quantile: number, mapper: Functional<E, D>): D` | Returns the quantile of mapped values | O(1) | O(1) |
+| `interquartileRange(): D` | Returns the interquartile range (IQR) | O(1) | O(1) |
+| `interquartileRange(mapper: Functional<E, D>): D` | Returns the IQR of mapped values | O(1) | O(1) |
+| `skewness(): D` | Returns the skewness measure | O(n) | O(1) |
+| `skewness(mapper: Functional<E, D>): D` | Returns the skewness of mapped values | O(n) | O(1) |
+| `kurtosis(): D` | Returns the kurtosis measure | O(n) | O(1) |
+| `kurtosis(mapper: Functional<E, D>): D` | Returns the kurtosis of mapped values | O(n) | O(1) |
+
 
 ### NumericStatistics Methods
 
 | Method | Description | Time Complexity | Space Complexity |
-|------|------|------------|------------|
-| `*[Symbol.iterator]()` | Iterate over all elements | O(n) | O(1) |
-| `*[Symbol.asyncIterator]()` | Iterate over all elements asynchronously | O(n) | O(1) |
-| `average()` | Calculate the average of elements | O(n) | O(1) |
-| `average(mapper)` | Calculate the average of elements using a mapper | O(n) | O(1) |
-| `range()` | Calculate the range of elements | O(n) | O(1) |
-| `range(mapper)` | Calculate the range of elements using a mapper | O(n) | O(1) |
-| `variance()` | Calculate the variance of elements | O(n) | O(1) |
-| `variance(mapper)` | Calculate the variance of elements using a mapper | O(n) | O(1) |
-| `standardDeviation()` | Calculate the standard deviation of elements | O(n) | O(1) |
-| `standardDeviation(mapper)` | Calculate the standard deviation of elements using a mapper | O(n) | O(1) |
-| `mean()` | Calculate the mean of elements | O(n) | O(1) |
-| `mean(mapper)` | Calculate the mean of elements using a mapper | O(n) | O(1) |
-| `median()` | Calculate the median of elements | O(n) | O(1) |
-| `median(mapper)` | Calculate the median of elements using a mapper | O(n) | O(1) |
-| `mode()` | Calculate the mode of elements | O(n) | O(1) |
-| `mode(mapper)` | Calculate the mode of elements using a mapper | O(n) | O(1) |
-| `summate()` | Calculate the sum of elements | O(n) | O(1) |
-| `summate(mapper)` | Calculate the sum of elements using a mapper | O(n) | O(1) |
-| `quantile(quantile)` | Calculate the quantile of elements | O(n) | O(1) |
-| `quantile(quantile, mapper)` | Calculate the quantile of elements using a mapper | O(n) | O(1) |
-| `interquartileRange()` | Calculate the interquartile range of elements | O(n) | O(1) |
-| `interquartileRange(mapper)` | Calculate the interquartile range of elements using a mapper | O(n) | O(1) |
-| `skewness()` | Calculate the percentile of elements | O(n) | O(1) |
-| `skewness(mapper)` | Calculate the percentile of elements using a mapper | O(n) | O(1) |
-| `kurtosis()` | Calculate the kurtosis of elements | O(n) | O(1) |
-| `kurtosis(mapper)` | Calculate the kurtosis of elements using a mapper | O(n) | O(1) |
+|--------|-------------|-----------------|------------------|
+| `constructor(generator: Generator<E>)` | Creates a numeric statistics instance | O(n log n) | O(n) |
+| `constructor(generator: Generator<E>, comparator: Comparator<E>)` | Creates a numeric statistics instance with comparator | O(n log n) | O(n) |
+| `[Symbol.iterator](): Generator<E, void, undefined>` | Returns iterator | O(n) | O(1) |
+| `[Symbol.asyncIterator](): AsyncGenerator<E, void, undefined>` | Returns async iterator | O(n) | O(1) |
+| `count(): bigint` | Returns the number of elements | O(1) | O(1) |
+| `average(): number` | Returns the numeric average | O(n) | O(1) |
+| `average(mapper: Functional<E, number>): number` | Returns the average of mapped numeric values | O(n) | O(1) |
+| `range(): number` | Returns the numeric range | O(1) | O(1) |
+| `range(mapper: Functional<E, number>): number` | Returns the range of mapped numeric values | O(1) | O(1) |
+| `variance(): number` | Returns the numeric variance | O(n) | O(1) |
+| `variance(mapper: Functional<E, number>): number` | Returns the variance of mapped numeric values | O(n) | O(1) |
+| `standardDeviation(): number` | Returns the numeric standard deviation | O(n) | O(1) |
+| `standardDeviation(mapper: Functional<E, number>): number` | Returns the standard deviation of mapped numeric values | O(n) | O(1) |
+| `mean(): number` | Returns the numeric mean (same as average) | O(n) | O(1) |
+| `mean(mapper: Functional<E, number>): number` | Returns the mean of mapped numeric values | O(n) | O(1) |
+| `median(): number` | Returns the numeric median | O(n) | O(n) |
+| `median(mapper: Functional<E, number>): number` | Returns the median of mapped numeric values | O(n) | O(n) |
+| `mode(): number` | Returns the numeric mode | O(n) | O(n) |
+| `mode(mapper: Functional<E, number>): number` | Returns the mode of mapped numeric values | O(n) | O(n) |
+| `frequency(): Map<E, bigint>` | Returns the frequency distribution | O(n) | O(n) |
+| `summate(): number` | Returns the numeric sum | O(n) | O(1) |
+| `summate(mapper: Functional<E, number>): number` | Returns the sum of mapped numeric values | O(n) | O(1) |
+| `quantile(quantile: number): number` | Returns the specified numeric quantile | O(1) | O(1) |
+| `quantile(quantile: number, mapper: Functional<E, number>): number` | Returns the quantile of mapped numeric values | O(1) | O(1) |
+| `interquartileRange(): number` | Returns the numeric interquartile range | O(1) | O(1) |
+| `interquartileRange(mapper: Functional<E, number>): number` | Returns the IQR of mapped numeric values | O(1) | O(1) |
+| `skewness(): number` | Returns the numeric skewness | O(n) | O(1) |
+| `skewness(mapper: Functional<E, number>): number` | Returns the skewness of mapped numeric values | O(n) | O(1) |
+| `kurtosis(): number` | Returns the numeric kurtosis | O(n) | O(1) |
+| `kurtosis(mapper: Functional<E, number>): number` | Returns the kurtosis of mapped numeric values | O(n) | O(1) |
 
 ```typescript
 // Statistical analysis examples
@@ -666,43 +763,49 @@ console.log("Mapped mean:", objects.mean(obj => obj.value)); // 20
 ### BigintStatistics Methods
 
 | Method | Description | Time Complexity | Space Complexity |
-|------------|------------|------------|------------|
-| `*[Symbol.iterator]()` | Iterate over all elements | O(n) | O(1) |
-| `*[Symbol.asyncIterator]()` | Iterate over all elements asynchronously | O(n) | O(1) |
-| `average()` | Calculate the average of elements | O(n) | O(1) |
-| `average(mapper)` | Calculate the average of elements using a mapper | O(n) | O(1) |
-| `range()` | Calculate the range of elements | O(n) | O(1) |
-| `range(mapper)` | Calculate the range of elements using a mapper | O(n) | O(1) |
-| `variance()` | Calculate the variance of elements | O(n) | O(1) |
-| `variance(mapper)` | Calculate the variance of elements using a mapper | O(n) | O(1) |
-| `standardDeviation()` | Calculate the standard deviation of elements | O(n) | O(1) |
-| `standardDeviation(mapper)` | Calculate the standard deviation of elements using a mapper | O(n) | O(1) |
-| `mean()` | Calculate the mean of elements | O(n) | O(1) |
-| `mean(mapper)` | Calculate the mean of elements using a mapper | O(n) | O(1) |
-| `median()` | Calculate the median of elements | O(n) | O(1) |
-| `median(mapper)` | Calculate the median of elements using a mapper | O(n) | O(1) |
-| `mode()` | Calculate the mode of elements | O(n) | O(1) |
-| `mode(mapper)` | Calculate the mode of elements using a mapper | O(n) | O(1) |
-| `summate()` | Calculate the sum of elements | O(n) | O(1) |
-| `summate(mapper)` | Calculate the sum of elements using a mapper | O(n) | O(1) |
-| `quantile(quantile)` | Calculate the quantile of elements | O(n) | O(1) |
-| `quantile(quantile, mapper)` | Calculate the quantile of elements using a mapper | O(n) | O(1) |
-| `interquartileRange()` | Calculate the interquartile range of elements | O(n) | O(1) |
-| `interquartileRange(mapper)` | Calculate the interquartile range of elements using a mapper | O(n) | O(1) |
-| `skewness()` | Calculate the percentile of elements | O(n) | O(1) |
-| `skewness(mapper)` | Calculate the percentile of elements using a mapper | O(n) | O(1) |
-| `kurtosis()` | Calculate the kurtosis of elements | O(n) | O(1) |
-| `kurtosis(mapper)` | Calculate the kurtosis of elements using a mapper | O(n) | O(1) |
+|--------|-------------|-----------------|------------------|
+| `constructor(generator: Generator<E>)` | Creates a bigint statistics instance | O(n log n) | O(n) |
+| `constructor(generator: Generator<E>, comparator: Comparator<E>)` | Creates a bigint statistics instance with comparator | O(n log n) | O(n) |
+| `[Symbol.iterator](): Generator<E, void, undefined>` | Returns iterator | O(n) | O(1) |
+| `[Symbol.asyncIterator](): AsyncGenerator<E, void, undefined>` | Returns async iterator | O(n) | O(1) |
+| `count(): bigint` | Returns the number of elements | O(1) | O(1) |
+| `average(): bigint` | Returns the bigint average | O(n) | O(1) |
+| `average(mapper: Functional<E, bigint>): bigint` | Returns the average of mapped bigint values | O(n) | O(1) |
+| `range(): bigint` | Returns the bigint range | O(1) | O(1) |
+| `range(mapper: Functional<E, bigint>): bigint` | Returns the range of mapped bigint values | O(1) | O(1) |
+| `variance(): bigint` | Returns the bigint variance | O(n) | O(1) |
+| `variance(mapper: Functional<E, bigint>): bigint` | Returns the variance of mapped bigint values | O(n) | O(1) |
+| `standardDeviation(): bigint` | Returns the bigint standard deviation | O(n) | O(1) |
+| `standardDeviation(mapper: Functional<E, bigint>): bigint` | Returns the standard deviation of mapped bigint values | O(n) | O(1) |
+| `mean(): bigint` | Returns the bigint mean (same as average) | O(n) | O(1) |
+| `mean(mapper: Functional<E, bigint>): bigint` | Returns the mean of mapped bigint values | O(n) | O(1) |
+| `median(): bigint` | Returns the bigint median | O(n) | O(n) |
+| `median(mapper: Functional<E, bigint>): bigint` | Returns the median of mapped bigint values | O(n) | O(n) |
+| `mode(): bigint` | Returns the bigint mode | O(n) | O(n) |
+| `mode(mapper: Functional<E, bigint>): bigint` | Returns the mode of mapped bigint values | O(n) | O(n) |
+| `frequency(): Map<E, bigint>` | Returns the frequency distribution | O(n) | O(n) |
+| `summate(): bigint` | Returns the bigint sum | O(n) | O(1) |
+| `summate(mapper: Functional<E, bigint>): bigint` | Returns the sum of mapped bigint values | O(n) | O(1) |
+| `quantile(quantile: number): bigint` | Returns the specified bigint quantile | O(1) | O(1) |
+| `quantile(quantile: number, mapper: Functional<E, bigint>): bigint` | Returns the quantile of mapped bigint values | O(1) | O(1) |
+| `interquartileRange(): bigint` | Returns the bigint interquartile range | O(1) | O(1) |
+| `interquartileRange(mapper: Functional<E, bigint>): bigint` | Returns the IQR of mapped bigint values | O(1) | O(1) |
+| `skewness(): bigint` | Returns the bigint skewness | O(n) | O(1) |
+| `skewness(mapper: Functional<E, bigint>): bigint` | Returns the skewness of mapped bigint values | O(n) | O(1) |
+| `kurtosis(): bigint` | Returns the bigint kurtosis | O(n) | O(1) |
+| `kurtosis(mapper: Functional<E, bigint>): bigint` | Returns the kurtosis of mapped bigint values | O(n) | O(1) |
 
 ### Window Collectable Methods
 
 | Method | Description | Time Complexity | Space Complexity |
-|------------|------------|------------|------------|
-| `*[Symbol.iterator]()` | Iterate over all elements | O(n) | O(1) |
-| `*[Symbol.asyncIterator]()` | Iterate over all elements asynchronously | O(n) | O(1) |
-| `slide(size)` | Slide a window of a given size | O(n) | O(1) |
-| `slide(size, step)` | Slide a window of a given size and step | O(n) | O(1) |
-| `tumble(size)` | Tumble a window of a given size | O(n) | O(1) |
+|--------|-------------|-----------------|------------------|
+| `constructor(generator: Generator<E>)` | Creates a window collectable instance | O(n log n) | O(n) |
+| `constructor(generator: Generator<E>, comparator: Comparator<E>)` | Creates a window collectable with comparator | O(n log n) | O(n) |
+| `[Symbol.iterator](): Generator<E, void, undefined>` | Returns iterator | O(n) | O(1) |
+| `[Symbol.asyncIterator](): AsyncGenerator<E, void, undefined>` | Returns async iterator | O(n) | O(1) |
+| `slide(size: bigint): Semantic<Semantic<E>>` | Creates sliding windows of elements with 1 step | O(m × n) | O(m × n) |
+| `slide(size: bigint, step: bigint): Semantic<Semantic<E>>` | Creates sliding windows of elements | O(m × n) | O(m × n) |
+| `tumble(size: bigint): Semantic<Semantic<E>>` | Creates tumbling windows of elements | O(k × n) | O(k × n) |
 
 ## Performance Selection Guide
 
@@ -749,7 +852,5 @@ let bigIntStatistics: BigintStatistics<bigint> = data
 3. **Memory Usage**: Sorting operations require O(n) additional space
 4. **Real-time Data**: Semantic streams are suitable for processing real-time data and support asynchronous data sources
 
-
 This library provides TypeScript developers with powerful and flexible streaming capabilities, combining the benefits of functional programming with type safety guarantees.
-
 
