@@ -16,7 +16,6 @@ export class AbstractSemanticMap {
             writable: false,
             configurable: false
         });
-        Object.freeze(this);
     }
     compute(key, remapping) {
         let value = this.get(key);
@@ -128,7 +127,6 @@ export class HashMap extends AbstractSemanticMap {
             writable: false,
             configurable: false
         });
-        Object.freeze(this);
     }
     clear() {
         this.buckets.clear();
@@ -247,7 +245,3 @@ export class HashMap extends AbstractSemanticMap {
 Object.freeze(HashMap);
 Object.freeze(HashMap.prototype);
 Object.freeze(Object.getPrototypeOf(HashMap));
-export class TreeMap {
-    key = (void 0);
-    value = (void 0);
-}

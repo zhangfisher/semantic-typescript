@@ -300,7 +300,7 @@ export class Semantic {
         return new Semantic((accept, interrupt) => {
             try {
                 this.generator((element, index) => {
-                    accept(element, useHash(element, index));
+                    accept(element, useHash([element, index]));
                 }, interrupt);
             }
             catch (error) {

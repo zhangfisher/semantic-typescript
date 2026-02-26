@@ -1,133 +1,139 @@
-import { BigIntStatisticsSymbol, CollectableSymbol, CollectorsSymbol, NumericStatisticsSymbol, OrderedCollectableSymbol, SemanticMapSymbol, SemanticSymbol, StatisticsSymbol, UnorderedCollectableSymbol, WindowCollectableSymbol } from "./symbol";
-export let isBoolean = (t) => {
-    return typeof t === "boolean";
+import { BigIntStatisticsSymbol, CollectableSymbol, CollectorsSymbol, HashableSymbol, NumericStatisticsSymbol, OrderedCollectableSymbol, SemanticMapSymbol, SemanticSymbol, StatisticsSymbol, UnorderedCollectableSymbol, WindowCollectableSymbol } from "./symbol";
+export let isBoolean = (target) => {
+    return typeof target === "boolean";
 };
-export let isString = (t) => {
-    return typeof t === "string";
+export let isString = (target) => {
+    return typeof target === "string";
 };
-export let isNumber = (t) => {
-    return typeof t === "number" && !Number.isNaN(t) && Number.isFinite(t);
+export let isNumber = (target) => {
+    return typeof target === "number" && !Number.isNaN(target) && Number.isFinite(target);
 };
-export let isFunction = (t) => {
-    return typeof t === "function";
+export let isFunction = (target) => {
+    return typeof target === "function";
 };
-export let isObject = (t) => {
-    return typeof t === "object" && t !== null;
+export let isObject = (target) => {
+    return typeof target === "object" && target !== null;
 };
-export let isSymbol = (t) => {
-    return typeof t === "symbol";
+export let isSymbol = (target) => {
+    return typeof target === "symbol";
 };
-export let isBigInt = (t) => {
-    return typeof t === "bigint";
+export let isBigInt = (target) => {
+    return typeof target === "bigint";
 };
-export let isPrimitive = (t) => {
-    return isBoolean(t) || isString(t) || isNumber(t) || isSymbol(t) || isBigInt(t) || isFunction(t);
+export let isPrimitive = (target) => {
+    return isBoolean(target) || isString(target) || isNumber(target) || isSymbol(target) || isBigInt(target) || isFunction(target);
 };
-export let isAsyncIterable = (t) => {
-    if (isObject(t)) {
-        return isFunction(Reflect.get(t, Symbol.asyncIterator));
+export let isAsyncIterable = (target) => {
+    if (isObject(target)) {
+        return isFunction(Reflect.get(target, Symbol.asyncIterator));
     }
     return false;
 };
-export let isIterable = (t) => {
-    if (isObject(t)) {
-        return isFunction(Reflect.get(t, Symbol.iterator));
+export let isIterable = (target) => {
+    if (isObject(target)) {
+        return isFunction(Reflect.get(target, Symbol.iterator));
     }
     return false;
 };
-export let isSemantic = (t) => {
-    if (isObject(t)) {
-        return Reflect.get(t, "Semantic") === SemanticSymbol;
+export let isSemantic = (target) => {
+    if (isObject(target)) {
+        return Reflect.get(target, "Semantic") === SemanticSymbol;
     }
     return false;
 };
-export let isCollector = (t) => {
-    if (isObject(t)) {
-        return Reflect.get(t, "Collector") === CollectorsSymbol;
+export let isCollector = (target) => {
+    if (isObject(target)) {
+        return Reflect.get(target, "Collector") === CollectorsSymbol;
     }
     return false;
 };
-export let isCollectable = (t) => {
-    if (isObject(t)) {
-        return Reflect.get(t, "Collectable") === CollectableSymbol;
+export let isCollectable = (target) => {
+    if (isObject(target)) {
+        return Reflect.get(target, "Collectable") === CollectableSymbol;
     }
     return false;
 };
-export let isOrderedCollectable = (t) => {
-    if (isObject(t)) {
-        return Reflect.get(t, "OrderedCollectable") === OrderedCollectableSymbol;
+export let isOrderedCollectable = (target) => {
+    if (isObject(target)) {
+        return Reflect.get(target, "OrderedCollectable") === OrderedCollectableSymbol;
     }
     return false;
 };
-export let isWindowCollectable = (t) => {
-    if (isObject(t)) {
-        return Reflect.get(t, "WindowCollectable") === WindowCollectableSymbol;
+export let isWindowCollectable = (target) => {
+    if (isObject(target)) {
+        return Reflect.get(target, "WindowCollectable") === WindowCollectableSymbol;
     }
     return false;
 };
-export let isUnorderedCollectable = (t) => {
-    if (isObject(t)) {
-        return Reflect.get(t, "UnorderedCollectable") === UnorderedCollectableSymbol;
+export let isUnorderedCollectable = (target) => {
+    if (isObject(target)) {
+        return Reflect.get(target, "UnorderedCollectable") === UnorderedCollectableSymbol;
     }
     return false;
 };
-export let isStatistics = (t) => {
-    if (isObject(t)) {
-        return Reflect.get(t, "Statistics") === StatisticsSymbol;
+export let isStatistics = (target) => {
+    if (isObject(target)) {
+        return Reflect.get(target, "Statistics") === StatisticsSymbol;
     }
     return false;
 };
-export let isNumericStatistics = (t) => {
-    if (isObject(t)) {
-        return Reflect.get(t, "NumericStatistics") === NumericStatisticsSymbol;
+export let isNumericStatistics = (target) => {
+    if (isObject(target)) {
+        return Reflect.get(target, "NumericStatistics") === NumericStatisticsSymbol;
     }
     return false;
 };
-export let isBigIntStatistics = (t) => {
-    if (isObject(t)) {
-        return Reflect.get(t, "BigIntStatistics") === BigIntStatisticsSymbol;
+export let isBigIntStatistics = (target) => {
+    if (isObject(target)) {
+        return Reflect.get(target, "BigIntStatistics") === BigIntStatisticsSymbol;
     }
     return false;
 };
-export let isSemanticMap = (t) => {
-    if (isObject(t)) {
-        return Reflect.get(t, "SemanticMap") === SemanticMapSymbol;
+export let isSemanticMap = (target) => {
+    if (isObject(target)) {
+        return Reflect.get(target, "SemanticMap") === SemanticMapSymbol;
     }
     return false;
 };
-export let isHashMap = (t) => {
-    if (isObject(t)) {
-        return Reflect.get(t, "HashMap") === SemanticMapSymbol;
+export let isHashable = (target) => {
+    if (isObject(target)) {
+        return Reflect.get(target, HashableSymbol) === HashableSymbol;
     }
     return false;
 };
-export let isHashSet = (t) => {
-    if (isObject(t)) {
+export let isHashMap = (target) => {
+    if (isObject(target)) {
+        return Reflect.get(target, "HashMap") === SemanticMapSymbol;
+    }
+    return false;
+};
+export let isHashSet = (target) => {
+    if (isObject(target)) {
         return false;
     }
     return false;
 };
-export let isPromise = (t) => {
-    if (isObject(t)) {
-        return isFunction(Reflect.get(t, "then")) && isFunction(Reflect.get(t, "catch"));
+export let isPromise = (target) => {
+    if (isObject(target)) {
+        return isFunction(Reflect.get(target, "then")) && isFunction(Reflect.get(target, "catch"));
     }
     return false;
 };
-export let isAsyncFunction = (t) => {
-    if (isFunction(t)) {
-        return Reflect.get(t, Symbol.toStringTag) === "AsyncFunction" && t.constructor.name === "AsyncFunction";
+export let isAsyncFunction = (target) => {
+    if (isFunction(target)) {
+        return Reflect.get(target, Symbol.toStringTag) === "AsyncFunction" && target.constructor.name === "AsyncFunction";
     }
     return false;
 };
-export let isGeneratorFunction = (t) => {
-    if (isObject(t)) {
-        return isFunction(t) && Reflect.get(t, "constructor").name === "GeneratorFunction";
+export let isGeneratorFunction = (target) => {
+    if (isObject(target)) {
+        return isFunction(target) && Reflect.get(target, "constructor").name === "GeneratorFunction";
     }
     return false;
 };
-export let isAsyncGeneratorFunction = (t) => {
-    if (isObject(t)) {
-        return isFunction(t) && Reflect.get(t, "constructor").name === "AsyncGeneratorFunction";
+export let isAsyncGeneratorFunction = (target) => {
+    if (isObject(target)) {
+        return isFunction(target) && Reflect.get(target, "constructor").name === "AsyncGeneratorFunction";
     }
     return false;
 };

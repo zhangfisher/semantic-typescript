@@ -11,7 +11,6 @@ export class HashSet {
             enumerable: true,
             configurable: true
         });
-        Object.freeze(this);
     }
     add(value) {
         this.map.set(value, true);

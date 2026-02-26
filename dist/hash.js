@@ -1,6 +1,8 @@
-import { isBigInt, isBoolean, isFunction, isNumber, isObject, isString, isSymbol } from "./guard";
+import { isBigInt, isBoolean, isFunction, isHashable, isNumber, isObject, isString, isSymbol } from "./guard";
 import { useTraverse } from "./hook";
+import { HashableSymbol } from "./symbol";
 import { typeOf } from "./utility";
+;
 const masks = new Map();
 masks.set("undefined", BigInt(masks.size));
 masks.set("null", BigInt(masks.size));
@@ -12,6 +14,7 @@ masks.set("string", BigInt(masks.size));
 masks.set("function", BigInt(masks.size));
 masks.set("object", BigInt(masks.size));
 Object.freeze(masks);
+const internal = Object.freeze(Array.from(masks.keys()));
 export let maskOf = (type) => {
     return masks.get(type) || masks.get("object") || 0n;
 };
@@ -24,8 +27,7 @@ export let register = (type, handler) => {
     }
 };
 export let unregister = (type) => {
-    let whiteList = ["undefined", "null", "boolean", "number", "bigint", "symbol", "string", "function", "object"];
-    if (isString(type) && handlers.has(type) && !whiteList.includes(type)) {
+    if (isString(type) && handlers.has(type) && !internal.includes(type)) {
         handlers.delete(type);
     }
 };
@@ -194,12 +196,16 @@ register("object", (value) => {
     return 0n;
 });
 ;
-export let useHash = (...value) => {
-    let target = value.length === 1 ? value[0] : value;
+export let useHash = (target) => {
     let type = typeOf(target);
-    let handler = handlers.get(type);
-    if (handler) {
-        return handler(target);
+    if (type === "object" && isHashable(target)) {
+        if (complex.has(target)) {
+            return complex.get(target) || 0n;
+        }
+        let hash = Reflect.get(target, HashableSymbol)();
+        complex.set(target, hash);
+        return hash;
     }
-    return 0n;
+    let handler = handlers.get(type) || (() => 0n);
+    return handler(target);
 };

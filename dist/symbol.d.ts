@@ -15,3 +15,4 @@ export declare let TreeMapSymbol: symbol;
 export declare let TreeSetSymbol: symbol;
 export declare let BinaryNodeSymbol: symbol;
 export declare let ReadBlackNodeSymbol: symbol;
+export declare let HashableSymbol: symbol;

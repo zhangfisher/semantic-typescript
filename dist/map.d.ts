@@ -70,7 +70,3 @@ export declare class HashMap<K, V> extends AbstractSemanticMap<K, V> {
     set(key: K, value: V): this;
     values(): IterableIterator<V>;
 }
-export declare class TreeMap<K, V> {
-    key: K;
-    value: V;
-}

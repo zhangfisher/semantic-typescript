@@ -15,3 +15,4 @@ export let TreeMapSymbol = Symbol.for("TreeMap");
 export let TreeSetSymbol = Symbol.for("TreeSet");
 export let BinaryNodeSymbol = Symbol.for("BinaryNode");
 export let ReadBlackNodeSymbol = Symbol.for("BlackAndRedNode");
+export let HashableSymbol = Symbol.for("hashable");
