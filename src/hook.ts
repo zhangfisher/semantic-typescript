@@ -1,0 +1,245 @@
+import { useToArray, type Collector } from "./collector";
+import { isBigInt, isFunction, isIterable, isNumber, isObject, isPrimitive } from "./guard";
+import { invalidate, validate, type BiPredicate, type DeepPropertyKey, type DeepPropertyValue, type MaybePrimitive } from "./utility";
+import type { BiConsumer, Comparator, Consumer, Generator, Indexed, Predicate } from "./utility";
+
+export let useCompare: <T>(t1: T, t2: T) => number = <T>(t1: T, t2: T): number => {
+    if (t1 === t2 || Object.is(t1, t2)) {
+        return 0;
+    }
+    if (typeof t1 === typeof t2) {
+        switch (typeof t1) {
+            case "string":
+                return t1.localeCompare(t2 as string);
+            case "number":
+                return t1 - (t2 as number);
+            case "bigint":
+                return Number(t1 - (t2 as bigint));
+            case "boolean":
+                return t1 === t2 ? 0 : (t1 ? 1 : -1);
+            case "symbol":
+                if (t1.description === (t2 as symbol).description) {
+                    return 0;
+                }
+                return (t1.description || "").localeCompare(((t2 as symbol).description) || "");
+            case "function":
+                throw new TypeError("Cannot compare functions.");
+            case "undefined":
+                return 0;
+            case "object":
+                if (isFunction(Reflect.get(t1 as object, Symbol.toPrimitive)) && isFunction(Reflect.get(t2 as object, Symbol.toPrimitive))) {
+                    let a: MaybePrimitive<object> = Reflect.apply(Reflect.get(t1 as object, Symbol.toPrimitive), t1, ["default"]);
+                    let b: MaybePrimitive<object> = Reflect.apply(Reflect.get(t2 as object, Symbol.toPrimitive), t2, ["default"]);
+                    if (isPrimitive(a) && isPrimitive(b)) {
+                        return useCompare(a, b);
+                    }
+                }
+                let a: MaybePrimitive<object> = Object.prototype.valueOf.call(t1);
+                let b: MaybePrimitive<object> = Object.prototype.valueOf.call(t2);
+                if (isPrimitive(a) && isPrimitive(b)) {
+                    return useCompare(a, b);
+                }
+                return useCompare(Object.prototype.toString.call(t1), Object.prototype.toString.call(t2));
+            default:
+                throw new TypeError("Invalid type.");
+        }
+    }
+    throw new TypeError("Cannot compare values of different types.");
+};
+
+export let Useandom: <T = number | bigint>(index: T) => T = <T = number | bigint>(index: T): T => {
+    if (isNumber(index)) {
+        let x = Number(index);
+        let phi = (1 + Math.sqrt(5)) / 2;
+        let vanDerCorput = (base: number, n: number) => {
+            let result = 0;
+            let f = 1 / base;
+            let i = n;
+            while (i > 0) {
+                result += (i % base) * f;
+                i = Math.floor(i / base);
+                f = f / base;
+            }
+            return result;
+        };
+        let h = vanDerCorput(2, x) + vanDerCorput(3, x);
+        let golden = (x * phi) % 1;
+        let lcg = (1103515245 * x + 12345) % 2147483648;
+        let mixed = (h * 0.5 + golden * 0.3 + lcg / 2147483648 * 0.2);
+        return (mixed * 1000000) as unknown as T;
+    }
+    throw new TypeError("Invalid input type");
+};
+
+export type UseTraverseKey<T extends object> = DeepPropertyKey<T> & (symbol | string | number);
+export type UseTraverseValue<T extends object> = DeepPropertyValue<T>;
+export type UseTraversePath<T extends object> = Array<UseTraverseKey<T> & (symbol | string | number)>;
+export interface UseTraverseCallback<T extends object> {
+    (key: UseTraverseKey<T>, value: UseTraverseValue<T>): boolean;
+};
+export interface UseTraversePathCallback<T extends object> {
+    (key: UseTraverseKey<T>, value: UseTraverseValue<T>, path: UseTraversePath<T>): boolean;
+};
+interface UseTraverse{
+    <T extends object>(t: T, callback: UseTraverseCallback<T>): void;
+    <T extends object>(t: T, callback: UseTraversePathCallback<T>): void;
+};
+export let useTraverse: UseTraverse = <T extends object>(t: T, callback: UseTraverseCallback<T> | UseTraversePathCallback<T>): void => {
+    if (isObject(t)) {
+        let seen: WeakSet<object> = new WeakSet<object>();
+        let path: UseTraversePath<T> = [];
+        let traverse = (target: object): void => {
+            if (!seen.has(target)) {
+                seen.add(target);
+                let stop: boolean = false;
+                let properties: Array<string | symbol> = Reflect.ownKeys(target);
+                for (let property of properties) {
+                    path.push(property as DeepPropertyKey<T> & (symbol | string | number));
+                    let value: T[keyof T] = Reflect.get(target, property) as T[keyof T];
+                    if (stop) {
+                        break;
+                    }
+                    if (validate(value)) {
+                        if (isObject(value)) {
+                            if (isIterable(value)) {
+                                let index: number = 0;
+                                for (let item of value) {
+                                    path.push(index as DeepPropertyKey<T> & (symbol | string | number));
+                                    if (validate(item)) {
+                                        if (isObject(item)) {
+                                            traverse(item);
+                                        } else {
+                                            if (!callback(index as UseTraverseKey<T>, item as UseTraverseValue<T>, path)) {
+                                                stop = true;
+                                                break;
+                                            }
+                                        }
+                                    }
+                                    index++;
+                                }
+                            } else {
+                                traverse(value);
+                            }
+                        } else {
+                            if (!callback(property as UseTraverseKey<T>, value as UseTraverseValue<T>, path)) {
+                                stop = true;
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        traverse(t);
+    }
+};
+
+export let useGenerator: <E>(iterable: Iterable<E>) => Generator<E> = <E>(iterable: Iterable<E>): Generator<E> => {
+    if (isIterable(iterable)) {
+        return (accept: Consumer<E> | BiConsumer<E, bigint>, interrupt: Predicate<E> | BiPredicate<E, bigint>): void => {
+            let index: bigint = 0n;
+            for (let element of iterable) {
+                if (interrupt(element, index)) {
+                    break;
+                }
+                accept(element, index);
+            }
+        };
+    }
+    return (): void => { };
+};
+
+interface UseArrange {
+    <E>(source: Iterable<E>): Generator<E>;
+    <E>(source: Iterable<E>, comparator: Comparator<E>): Generator<E>;
+    <E>(source: Generator<E>): Generator<E>;
+    <E>(source: Generator<E>, comparator: Comparator<E>): Generator<E>;
+};
+
+export let useArrange: UseArrange = <E>(source: Iterable<E> | Generator<E>, comparator?: Comparator<E>): Generator<E> => {
+    if (isIterable(source)) {
+        let buffer: Array<E> = [...source];
+        if (validate(comparator) && isFunction(comparator)) {
+            return useGenerator(buffer.sort(comparator));
+        } else {
+            return useGenerator(buffer.map((element: E, index: number): Indexed<E> => {
+                return {
+                    element: element,
+                    index: BigInt(((index % buffer.length) + buffer.length) % buffer.length)
+                };
+            }).sort((a: Indexed<E>, b: Indexed<E>): number => {
+                return Number(a.index - b.index);
+            }).map((indexed: Indexed<E>): E => {
+                return indexed.element;
+            }));
+        }
+    } else if (isFunction(source)) {
+        let collector: Collector<E, Array<E>, Array<E>> = useToArray();
+        let buffer: Array<E> = collector.collect(source);
+        if (validate(comparator) && isFunction(comparator)) {
+            return useGenerator(buffer.sort(comparator));
+        } else {
+            return useGenerator(buffer.map((element: E, index: number): Indexed<E> => {
+                return {
+                    element: element,
+                    index: BigInt(((index % buffer.length) + buffer.length) % buffer.length)
+                };
+            }).sort((a: Indexed<E>, b: Indexed<E>): number => {
+                return Number(a.index - b.index);
+            }).map((indexed: Indexed<E>): E => {
+                return indexed.element;
+            }));
+        }
+    }
+    return useGenerator([]);
+};
+
+export let useToNumber: <T = unknown>(target: T) => number = <T>(target: T): number => {
+    switch (typeof target) {
+        case "number":
+            return isNumber(target) ? target : 0;
+        case "boolean":
+            return target ? 1 : 0;
+        case "string":
+            let result: number = Number(target);
+            return isNumber(result) ? result : 0;
+        case "bigint":
+            return Number(target);
+        case "object":
+            if (invalidate(target)) {
+                return 0;
+            }
+            if (Reflect.has(target, Symbol.toPrimitive)) {
+                let resolved: number = Reflect.apply(Reflect.get(target as object, Symbol.toPrimitive), target, ["default"]);
+                return isNumber(resolved) ? resolved : 0;
+            }
+            return 0;
+        default:
+            return 0;
+    }
+};
+
+export let useToBigInt: <T = unknown>(target: T) => bigint = <T>(target: T): bigint => {
+    switch (typeof target) {
+        case "number":
+            return isNumber(target) ? BigInt(target) : 0n;
+        case "boolean":
+            return target ? 1n : 0n;
+        case "string":
+            let regex = /^[-+]?\d+$/;
+            return regex.test(target) ? BigInt(target) : 0n;
+        case "bigint":
+            return target;
+        case "object":
+            if (invalidate(target)) {
+                return 0n;
+            }
+            if (Reflect.has(target, Symbol.toPrimitive)) {
+                let resolved: bigint = Reflect.apply(Reflect.get(target as object, Symbol.toPrimitive), target, ["default"]);
+                return isBigInt(resolved) ? resolved : 0n;
+            }
+            return 0n;
+        default:
+            return 0n;
+    }
+};
