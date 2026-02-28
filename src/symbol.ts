@@ -1,0 +1,11 @@
+export let OptionalSymbol: symbol = Symbol.for("Optional");
+export let SemanticSymbol: symbol = Symbol.for("Semantic");
+export let CollectorsSymbol: symbol = Symbol.for("Collector");
+export let CollectableSymbol: symbol = Symbol.for("Collectable");
+export let OrderedCollectableSymbol: symbol = Symbol.for("OrderedCollectable");
+export let WindowCollectableSymbol: symbol = Symbol.for("WindowCollectable");
+export let StatisticsSymbol: symbol = Symbol.for("Statistics");
+export let NumericStatisticsSymbol: symbol = Symbol.for("NumericStatistics");
+export let BigIntStatisticsSymbol: symbol = Symbol.for("BigIntStatistics");
+export let AsyncCollectableSymbol: symbol = Symbol.for("AsyncCollectable");
+export let UnorderedCollectableSymbol: symbol = Symbol.for("UnorderedCollectable");
