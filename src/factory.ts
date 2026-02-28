@@ -715,11 +715,9 @@ export let useWindow: UseWindow = <K extends keyof WindowEventMap>(argument1: K 
                 for (let key of keys) {
                     if (isString(key)) {
                         let listener: (event: WindowEventMap[K]) => void = function (event: WindowEventMap[K]) {
-                            if (interrupt(event, index)) {
-                                console.log("Terminal", performance.now());
-                                window.removeEventListener(key as K, listener);
-                            } else {
-                                console.log("accept", performance.now());
+                            if (interrupt(event, index)) {
+                           window.removeEventListener(key as K, listener);
+                            } else {
                                 accept(event, index);
                             }
                         };
