@@ -1,0 +1,11 @@
+export declare let OptionalSymbol: symbol;
+export declare let SemanticSymbol: symbol;
+export declare let CollectorsSymbol: symbol;
+export declare let CollectableSymbol: symbol;
+export declare let OrderedCollectableSymbol: symbol;
+export declare let WindowCollectableSymbol: symbol;
+export declare let StatisticsSymbol: symbol;
+export declare let NumericStatisticsSymbol: symbol;
+export declare let BigIntStatisticsSymbol: symbol;
+export declare let AsyncCollectableSymbol: symbol;
+export declare let UnorderedCollectableSymbol: symbol;
