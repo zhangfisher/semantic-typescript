@@ -1,4 +1,4 @@
-import { useToArray } from "./collector";
+import { useSynchronousToArray } from "./synchronous/collector";
 import { isBigInt, isFunction, isIterable, isNumber, isObject, isPrimitive } from "./guard";
 import { invalidate, validate } from "./utility";
 export let useCompare = (t1, t2) => {
@@ -210,7 +210,7 @@ export let useArrange = (source, comparator) => {
         }
     }
     else if (isFunction(source)) {
-        let collector = useToArray();
+        let collector = useSynchronousToArray();
         let buffer = collector.collect(source);
         if (validate(comparator) && isFunction(comparator)) {
             return useGenerator(buffer.sort(comparator));

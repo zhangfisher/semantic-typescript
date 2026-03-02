@@ -1,4 +1,4 @@
-import { BigIntStatisticsSymbol, CollectableSymbol, CollectorsSymbol, NumericStatisticsSymbol, OptionalSymbol, OrderedCollectableSymbol, SemanticSymbol, StatisticsSymbol, UnorderedCollectableSymbol, WindowCollectableSymbol } from "./symbol";
+import { AsynchronousBigIntStatisticsSymbol, AsynchronousCollectorSymbol, AsynchronousNumericStatisticsSymbol, AsynchronousOrderedCollectableSymbol, AsynchronousSemanticSymbol, AsynchronousStatisticsSymbol, AsynchronousUnorderedCollectableSymbol, AsynchronousWindowCollectableSymbol, OptionalSymbol, SynchronousBigIntStatisticsSymbol, SynchronousCollectorSymbol, SynchronousNumericStatisticsSymbol, SynchronousOrderedCollectableSymbol, SynchronousSemanticSymbol, SynchronousStatisticsSymbol, SynchronousUnorderedCollectableSymbol, SynchronousWindowCollectableSymbol } from "./symbol";
 export let isBoolean = (target) => {
     return typeof target === "boolean";
 };
@@ -35,57 +35,111 @@ export let isIterable = (target) => {
     }
     return false;
 };
-export let isSemantic = (target) => {
+export let isAsynchronousSemantic = (target) => {
     if (isObject(target)) {
-        return Reflect.get(target, "Semantic") === SemanticSymbol;
+        return Reflect.get(target, "AsynchronousSemantic") === AsynchronousSemanticSymbol;
     }
     return false;
 };
-export let isCollector = (target) => {
+export let isSynchronousSemantic = (target) => {
     if (isObject(target)) {
-        return Reflect.get(target, "Collector") === CollectorsSymbol;
+        return Reflect.get(target, "SynchronousSemantic") === SynchronousSemanticSymbol;
     }
     return false;
 };
-export let isCollectable = (target) => {
+export let isAsynchronousCollectable = (target) => {
     if (isObject(target)) {
-        return Reflect.get(target, "Collectable") === CollectableSymbol;
+        return Reflect.get(target, "AsynchronousCollectable") === AsynchronousSemanticSymbol || isAsynchronousSemantic(target) || isAsynchronousOrderedCollectable(target) || isAsynchronousUnorderedCollectable(target) || isAsynchronousStatistics(target) || isAsynchronousNumericStatistics(target) || isAsynchronousBigIntStatistics(target) || isAsynchronousWindowCollectable(target);
     }
     return false;
 };
-export let isOrderedCollectable = (target) => {
+export let isSynchronousCollectable = (target) => {
     if (isObject(target)) {
-        return Reflect.get(target, "OrderedCollectable") === OrderedCollectableSymbol;
+        return Reflect.get(target, "SynchronousCollectable") === SynchronousSemanticSymbol || isSynchronousSemantic(target) || isSynchronousOrderedCollectable(target) || isSynchronousUnorderedCollectable(target) || isSynchronousStatistics(target) || isSynchronousNumericStatistics(target) || isSynchronousBigIntStatistics(target) || isSynchronousWindowCollectable(target);
     }
     return false;
 };
-export let isWindowCollectable = (target) => {
+export let isAsynchronousOrderedCollectable = (target) => {
     if (isObject(target)) {
-        return Reflect.get(target, "WindowCollectable") === WindowCollectableSymbol;
+        return Reflect.get(target, "AsynchronousOrderedCollectable") === AsynchronousOrderedCollectableSymbol;
     }
     return false;
 };
-export let isUnorderedCollectable = (target) => {
+export let isSynchronousOrderedCollectable = (target) => {
     if (isObject(target)) {
-        return Reflect.get(target, "UnorderedCollectable") === UnorderedCollectableSymbol;
+        return Reflect.get(target, "SynchronousOrderedCollectable") === SynchronousOrderedCollectableSymbol;
     }
     return false;
 };
-export let isStatistics = (target) => {
+export let isAsynchronousUnorderedCollectable = (target) => {
     if (isObject(target)) {
-        return Reflect.get(target, "Statistics") === StatisticsSymbol;
+        return Reflect.get(target, "AsynchronousUnorderedCollectable") === AsynchronousUnorderedCollectableSymbol;
     }
     return false;
 };
-export let isNumericStatistics = (target) => {
+export let isSynchronousUnorderedCollectable = (target) => {
     if (isObject(target)) {
-        return Reflect.get(target, "NumericStatistics") === NumericStatisticsSymbol;
+        return Reflect.get(target, "SynchronousUnorderedCollectable") === SynchronousUnorderedCollectableSymbol;
     }
     return false;
 };
-export let isBigIntStatistics = (target) => {
+export let isAsynchronousStatistics = (target) => {
     if (isObject(target)) {
-        return Reflect.get(target, "BigIntStatistics") === BigIntStatisticsSymbol;
+        return Reflect.get(target, "AsynchronousStatistics") === AsynchronousStatisticsSymbol;
+    }
+    return false;
+};
+export let isSynchronousStatistics = (target) => {
+    if (isObject(target)) {
+        return Reflect.get(target, "SynchronousStatistics") === SynchronousStatisticsSymbol;
+    }
+    return false;
+};
+export let isAsynchronousBigIntStatistics = (target) => {
+    if (isObject(target)) {
+        return Reflect.get(target, "AsynchronousBigIntStatistics") === AsynchronousBigIntStatisticsSymbol;
+    }
+    return false;
+};
+export let isSynchronousBigIntStatistics = (target) => {
+    if (isObject(target)) {
+        return Reflect.get(target, "SynchronousBigIntStatistics") === SynchronousBigIntStatisticsSymbol;
+    }
+    return false;
+};
+export let isAsynchronousNumericStatistics = (target) => {
+    if (isObject(target)) {
+        return Reflect.get(target, "AsynchronousBigIntStatistics") === AsynchronousNumericStatisticsSymbol;
+    }
+    return false;
+};
+export let isSynchronousNumericStatistics = (target) => {
+    if (isObject(target)) {
+        return Reflect.get(target, "AsynchronousNumericStatistics") === SynchronousNumericStatisticsSymbol;
+    }
+    return false;
+};
+export let isAsynchronousWindowCollectable = (target) => {
+    if (isObject(target)) {
+        return Reflect.get(target, "AsynchronousWindowCollectable") === AsynchronousWindowCollectableSymbol;
+    }
+    return false;
+};
+export let isSynchronousWindowCollectable = (target) => {
+    if (isObject(target)) {
+        return Reflect.get(target, "SynchronousWindowCollectable") === SynchronousWindowCollectableSymbol;
+    }
+    return false;
+};
+export let isSynchronousCollector = (target) => {
+    if (isObject(target)) {
+        return Reflect.get(target, "SynchronousCollector") === SynchronousCollectorSymbol;
+    }
+    return false;
+};
+export let isAsynchronousCollector = (target) => {
+    if (isObject(target)) {
+        return Reflect.get(target, "AsynchronousCollector") === AsynchronousCollectorSymbol;
     }
     return false;
 };

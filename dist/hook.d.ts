@@ -1,5 +1,5 @@
 import { type DeepPropertyKey, type DeepPropertyValue } from "./utility";
-import type { Comparator, Generator } from "./utility";
+import type { Comparator, SynchronousGenerator } from "./utility";
 export declare let useCompare: <T>(t1: T, t2: T) => number;
 interface UseRandom {
     <N extends number | bigint>(start: N): N extends number ? number : (N extends bigint ? bigint : never);
@@ -20,12 +20,12 @@ interface UseTraverse {
     <T extends object>(t: T, callback: UseTraversePathCallback<T>): void;
 }
 export declare let useTraverse: UseTraverse;
-export declare let useGenerator: <E>(iterable: Iterable<E>) => Generator<E>;
+export declare let useGenerator: <E>(iterable: Iterable<E>) => SynchronousGenerator<E>;
 interface UseArrange {
-    <E>(source: Iterable<E>): Generator<E>;
-    <E>(source: Iterable<E>, comparator: Comparator<E>): Generator<E>;
-    <E>(source: Generator<E>): Generator<E>;
-    <E>(source: Generator<E>, comparator: Comparator<E>): Generator<E>;
+    <E>(source: Iterable<E>): SynchronousGenerator<E>;
+    <E>(source: Iterable<E>, comparator: Comparator<E>): SynchronousGenerator<E>;
+    <E>(source: SynchronousGenerator<E>): SynchronousGenerator<E>;
+    <E>(source: SynchronousGenerator<E>, comparator: Comparator<E>): SynchronousGenerator<E>;
 }
 export declare let useArrange: UseArrange;
 export declare let useToNumber: <T = unknown>(target: T) => number;

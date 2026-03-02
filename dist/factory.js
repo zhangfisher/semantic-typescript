@@ -1,14 +1,15 @@
+import { AsynchronousSemantic } from "./asynchronous/semantic";
 import { isBigInt, isFunction, isIterable, isNumber, isObject, isPromise, isAsyncIterable, isString, isHTMLElemet } from "./guard";
 import { useCompare, useToBigInt, useToNumber, useTraverse } from "./hook";
 import { Optional } from "./optional";
-import { Semantic } from "./semantic";
+import { SynchronousSemantic } from "./synchronous/semantic";
 import { invalidate, validate } from "./utility";
 ;
 export let useAnimationFrame = (period, delay = 0) => {
     if (period <= 0 || !Number.isFinite(period) || delay < 0 || !Number.isFinite(delay)) {
         throw new TypeError("Period must be positive finite number and delay must be non-negative finite number.");
     }
-    return new Semantic((accept, interrupt) => {
+    return new SynchronousSemantic((accept, interrupt) => {
         try {
             let start = performance.now();
             let index = 0n;
@@ -35,7 +36,7 @@ export let useAnimationFrame = (period, delay = 0) => {
 ;
 export let useAttribute = (target) => {
     if (isObject(target)) {
-        return new Semantic((accept, interrupt) => {
+        return new SynchronousSemantic((accept, interrupt) => {
             try {
                 let index = 0n;
                 useTraverse(target, (key, value) => {
@@ -67,7 +68,7 @@ export let useBlob = (blob, chunk = 64n * 1024n) => {
     if (invalidate(blob)) {
         throw new TypeError("Blob is invalid.");
     }
-    return new Semantic((accept, interrupt) => {
+    return new SynchronousSemantic((accept, interrupt) => {
         try {
             let index = 0n;
             let stoppable = false;
@@ -130,265 +131,348 @@ export let useBlob = (blob, chunk = 64n * 1024n) => {
     });
 };
 ;
-export let useDocument = (argument) => {
-    if (isString(argument)) {
-        let key = argument;
-        return new Semantic((accept, interrupt) => {
-            try {
-                let index = 0n;
+;
+export let useDocument = (argument1, argument2 = {}) => {
+    let options = argument2;
+    let debounce = isObject(options) && isNumber(options.debounce) ? options.debounce : 0;
+    let throttle = isObject(options) && isNumber(options.throttle) ? options.throttle : 0;
+    if (isString(argument1)) {
+        let key = argument1;
+        return new AsynchronousSemantic(async (accept, interrupt) => {
+            let timeOut = null;
+            let lastEmitTime = 0;
+            let index = 0n;
+            let until = new Promise(resolve => {
                 let listener = (event) => {
-                    if (interrupt(event, index)) {
-                        window.document.addEventListener(key, listener);
+                    if (debounce > 0) {
+                        if (timeOut) {
+                            clearTimeout(timeOut);
+                        }
+                        timeOut = setTimeout(() => {
+                            if (interrupt(event, index)) {
+                                window.document.removeEventListener(key, listener);
+                                resolve();
+                                return;
+                            }
+                            accept(event, index);
+                            index++;
+                        }, debounce);
+                        return;
                     }
-                    else {
+                    if (throttle > 0) {
+                        let now = performance.now();
+                        if (now - lastEmitTime < throttle) {
+                            return;
+                        }
+                        lastEmitTime = now;
+                        if (interrupt(event, index)) {
+                            window.document.removeEventListener(key, listener);
+                            resolve();
+                            return;
+                        }
                         accept(event, index);
                         index++;
+                        return;
                     }
+                    if (interrupt(event, index)) {
+                        window.document.removeEventListener(key, listener);
+                        resolve();
+                        accept(event, -1n);
+                        return;
+                    }
+                    accept(event, index);
+                    index++;
                 };
                 window.document.addEventListener(key, listener);
-            }
-            catch (error) {
-                console.error(error);
-            }
+            });
+            await until;
         });
     }
-    if (isIterable(argument)) {
-        let keys = new Set(argument);
-        return new Semantic((accept, interrupt) => {
-            try {
-                let index = 0n;
+    if (isIterable(argument1)) {
+        let keys = new Set(...argument1);
+        return new AsynchronousSemantic(async (accept, interrupt) => {
+            let lastEmitTime = 0;
+            let timeOut = null;
+            let index = 0n;
+            let activeCount = keys.size;
+            let until = new Promise(resolve => {
                 for (let key of keys) {
-                    if (isString(key)) {
-                        let listener = (event) => {
-                            if (interrupt(event, index)) {
-                                window.document.addEventListener(key, listener);
+                    if (!isString(key))
+                        continue;
+                    let listener = (event) => {
+                        if (debounce > 0) {
+                            if (timeOut) {
+                                clearTimeout(timeOut);
                             }
-                            else {
-                                accept(event, index);
-                                index++;
+                            timeOut = setTimeout(() => handleEvent(event, key), debounce);
+                            return;
+                        }
+                        if (throttle > 0) {
+                            let now = performance.now();
+                            if (now - lastEmitTime < throttle)
+                                return;
+                            lastEmitTime = now;
+                        }
+                        handleEvent(event, key);
+                    };
+                    let handleEvent = (event, currentKey) => {
+                        if (interrupt(event, index)) {
+                            window.document.removeEventListener(currentKey, listener);
+                            if (--activeCount === 0) {
+                                resolve();
                             }
-                        };
-                        window.document.addEventListener(key, listener);
-                    }
+                            return;
+                        }
+                        accept(event, index);
+                        index++;
+                    };
+                    window.document.addEventListener(key, listener);
                 }
-            }
-            catch (error) {
-                console.error(error);
-            }
+            });
+            await until;
         });
     }
-    throw new TypeError("Argument must be a string or an iterable of strings.");
+    throw new TypeError("Invalid arguments.");
 };
 ;
-export let useHTMLElement = (argument1, argument2) => {
-    if (isString(argument1)) {
-        let selector = argument1;
+export let useHTMLElement = (argument1, argument2, argument3 = {}) => {
+    let throttle = isObject(argument3) && isNumber(argument3.throttle) ? argument3.throttle : 0;
+    let debounce = isObject(argument3) && isNumber(argument3.debounce) ? argument3.debounce : 0;
+    if (debounce > 0 && throttle > 0) {
+        throw new TypeError("throttle and debounce cannot be used together");
+    }
+    if (debounce < 0 || throttle < 0) {
+        throw new TypeError("throttle/debounce must be non-negative");
+    }
+    if (isHTMLElemet(argument1)) {
+        let element = argument1;
         if (isString(argument2)) {
             let key = argument2;
-            return new Semantic((accept, interrupt) => {
-                try {
-                    let index = 0n;
-                    let elements = window.document.querySelectorAll(selector);
+            return new AsynchronousSemantic(async (accept, interrupt) => {
+                let timeOut = null;
+                let lastEmit = 0;
+                let index = 0n;
+                let until = new Promise((resolve) => {
+                    let listener = (event) => {
+                        if (debounce > 0) {
+                            if (timeOut)
+                                clearTimeout(timeOut);
+                            timeOut = setTimeout(() => handle(event), debounce);
+                            return;
+                        }
+                        if (throttle > 0) {
+                            let now = performance.now();
+                            if (now - lastEmit < throttle)
+                                return;
+                            lastEmit = now;
+                        }
+                        handle(event);
+                    };
+                    let handle = (event) => {
+                        if (interrupt(event, index)) {
+                            element.removeEventListener(key, listener);
+                            if (timeOut)
+                                clearTimeout(timeOut);
+                            resolve();
+                            return;
+                        }
+                        accept(event, index);
+                        index++;
+                    };
+                    element.addEventListener(key, listener);
+                });
+                await until;
+            });
+        }
+        if (isIterable(argument2)) {
+            let keys = [...new Set(argument2)];
+            return new AsynchronousSemantic(async (accept, interrupt) => {
+                let active = keys.length;
+                let index = 0n;
+                let until = new Promise((resolve) => {
+                    for (let key of keys) {
+                        let listener = (event) => {
+                            if (interrupt(event, index)) {
+                                element.removeEventListener(key, listener);
+                                if (--active === 0) {
+                                    resolve();
+                                }
+                                return;
+                            }
+                            accept(event, index);
+                            index++;
+                        };
+                        element.addEventListener(key, listener);
+                    }
+                });
+                await until;
+            });
+        }
+    }
+    if (isString(argument1)) {
+        let selector = argument1;
+        let elements = [...document.querySelectorAll(selector)];
+        if (isString(argument2)) {
+            let key = argument2;
+            return new AsynchronousSemantic(async (accept, interrupt) => {
+                let active = elements.length;
+                let index = 0n;
+                let until = new Promise((resolve) => {
                     for (let element of elements) {
                         if (validate(element)) {
                             let listener = (event) => {
                                 if (interrupt(event, index)) {
                                     element.removeEventListener(key, listener);
+                                    if (--active === 0) {
+                                        resolve();
+                                    }
+                                    return;
                                 }
-                                else {
-                                    accept(event, index);
-                                    index++;
-                                }
+                                accept(event, index);
+                                index++;
                             };
                             element.addEventListener(key, listener);
                         }
                     }
-                }
-                catch (error) {
-                    console.error(error);
-                }
+                });
+                await until;
             });
         }
         if (isIterable(argument2)) {
             let keys = new Set(argument2);
-            return new Semantic((accept, interrupt) => {
-                try {
-                    let index = 0n;
-                    let elements = window.document.querySelectorAll(selector);
+            return new AsynchronousSemantic(async (accept, interrupt) => {
+                let active = elements.length * keys.size;
+                let index = 0n;
+                let until = new Promise((resolve) => {
                     for (let element of elements) {
                         for (let key of keys) {
-                            if (isString(key)) {
+                            if (validate(element) && isString(key)) {
                                 let listener = (event) => {
                                     if (interrupt(event, index)) {
                                         element.removeEventListener(key, listener);
+                                        if (--active === 0) {
+                                            resolve();
+                                        }
+                                        return;
                                     }
-                                    else {
-                                        accept(event, index);
-                                        index++;
-                                    }
+                                    accept(event, index);
+                                    index++;
                                 };
                                 element.addEventListener(key, listener);
                             }
                         }
                     }
-                }
-                catch (error) {
-                    console.error(error);
-                }
+                });
+                await until;
             });
         }
     }
     if (isIterable(argument1)) {
-        let elementsOrSelectors = argument1;
+        let elementsOrSelectors = new Set(argument1);
         if (isString(argument2)) {
             let key = argument2;
-            return new Semantic((accept, interrupt) => {
-                try {
-                    let index = 0n;
+            return new AsynchronousSemantic(async (accept, interrupt) => {
+                let active = elementsOrSelectors.size;
+                let until = new Promise((resolve) => {
                     for (let elementOrSelector of elementsOrSelectors) {
-                        if (isString(elementOrSelector)) {
-                            let element = window.document.querySelector(elementOrSelector);
-                            if (validate(element)) {
+                        if (validate(elementOrSelector)) {
+                            if (isHTMLElemet(elementOrSelector)) {
+                                let element = elementOrSelector;
                                 let listener = (event) => {
-                                    if (interrupt(event, index)) {
+                                    if (interrupt(event, 0n)) {
                                         element.removeEventListener(key, listener);
+                                        if (--active === 0) {
+                                            resolve();
+                                        }
+                                        return;
                                     }
-                                    else {
-                                        accept(event, index);
-                                        index++;
-                                    }
+                                    accept(event, 0n);
                                 };
                                 element.addEventListener(key, listener);
                             }
-                        }
-                        else if (isHTMLElemet(elementOrSelector)) {
-                            let element = elementOrSelector;
-                            let listener = (event) => {
-                                if (interrupt(event, index)) {
-                                    element.removeEventListener(key, listener);
-                                }
-                                else {
-                                    accept(event, index);
-                                    index++;
-                                }
-                            };
-                            element.addEventListener(key, listener);
-                        }
-                    }
-                }
-                catch (error) {
-                    console.error(error);
-                }
-            });
-        }
-        if (isIterable(argument2)) {
-            let keys = argument2;
-            return new Semantic((accept, interrupt) => {
-                try {
-                    let index = 0n;
-                    for (let elementOrSelector of elementsOrSelectors) {
-                        if (isString(elementOrSelector)) {
-                            let element = window.document.querySelector(elementOrSelector);
-                            if (validate(element)) {
-                                for (let key of keys) {
-                                    if (isString(key)) {
+                            else if (isString(elementOrSelector)) {
+                                let selector = elementOrSelector;
+                                let elements = [...document.querySelectorAll(selector)].filter((item) => isHTMLElemet(item));
+                                for (let element of elements) {
+                                    if (validate(element)) {
                                         let listener = (event) => {
-                                            if (interrupt(event, index)) {
+                                            if (interrupt(event, 0n)) {
                                                 element.removeEventListener(key, listener);
+                                                if (--active === 0) {
+                                                    resolve();
+                                                }
+                                                return;
                                             }
-                                            else {
-                                                accept(event, index);
-                                                index++;
-                                            }
+                                            accept(event, 0n);
                                         };
                                         element.addEventListener(key, listener);
                                     }
                                 }
                             }
                         }
-                        else if (isHTMLElemet(elementOrSelector)) {
+                    }
+                });
+                await until;
+            });
+        }
+        if (isIterable(argument2)) {
+            let keys = new Set(argument2);
+            return new AsynchronousSemantic(async (accept, interrupt) => {
+                let active = elementsOrSelectors.size * keys.size;
+                let until = new Promise((resolve) => {
+                    for (let elementOrSelector of elementsOrSelectors) {
+                        if (isHTMLElemet(elementOrSelector)) {
                             let element = elementOrSelector;
                             for (let key of keys) {
                                 if (isString(key)) {
                                     let listener = (event) => {
-                                        if (interrupt(event, index)) {
+                                        if (interrupt(event, 0n)) {
                                             element.removeEventListener(key, listener);
+                                            if (--active === 0) {
+                                                resolve();
+                                            }
+                                            return;
                                         }
-                                        else {
-                                            accept(event, index);
-                                            index++;
+                                        accept(event, 0n);
+                                    };
+                                    element.addEventListener(key, listener);
+                                }
+                            }
+                        }
+                        else if (isString(elementOrSelector)) {
+                            let selector = elementOrSelector;
+                            let elements = [...document.querySelectorAll(selector)].filter((item) => isHTMLElemet(item));
+                            for (let element of elements) {
+                                for (let key of keys) {
+                                    let listener = (event) => {
+                                        if (interrupt(event, 0n)) {
+                                            element.removeEventListener(key, listener);
+                                            if (--active === 0) {
+                                                resolve();
+                                            }
+                                            return;
                                         }
+                                        accept(event, 0n);
                                     };
                                     element.addEventListener(key, listener);
                                 }
                             }
                         }
                     }
-                }
-                catch (error) {
-                    console.error(error);
-                }
-            });
-        }
-    }
-    if (isHTMLElemet(argument1)) {
-        let element = argument1;
-        if (isString(argument2)) {
-            let key = argument2;
-            return new Semantic((accept, interrupt) => {
-                try {
-                    let index = 0n;
-                    let listener = (event) => {
-                        if (interrupt(event, index)) {
-                            element.removeEventListener(key, listener);
-                        }
-                        else {
-                            accept(event, index);
-                            index++;
-                        }
-                    };
-                    element.addEventListener(key, listener);
-                }
-                catch (error) {
-                    console.error(error);
-                }
-            });
-        }
-        if (isIterable(argument2)) {
-            let keys = argument2;
-            return new Semantic((accept, interrupt) => {
-                try {
-                    let index = 0n;
-                    for (let key of keys) {
-                        if (isString(key)) {
-                            let listener = (event) => {
-                                if (interrupt(event, index)) {
-                                    element.removeEventListener(key, listener);
-                                }
-                                else {
-                                    accept(event, index);
-                                    index++;
-                                }
-                            };
-                            element.addEventListener(key, listener);
-                        }
-                    }
-                }
-                catch (error) {
-                    console.error(error);
-                }
+                });
+                await until;
             });
         }
     }
     throw new TypeError("Invalid arguments.");
 };
 export let useEmpty = () => {
-    return new Semantic(() => { });
+    return new SynchronousSemantic(() => { });
 };
 ;
 export let useFill = (element, count) => {
     if (validate(element) && count > 0n) {
-        return new Semantic((accept, interrupt) => {
+        return new SynchronousSemantic((accept, interrupt) => {
             try {
                 for (let i = 0n; i < count; i++) {
                     let item = isFunction(element) ? element() : element;
@@ -408,7 +492,7 @@ export let useFill = (element, count) => {
 ;
 export let useFrom = (iterable) => {
     if (isIterable(iterable)) {
-        return new Semantic((accept, interrupt) => {
+        return new SynchronousSemantic((accept, interrupt) => {
             try {
                 let index = 0n;
                 for (let element of iterable) {
@@ -425,7 +509,7 @@ export let useFrom = (iterable) => {
         });
     }
     else if (isAsyncIterable(iterable)) {
-        return new Semantic(async (accept, interrupt) => {
+        return new SynchronousSemantic(async (accept, interrupt) => {
             try {
                 let index = 0n;
                 for await (let element of iterable) {
@@ -446,7 +530,7 @@ export let useFrom = (iterable) => {
 ;
 export let useGenerate = (supplier, interrupt) => {
     if (isFunction(supplier) && isFunction(interrupt)) {
-        return new Semantic((accept, interrupt) => {
+        return new SynchronousSemantic((accept, interrupt) => {
             try {
                 let index = 0n;
                 while (true) {
@@ -468,7 +552,7 @@ export let useGenerate = (supplier, interrupt) => {
 ;
 export let useInterval = (period, delay = 0) => {
     if (period > 0 && delay >= 0) {
-        return new Semantic((accept, interrupt) => {
+        return new SynchronousSemantic((accept, interrupt) => {
             try {
                 if (delay > 0) {
                     setTimeout(() => {
@@ -507,7 +591,7 @@ export let useInterval = (period, delay = 0) => {
 export let useIterate = (generator) => {
     if (isFunction(generator)) {
         try {
-            return new Semantic(generator);
+            return new SynchronousSemantic(generator);
         }
         catch (error) {
             console.error(error);
@@ -517,7 +601,7 @@ export let useIterate = (generator) => {
 };
 export let usePromise = (promise) => {
     if (isPromise(promise)) {
-        return new Semantic((accept, interrupt) => {
+        return new SynchronousSemantic((accept, interrupt) => {
             try {
                 promise.then((value) => {
                     if (interrupt(value, 0n)) {
@@ -540,7 +624,7 @@ export let usePromise = (promise) => {
 ;
 export let useOf = (...target) => {
     if (Array.isArray(target)) {
-        return new Semantic((accept, interrupt) => {
+        return new SynchronousSemantic((accept, interrupt) => {
             try {
                 let index = 0n;
                 for (let element of target) {
@@ -565,7 +649,7 @@ export let useRange = (start, end, step = (isNumber(start) && isNumber(end) ? 1 
     }
     if (isNumber(start) && isNumber(end)) {
         let trusted = useToNumber(step);
-        return new Semantic((accept, interrupt) => {
+        return new SynchronousSemantic((accept, interrupt) => {
             try {
                 let index = 0n;
                 for (let i = start; i < end; i += trusted) {
@@ -583,7 +667,7 @@ export let useRange = (start, end, step = (isNumber(start) && isNumber(end) ? 1 
     }
     else if (isBigInt(start) && isBigInt(end)) {
         let trusted = useToBigInt(step);
-        return new Semantic((accept, interrupt) => {
+        return new SynchronousSemantic((accept, interrupt) => {
             try {
                 let index = 0n;
                 for (let i = start; i < end; i += trusted) {
@@ -602,120 +686,217 @@ export let useRange = (start, end, step = (isNumber(start) && isNumber(end) ? 1 
     throw new TypeError("Invalid arguments.");
 };
 ;
-export let useWebSocket = (argument1, argument2) => {
-    if (isObject(argument1) && isFunction(Reflect.get(argument1, "addEventListener"))) {
+;
+export let useWebSocket = (argument1, argument2, argument3) => {
+    let debounce = 0;
+    let throttle = 0;
+    if (isObject(argument2)) {
+        debounce = Reflect.has(argument2, "debounce") ? Reflect.get(argument2, "debounce") : 0;
+        throttle = Reflect.has(argument2, "throttle") ? Reflect.get(argument2, "throttle") : 0;
+    }
+    else {
+        debounce = validate(argument3) && isNumber(argument3.debounce) ? argument3.debounce : 0;
+        throttle = validate(argument3) && isNumber(argument3.throttle) ? argument3.throttle : 0;
+    }
+    if (validate(argument1)) {
         let websocket = argument1;
         if (isString(argument2)) {
-            let key = argument2;
-            return new Semantic((accept, interrupt) => {
-                try {
+            let key = argument1;
+            return new AsynchronousSemantic(async (accept, interrupt) => {
+                let timeOut = null;
+                let lastEmitTime = 0;
+                let index = 0n;
+                let until = new Promise(resolve => {
                     let listener = (event) => {
-                        if (interrupt(event, 0n)) {
-                            websocket.removeEventListener(key, listener);
-                        }
-                        else {
-                            accept(event, 0n);
-                        }
-                    };
-                    websocket.addEventListener(key, listener);
-                }
-                catch (error) {
-                    console.error(error);
-                }
-            });
-        }
-        else if (isIterable(argument2)) {
-            let keys = argument2;
-            return new Semantic((accept, interrupt) => {
-                try {
-                    for (let key of keys) {
-                        if (isString(key)) {
-                            let listener = (event) => {
-                                if (interrupt(event, 0n)) {
+                        if (debounce > 0) {
+                            if (timeOut) {
+                                clearTimeout(timeOut);
+                            }
+                            timeOut = setTimeout(() => {
+                                if (interrupt(event, index)) {
                                     websocket.removeEventListener(key, listener);
+                                    resolve();
+                                    return;
                                 }
-                                else {
-                                    accept(event, 0n);
-                                }
-                            };
-                            websocket.addEventListener(key, listener);
+                                accept(event, index);
+                                index++;
+                            }, debounce);
+                            return;
                         }
-                    }
-                }
-                catch (error) {
-                    console.error(error);
-                }
-            });
-        }
-        let keys = ["open", "message", "close", "error"];
-        return new Semantic((accept, interrupt) => {
-            try {
-                for (let key of keys) {
-                    let listener = (event) => {
-                        if (interrupt(event, 0n)) {
+                        if (throttle > 0) {
+                            let now = performance.now();
+                            if (now - lastEmitTime < throttle) {
+                                return;
+                            }
+                            lastEmitTime = now;
+                            if (interrupt(event, index)) {
+                                websocket.removeEventListener(key, listener);
+                                resolve();
+                                return;
+                            }
+                            accept(event, index);
+                            index++;
+                            return;
+                        }
+                        if (interrupt(event, index)) {
                             websocket.removeEventListener(key, listener);
+                            resolve();
+                            accept(event, -1n);
+                            return;
                         }
-                        else {
-                            accept(event, 0n);
-                        }
+                        accept(event, index);
+                        index++;
                     };
                     websocket.addEventListener(key, listener);
-                }
-            }
-            catch (error) {
-                console.error(error);
-            }
-        });
+                });
+                await until;
+            });
+        }
+        if (isIterable(argument2)) {
+            let keys = new Set(...argument1);
+            return new AsynchronousSemantic(async (accept, interrupt) => {
+                let lastEmitTime = 0;
+                let timeOut = null;
+                let index = 0n;
+                let activeCount = keys.size;
+                let until = new Promise(resolve => {
+                    for (let key of keys) {
+                        if (!isString(key))
+                            continue;
+                        let listener = (event) => {
+                            if (debounce > 0) {
+                                if (timeOut) {
+                                    clearTimeout(timeOut);
+                                }
+                                timeOut = setTimeout(() => handleEvent(event, key), debounce);
+                                return;
+                            }
+                            if (throttle > 0) {
+                                let now = performance.now();
+                                if (now - lastEmitTime < throttle)
+                                    return;
+                                lastEmitTime = now;
+                            }
+                            handleEvent(event, key);
+                        };
+                        let handleEvent = (event, currentKey) => {
+                            if (interrupt(event, index)) {
+                                websocket.removeEventListener(currentKey, listener);
+                                if (--activeCount === 0) {
+                                    resolve();
+                                }
+                                return;
+                            }
+                            accept(event, index);
+                            index++;
+                        };
+                        websocket.addEventListener(key, listener);
+                    }
+                });
+                await until;
+            });
+        }
     }
     throw new TypeError("Invalid arguments.");
 };
-;
-export let useWindow = (argument1) => {
+export let useWindow = (argument1, argument2 = {}) => {
+    let options = argument2;
+    let debounce = isObject(options) && isNumber(options.debounce) ? options.debounce : 0;
+    let throttle = isObject(options) && isNumber(options.throttle) ? options.throttle : 0;
     if (isString(argument1)) {
         let key = argument1;
-        return new Semantic((accept, interrupt) => {
-            try {
+        return new AsynchronousSemantic(async (accept, interrupt) => {
+            let timeOut = null;
+            let lastEmitTime = 0;
+            let index = 0n;
+            let until = new Promise(resolve => {
                 let listener = (event) => {
-                    if (interrupt(event, 0n)) {
+                    if (debounce > 0) {
+                        if (timeOut) {
+                            clearTimeout(timeOut);
+                        }
+                        timeOut = setTimeout(() => {
+                            if (interrupt(event, index)) {
+                                window.removeEventListener(key, listener);
+                                resolve();
+                                return;
+                            }
+                            accept(event, index);
+                            index++;
+                        }, debounce);
+                        return;
+                    }
+                    if (throttle > 0) {
+                        let now = performance.now();
+                        if (now - lastEmitTime < throttle) {
+                            return;
+                        }
+                        lastEmitTime = now;
+                        if (interrupt(event, index)) {
+                            window.removeEventListener(key, listener);
+                            resolve();
+                            return;
+                        }
+                        accept(event, index);
+                        index++;
+                        return;
+                    }
+                    if (interrupt(event, index)) {
                         window.removeEventListener(key, listener);
+                        resolve();
+                        accept(event, -1n);
+                        return;
                     }
-                    else {
-                        console.log(event.type, event);
-                        accept(event, 0n);
-                    }
+                    accept(event, index);
+                    index++;
                 };
                 window.addEventListener(key, listener);
-            }
-            catch (error) {
-                console.error(error);
-            }
+            });
+            await until;
         });
     }
-    else if (isIterable(argument1)) {
-        let keys = new Set(argument1);
-        return new Semantic((accept, interrupt) => {
-            try {
-                let index = 0n;
+    if (isIterable(argument1)) {
+        let keys = new Set(...argument1);
+        return new AsynchronousSemantic(async (accept, interrupt) => {
+            let lastEmitTime = 0;
+            let timeOut = null;
+            let index = 0n;
+            let activeCount = keys.size;
+            let until = new Promise(resolve => {
                 for (let key of keys) {
-                    if (isString(key)) {
-                        let listener = function (event) {
-                            if (interrupt(event, index)) {
-                                console.log("Terminal", performance.now());
-                                window.removeEventListener(key, listener);
+                    if (!isString(key))
+                        continue;
+                    let listener = (event) => {
+                        if (debounce > 0) {
+                            if (timeOut) {
+                                clearTimeout(timeOut);
                             }
-                            else {
-                                console.log("accept", performance.now());
-                                accept(event, index);
+                            timeOut = setTimeout(() => handleEvent(event, key), debounce);
+                            return;
+                        }
+                        if (throttle > 0) {
+                            let now = performance.now();
+                            if (now - lastEmitTime < throttle)
+                                return;
+                            lastEmitTime = now;
+                        }
+                        handleEvent(event, key);
+                    };
+                    let handleEvent = (event, currentKey) => {
+                        if (interrupt(event, index)) {
+                            window.removeEventListener(currentKey, listener);
+                            if (--activeCount === 0) {
+                                resolve();
                             }
-                        };
+                            return;
+                        }
+                        accept(event, index);
                         index++;
-                        window.addEventListener(key, listener);
-                    }
+                    };
+                    window.addEventListener(key, listener);
                 }
-            }
-            catch (error) {
-                console.error(error);
-            }
+            });
+            await until;
         });
     }
     throw new TypeError("Invalid arguments.");

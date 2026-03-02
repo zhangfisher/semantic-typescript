@@ -1,4 +1,4 @@
-import type { Semantic } from "./semantic";
+import type { SynchronousSemantic } from "./synchronous/semantic";
 import { type Consumer, type Functional, type MaybeInvalid, type Predicate, type Runnable, type Valid } from "./utility";
 export declare class Optional<T> {
     protected value: MaybeInvalid<T>;
@@ -15,7 +15,7 @@ export declare class Optional<T> {
     flat(mapper: Functional<T, Optional<T>>): Optional<T>;
     flatMap<R>(mapper: Functional<T, Optional<R>>): Optional<R>;
     orElse(other: MaybeInvalid<T>): MaybeInvalid<T>;
-    semantic(): Semantic<T>;
+    semantic(): SynchronousSemantic<T>;
     static empty<T>(): Optional<T>;
     static of<T>(value: MaybeInvalid<T>): Optional<T>;
     static ofNullable<T>(value?: MaybeInvalid<T>): Optional<T>;
