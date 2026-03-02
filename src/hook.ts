@@ -1,7 +1,7 @@
-import { useToArray, type Collector } from "./collector";
+import { useSynchronousToArray, type SynchronousCollector } from "./synchronous/collector";
 import { isBigInt, isFunction, isIterable, isNumber, isObject, isPrimitive } from "./guard";
 import { invalidate, validate, type BiPredicate, type DeepPropertyKey, type DeepPropertyValue, type MaybePrimitive } from "./utility";
-import type { BiConsumer, Comparator, Consumer, Generator, Indexed, Predicate, Supplier } from "./utility";
+import type { BiConsumer, Comparator, Consumer, Indexed, Predicate, Supplier, SynchronousGenerator } from "./utility";
 
 export let useCompare: <T>(t1: T, t2: T) => number = <T>(t1: T, t2: T): number => {
     if (t1 === t2 || Object.is(t1, t2)) {
@@ -189,7 +189,7 @@ export let useTraverse: UseTraverse = <T extends object>(t: T, callback: UseTrav
     }
 };
 
-export let useGenerator: <E>(iterable: Iterable<E>) => Generator<E> = <E>(iterable: Iterable<E>): Generator<E> => {
+export let useGenerator: <E>(iterable: Iterable<E>) => SynchronousGenerator<E> = <E>(iterable: Iterable<E>): SynchronousGenerator<E> => {
     if (isIterable(iterable)) {
         return (accept: Consumer<E> | BiConsumer<E, bigint>, interrupt: Predicate<E> | BiPredicate<E, bigint>): void => {
             let index: bigint = 0n;
@@ -205,13 +205,13 @@ export let useGenerator: <E>(iterable: Iterable<E>) => Generator<E> = <E>(iterab
 };
 
 interface UseArrange {
-    <E>(source: Iterable<E>): Generator<E>;
-    <E>(source: Iterable<E>, comparator: Comparator<E>): Generator<E>;
-    <E>(source: Generator<E>): Generator<E>;
-    <E>(source: Generator<E>, comparator: Comparator<E>): Generator<E>;
+    <E>(source: Iterable<E>): SynchronousGenerator<E>;
+    <E>(source: Iterable<E>, comparator: Comparator<E>): SynchronousGenerator<E>;
+    <E>(source: SynchronousGenerator<E>): SynchronousGenerator<E>;
+    <E>(source: SynchronousGenerator<E>, comparator: Comparator<E>): SynchronousGenerator<E>;
 };
 
-export let useArrange: UseArrange = <E>(source: Iterable<E> | Generator<E>, comparator?: Comparator<E>): Generator<E> => {
+export let useArrange: UseArrange = <E>(source: Iterable<E> | SynchronousGenerator<E>, comparator?: Comparator<E>): SynchronousGenerator<E> => {
     if (isIterable(source)) {
         let buffer: Array<E> = [...source];
         if (validate(comparator) && isFunction(comparator)) {
@@ -229,7 +229,7 @@ export let useArrange: UseArrange = <E>(source: Iterable<E> | Generator<E>, comp
             }));
         }
     } else if (isFunction(source)) {
-        let collector: Collector<E, Array<E>, Array<E>> = useToArray();
+        let collector: SynchronousCollector<E, Array<E>, Array<E>> = useSynchronousToArray();
         let buffer: Array<E> = collector.collect(source);
         if (validate(comparator) && isFunction(comparator)) {
             return useGenerator(buffer.sort(comparator));

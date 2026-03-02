@@ -1,7 +1,7 @@
 import { useEmpty, useOf } from "./factory";
 import { isFunction, isOptional } from "./guard";
-import type { Semantic } from "./semantic";
 import { OptionalSymbol } from "./symbol";
+import type { SynchronousSemantic } from "./synchronous/semantic";
 import { invalidate, validate, type Consumer, type Functional, type MaybeInvalid, type Predicate, type Runnable, type Valid } from "./utility";
 
 export class Optional<T> {
@@ -104,7 +104,7 @@ export class Optional<T> {
         return other;
     }
 
-    public semantic(): Semantic<T> {
+    public semantic(): SynchronousSemantic<T> {
         if (this.isPresent()) {
             return useOf(this.value as T);
         }

@@ -75,11 +75,18 @@ export interface TriConsumer<T, U, V> {
     (t: T, u: U, v: V): void;
 };
 
-export interface Generator<T> {
+export interface SynchronousGenerator<T> {
     (accept: Consumer<T>, interrupt: Predicate<T>): void;
     (accept: Consumer<T>, interrupt: BiPredicate<T, bigint>): void;
     (accept: BiConsumer<T, bigint>, interrupt: Predicate<T>): void;
     (accept: BiConsumer<T, bigint>, interrupt: BiPredicate<T, bigint>): void;
+};
+
+export interface AsynchronousGenerator<T> {
+    (accept: Consumer<T>, interrupt: Predicate<T>): Promise<void>;
+    (accept: Consumer<T>, interrupt: BiPredicate<T, bigint>): Promise<void>;
+    (accept: BiConsumer<T, bigint>, interrupt: Predicate<T>): Promise<void>;
+    (accept: BiConsumer<T, bigint>, interrupt: BiPredicate<T, bigint>): Promise<void>;
 };
 
 export interface Indexed<E>{

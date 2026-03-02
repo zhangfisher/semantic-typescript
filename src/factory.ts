@@ -1,19 +1,20 @@
+import { AsynchronousSemantic } from "./asynchronous/semantic";
 import { isBigInt, isFunction, isIterable, isNumber, isObject, isPromise, isAsyncIterable, isString, isHTMLElemet } from "./guard";
 import { useCompare, useToBigInt, useToNumber, useTraverse } from "./hook";
 import { Optional } from "./optional";
-import { Semantic } from "./semantic";
+import { SynchronousSemantic } from "./synchronous/semantic";
 import { invalidate, validate } from "./utility";
-import type { BiPredicate, Predicate, Supplier, Generator, Consumer, BiConsumer, DeepPropertyKey, DeepPropertyValue, MaybeInvalid } from "./utility";
+import type { BiPredicate, Predicate, Supplier, Consumer, BiConsumer, DeepPropertyKey, DeepPropertyValue, MaybeInvalid, SynchronousGenerator, Runnable } from "./utility";
 
 interface UseAnimationFrame {
-    (period: number): Semantic<number>;
-    (period: number, delay: number): Semantic<number>;
+    (period: number): SynchronousSemantic<number>;
+    (period: number, delay: number): SynchronousSemantic<number>;
 };
-export let useAnimationFrame: UseAnimationFrame = (period: number, delay: number = 0): Semantic<number> => {
+export let useAnimationFrame: UseAnimationFrame = (period: number, delay: number = 0): SynchronousSemantic<number> => {
     if (period <= 0 || !Number.isFinite(period) || delay < 0 || !Number.isFinite(delay)) {
         throw new TypeError("Period must be positive finite number and delay must be non-negative finite number.");
     }
-    return new Semantic<number>((accept: Consumer<number> | BiConsumer<number, bigint>, interrupt: Predicate<number> | BiPredicate<number, bigint>): void => {
+    return new SynchronousSemantic<number>((accept: Consumer<number> | BiConsumer<number, bigint>, interrupt: Predicate<number> | BiPredicate<number, bigint>): void => {
         try {
             let start = performance.now();
             let index: bigint = 0n;
@@ -39,9 +40,9 @@ interface Attribute<T> {
     key: keyof T;
     value: T[keyof T];
 };
-export let useAttribute: <T extends object>(target: T) => Semantic<Attribute<T>> = <T extends object>(target: T): Semantic<Attribute<T>> => {
+export let useAttribute: <T extends object>(target: T) => SynchronousSemantic<Attribute<T>> = <T extends object>(target: T): SynchronousSemantic<Attribute<T>> => {
     if (isObject(target)) {
-        return new Semantic<Attribute<T>>((accept: Consumer<Attribute<T>> | BiConsumer<Attribute<T>, bigint>, interrupt: Predicate<Attribute<T>> | BiPredicate<Attribute<T>, bigint>): void => {
+        return new SynchronousSemantic<Attribute<T>>((accept: Consumer<Attribute<T>> | BiConsumer<Attribute<T>, bigint>, interrupt: Predicate<Attribute<T>> | BiPredicate<Attribute<T>, bigint>): void => {
             try {
                 let index: bigint = 0n;
                 useTraverse(target, (key: DeepPropertyKey<T>, value: DeepPropertyValue<T>): boolean => {
@@ -65,10 +66,10 @@ export let useAttribute: <T extends object>(target: T) => Semantic<Attribute<T>>
 };
 
 interface UseBlob {
-    (blob: Blob): Semantic<Uint8Array>;
-    (blob: Blob, chunk: bigint): Semantic<Uint8Array>;
+    (blob: Blob): SynchronousSemantic<Uint8Array>;
+    (blob: Blob, chunk: bigint): SynchronousSemantic<Uint8Array>;
 };
-export let useBlob: UseBlob = (blob: Blob, chunk: bigint = 64n * 1024n): Semantic<Uint8Array> => {
+export let useBlob: UseBlob = (blob: Blob, chunk: bigint = 64n * 1024n): SynchronousSemantic<Uint8Array> => {
     let size: number = Number(chunk);
     if (size <= 0 || !Number.isSafeInteger(size)) {
         throw new RangeError("Chunk size must be a safe positive integer.");
@@ -76,7 +77,7 @@ export let useBlob: UseBlob = (blob: Blob, chunk: bigint = 64n * 1024n): Semanti
     if (invalidate(blob)) {
         throw new TypeError("Blob is invalid.");
     }
-    return new Semantic<Uint8Array>((accept: Consumer<Uint8Array> | BiConsumer<Uint8Array, bigint>, interrupt: Predicate<Uint8Array> | BiPredicate<Uint8Array, bigint>) => {
+    return new SynchronousSemantic<Uint8Array>((accept: Consumer<Uint8Array> | BiConsumer<Uint8Array, bigint>, interrupt: Predicate<Uint8Array> | BiPredicate<Uint8Array, bigint>) => {
         try {
             let index: bigint = 0n;
             let stoppable: boolean = false;
@@ -136,266 +137,403 @@ export let useBlob: UseBlob = (blob: Blob, chunk: bigint = 64n * 1024n): Semanti
     });
 };
 
-interface UseDocument {
-    <K extends keyof DocumentEventMap>(key: K): Semantic<DocumentEventMap[K extends keyof DocumentEventMap ? K : never]>;
-    <K extends keyof DocumentEventMap>(key: Iterable<K>): Semantic<DocumentEventMap[K extends keyof DocumentEventMap ? K : never]>;
+interface UseDocumentOptions {
+    throttle?: number;
+    debounce?: number;
 };
 
-export let useDocument: UseDocument = <K extends keyof DocumentEventMap>(argument: K | Iterable<K>): Semantic<DocumentEventMap[K]> => {
-    if (isString(argument)) {
-        let key: K = argument as K & keyof DocumentEventMap;
-        return new Semantic<DocumentEventMap[K]>((accept: Consumer<DocumentEventMap[K]> | BiConsumer<DocumentEventMap[K], bigint>, interrupt: Predicate<DocumentEventMap[K]> | BiPredicate<DocumentEventMap[K], bigint>): void => {
-            try {
-                let index: bigint = 0n;
-                let listener: (event: Event) => void = (event: Event): void => {
-                    if (interrupt(event as DocumentEventMap[K], index)) {
-                        window.document.addEventListener(key, listener);
-                    } else {
-                        accept(event as DocumentEventMap[K], index);
-                        index++;
-                    }
-                };
-                window.document.addEventListener(key, listener);
-            } catch (error) {
-                console.error(error);
-            }
-        });
-    }
-    if (isIterable(argument)) {
-        let keys: Iterable<unknown> = new Set(argument);
-        return new Semantic<DocumentEventMap[K]>((accept: Consumer<DocumentEventMap[K]> | BiConsumer<DocumentEventMap[K], bigint>, interrupt: Predicate<DocumentEventMap[K]> | BiPredicate<DocumentEventMap[K], bigint>): void => {
-            try {
-                let index: bigint = 0n;
-                for (let key of keys) {
-                    if (isString(key)) {
-                        let listener: (event: Event) => void = (event: Event): void => {
-                            if (interrupt(event as DocumentEventMap[K], index)) {
-                                window.document.addEventListener(key, listener);
-                            } else {
-                                accept(event as DocumentEventMap[K], index);
-                                index++;
+interface UseDocument {
+    <K extends keyof DocumentEventMap, V extends DocumentEventMap[K]>(key: K): AsynchronousSemantic<V>;
+    <K extends keyof DocumentEventMap, V extends DocumentEventMap[K]>(key: Iterable<K>): AsynchronousSemantic<V>;
+};
+
+export let useDocument: UseDocument = <K extends keyof DocumentEventMap, V extends DocumentEventMap[K]>(argument1: K | Iterable<K>, argument2: UseDocumentOptions = {}): AsynchronousSemantic<V> => {
+    let options: UseWindowOptions = argument2;
+    let debounce: number = isObject(options) && isNumber(options.debounce) ? options.debounce : 0;
+    let throttle: number = isObject(options) && isNumber(options.throttle) ? options.throttle : 0;
+    if (isString(argument1)) {
+        let key: K = argument1 as K;
+        return new AsynchronousSemantic<V>(async (accept: Consumer<V> | BiConsumer<V, bigint>, interrupt: Predicate<V> | BiPredicate<V, bigint>) => {
+            let timeOut: ReturnType<typeof setTimeout> | null = null;
+            let lastEmitTime: number = 0;
+            let index: bigint = 0n;
+            let until: Promise<void> = new Promise<void>(resolve => {
+                let listener: Consumer<V> = (event: V) => {
+                    if (debounce > 0) {
+                        if (timeOut) {
+                            clearTimeout(timeOut);
+                        }
+                        timeOut = setTimeout((): void => {
+                            if (interrupt(event, index)) {
+                                window.document.removeEventListener(key, listener as EventListener);
+                                resolve();
+                                return;
                             }
-                        };
-                        window.document.addEventListener(key, listener);
+                            accept(event, index);
+                            index++;
+                        }, debounce);
+                        return;
                     }
-                }
-            } catch (error) {
-                console.error(error);
-            }
+                    if (throttle > 0) {
+                        let now: number = performance.now();
+                        if (now - lastEmitTime < throttle) {
+                            return;
+                        }
+                        lastEmitTime = now;
+                        if (interrupt(event, index)) {
+                            window.document.removeEventListener(key, listener as EventListener);
+                            resolve();
+                            return;
+                        }
+                        accept(event, index);
+                        index++;
+                        return;
+                    }
+                    if (interrupt(event, index)) {
+                        window.document.removeEventListener(key, listener as EventListener);
+                        resolve();
+                        accept(event, -1n);
+                        return;
+                    }
+                    accept(event, index);
+                    index++;
+                };
+                window.document.addEventListener(key, listener as EventListener);
+            });
+            await until;
         });
     }
-    throw new TypeError("Argument must be a string or an iterable of strings.");
+    if (isIterable(argument1)) {
+        let keys: Set<K> = new Set(...argument1) as Set<K>;
+        return new AsynchronousSemantic<V>(async (accept: Consumer<V> | BiConsumer<V, bigint>, interrupt: Predicate<V> | BiPredicate<V, bigint>) => {
+            let lastEmitTime: number = 0;
+            let timeOut: ReturnType<typeof setTimeout> | null = null;
+            let index: bigint = 0n;
+            let activeCount: number = keys.size;
+            let until: Promise<void> = new Promise<void>(resolve => {
+                for (let key of keys) {
+                    if (!isString(key)) continue;
+                    let listener = (event: V) => {
+                        if (debounce > 0) {
+                            if (timeOut) {
+                                clearTimeout(timeOut);
+                            }
+                            timeOut = setTimeout((): void => handleEvent(event, key), debounce);
+                            return;
+                        }
+                        if (throttle > 0) {
+                            let now = performance.now();
+                            if (now - lastEmitTime < throttle) return;
+                            lastEmitTime = now;
+                        }
+
+                        handleEvent(event, key);
+                    };
+                    let handleEvent: BiConsumer<V, K> = (event: V, currentKey: K) => {
+                        if (interrupt(event, index)) {
+                            window.document.removeEventListener(currentKey, listener as EventListener);
+                            if (--activeCount === 0) {
+                                resolve();
+                            }
+                            return;
+                        }
+                        accept(event, index);
+                        index++;
+                    };
+                    window.document.addEventListener(key, listener as EventListener);
+                }
+            });
+            await until;
+        });
+    }
+
+    throw new TypeError("Invalid arguments.");
+};
+
+interface UseHTMLElementOptions {
+    throttle?: number;
+    debounce?: number;
 };
 
 interface UseHTMLElement {
-    <E extends HTMLElement, K extends keyof HTMLElementEventMap>(element: E, key: K): Semantic<HTMLElementEventMap[K extends keyof HTMLElementEventMap ? K : never]>;
-    <E extends HTMLElement, K extends keyof HTMLElementEventMap>(element: E, keys: Iterable<K>): Semantic<HTMLElementEventMap[K extends keyof HTMLElementEventMap ? K : never]>;
-    <E extends HTMLElement, K extends keyof HTMLElementEventMap>(elements: Iterable<E>, key: K): Semantic<HTMLElementEventMap[K extends keyof HTMLElementEventMap ? K : never]>;
-    <E extends HTMLElement, K extends keyof HTMLElementEventMap>(elements: Iterable<E>, keys: Iterable<K>): Semantic<HTMLElementEventMap[K extends keyof HTMLElementEventMap ? K : never]>;
-    <S extends keyof HTMLElementTagNameMap, K extends keyof HTMLElementEventMap>(selector: S, key: K): Semantic<HTMLElementEventMap[K extends keyof HTMLElementEventMap ? K : never]>;
-    <S extends keyof HTMLElementTagNameMap, K extends keyof HTMLElementEventMap>(selector: S, keys: Iterable<K>): Semantic<HTMLElementEventMap[K extends keyof HTMLElementEventMap ? K : never]>;
-    <S extends keyof HTMLElementTagNameMap, K extends keyof HTMLElementEventMap>(selectors: Iterable<S>, key: K): Semantic<HTMLElementEventMap[K extends keyof HTMLElementEventMap ? K : never]>;
-    <S extends keyof HTMLElementTagNameMap, K extends keyof HTMLElementEventMap>(selectors: Iterable<S>, keys: Iterable<K>): Semantic<HTMLElementEventMap[K extends keyof HTMLElementEventMap ? K : never]>;
-};
+    <E extends HTMLElement, K extends keyof HTMLElementEventMap, V extends HTMLElementEventMap[K]>(element: E, key: K): AsynchronousSemantic<V>;
+    <E extends HTMLElement, K extends keyof HTMLElementEventMap, V extends HTMLElementEventMap[K]>(element: E, key: K, options: UseHTMLElementOptions): AsynchronousSemantic<V>;
 
-export let useHTMLElement: UseHTMLElement = <S extends keyof HTMLElementTagNameMap, E extends HTMLElement, K extends keyof HTMLElementEventMap>(argument1: S | E | Iterable<E> | Iterable<S>, argument2: K | Iterable<K>): Semantic<HTMLElementEventMap[K]> => {
-    if (isString(argument1)) {
-        let selector: S = argument1 as S;
-        if (isString(argument2)) {
-            let key: K = argument2 as K;
-            return new Semantic<HTMLElementEventMap[K]>((accept: Consumer<HTMLElementEventMap[K]> | BiConsumer<HTMLElementEventMap[K], bigint>, interrupt: Predicate<HTMLElementEventMap[K]> | BiPredicate<HTMLElementEventMap[K], bigint>): void => {
-                try {
-                    let index: bigint = 0n;
-                    let elements: NodeListOf<HTMLElementTagNameMap[S]> = window.document.querySelectorAll(selector as S);
-                    for (let element of elements) {
-                        if (validate(element)) {
-                            let listener: (event: Event) => void = (event: Event): void => {
-                                if (interrupt(event as HTMLElementEventMap[K], index)) {
-                                    element.removeEventListener(key, listener);
-                                } else {
-                                    accept(event as HTMLElementEventMap[K], index);
-                                    index++;
-                                }
-                            }
-                            element.addEventListener(key, listener);
-                        }
-                    }
-                } catch (error) {
-                    console.error(error);
-                }
-            });
-        }
-        if (isIterable(argument2)) {
-            let keys: Iterable<unknown> = new Set(argument2);
-            return new Semantic<HTMLElementEventMap[K]>((accept: Consumer<HTMLElementEventMap[K]> | BiConsumer<HTMLElementEventMap[K], bigint>, interrupt: Predicate<HTMLElementEventMap[K]> | BiPredicate<HTMLElementEventMap[K], bigint>): void => {
-                try {
-                    let index: bigint = 0n;
-                    let elements: NodeListOf<HTMLElementTagNameMap[S]> = window.document.querySelectorAll(selector as S);
-                    for (let element of elements) {
-                        for (let key of keys) {
-                            if (isString(key)) {
-                                let listener: (event: Event) => void = (event: Event): void => {
-                                    if (interrupt(event as HTMLElementEventMap[K], index)) {
-                                        element.removeEventListener(key, listener);
-                                    } else {
-                                        accept(event as HTMLElementEventMap[K], index);
-                                        index++;
-                                    }
-                                }
-                                element.addEventListener(key, listener);
-                            }
-                        }
-                    }
-                } catch (error) {
-                    console.error(error);
-                }
-            });
-        }
+    <E extends HTMLElement, K extends keyof HTMLElementEventMap, V extends HTMLElementEventMap[K]>(element: E, keys: Iterable<K>): AsynchronousSemantic<V>;
+    <E extends HTMLElement, K extends keyof HTMLElementEventMap, V extends HTMLElementEventMap[K]>(element: E, keys: Iterable<K>, options: UseHTMLElementOptions): AsynchronousSemantic<V>;
+
+    <E extends HTMLElement, K extends keyof HTMLElementEventMap, V extends HTMLElementEventMap[K]>(elements: Iterable<E>, key: K): AsynchronousSemantic<V>;
+    <E extends HTMLElement, K extends keyof HTMLElementEventMap, V extends HTMLElementEventMap[K]>(elements: Iterable<E>, key: K, options: UseHTMLElementOptions): AsynchronousSemantic<V>;
+
+    <E extends HTMLElement, K extends keyof HTMLElementEventMap, V extends HTMLElementEventMap[K]>(elements: Iterable<E>, keys: Iterable<K>): AsynchronousSemantic<V>;
+    <E extends HTMLElement, K extends keyof HTMLElementEventMap, V extends HTMLElementEventMap[K]>(elements: Iterable<E>, keys: Iterable<K>, options: UseHTMLElementOptions): AsynchronousSemantic<V>;
+
+    <K extends keyof HTMLElementEventMap, V extends HTMLElementEventMap[K]>(selector: string, key: K): AsynchronousSemantic<V>;
+    <K extends keyof HTMLElementEventMap, V extends HTMLElementEventMap[K]>(selector: string, key: K, options: UseHTMLElementOptions): AsynchronousSemantic<V>;
+
+    <S extends keyof HTMLElementTagNameMap, K extends keyof HTMLElementEventMap, V extends HTMLElementEventMap[K]>(selector: S, key: K): AsynchronousSemantic<V>;
+    <S extends keyof HTMLElementTagNameMap, K extends keyof HTMLElementEventMap, V extends HTMLElementEventMap[K]>(selector: S, key: K, options: UseHTMLElementOptions): AsynchronousSemantic<V>;
+
+    <K extends keyof HTMLElementEventMap, V extends HTMLElementEventMap[K]>(selector: string, keys: Iterable<K>): AsynchronousSemantic<V>;
+    <K extends keyof HTMLElementEventMap, V extends HTMLElementEventMap[K]>(selector: string, keys: Iterable<K>, options: UseHTMLElementOptions): AsynchronousSemantic<V>;
+
+    <S extends keyof HTMLElementTagNameMap, K extends keyof HTMLElementEventMap, V extends HTMLElementEventMap[K]>(selector: S, keys: Iterable<K>): AsynchronousSemantic<V>;
+    <S extends keyof HTMLElementTagNameMap, K extends keyof HTMLElementEventMap, V extends HTMLElementEventMap[K]>(selector: S, keys: Iterable<K>, options: UseHTMLElementOptions): AsynchronousSemantic<V>;
+
+    <K extends keyof HTMLElementEventMap, V extends HTMLElementEventMap[K]>(selectors: Iterable<string>, key: K): AsynchronousSemantic<V>;
+    <K extends keyof HTMLElementEventMap, V extends HTMLElementEventMap[K]>(selectors: Iterable<string>, key: K, options: UseHTMLElementOptions): AsynchronousSemantic<V>;
+
+    <S extends keyof HTMLElementTagNameMap, K extends keyof HTMLElementEventMap, V extends HTMLElementEventMap[K]>(selectors: Iterable<S>, key: K): AsynchronousSemantic<V>;
+    <S extends keyof HTMLElementTagNameMap, K extends keyof HTMLElementEventMap, V extends HTMLElementEventMap[K]>(selectors: Iterable<S>, key: K, options: UseHTMLElementOptions): AsynchronousSemantic<V>;
+
+    <K extends keyof HTMLElementEventMap, V extends HTMLElementEventMap[K]>(selectors: Iterable<string>, keys: Iterable<K>): AsynchronousSemantic<V>;
+    <K extends keyof HTMLElementEventMap, V extends HTMLElementEventMap[K]>(selectors: Iterable<string>, keys: Iterable<K>, options: UseHTMLElementOptions): AsynchronousSemantic<V>;
+
+    <S extends keyof HTMLElementTagNameMap, K extends keyof HTMLElementEventMap, V extends HTMLElementEventMap[K]>(selectors: Iterable<S>, keys: Iterable<K>): AsynchronousSemantic<V>;
+    <S extends keyof HTMLElementTagNameMap, K extends keyof HTMLElementEventMap, V extends HTMLElementEventMap[K]>(selectors: Iterable<S>, keys: Iterable<K>, options: UseHTMLElementOptions): AsynchronousSemantic<V>;
+}
+
+export let useHTMLElement: UseHTMLElement = <S extends keyof HTMLElementTagNameMap, E extends HTMLElement, K extends keyof HTMLElementEventMap, V extends HTMLElementEventMap[K]>(argument1: S | string | E | Iterable<E> | Iterable<S>, argument2: K | Iterable<K>, argument3: UseHTMLElementOptions = {}): AsynchronousSemantic<V> => {
+    let throttle: number = isObject(argument3) && isNumber((argument3 as any).throttle) ? (argument3 as any).throttle : 0;
+    let debounce: number = isObject(argument3) && isNumber((argument3 as any).debounce) ? (argument3 as any).debounce : 0;
+    if (debounce > 0 && throttle > 0) {
+        throw new TypeError("throttle and debounce cannot be used together");
     }
-    if (isIterable(argument1)) {
-        let elementsOrSelectors: Iterable<unknown> = argument1;
-        if (isString(argument2)) {
-            let key: K = argument2 as K;
-            return new Semantic<HTMLElementEventMap[K]>((accept: Consumer<HTMLElementEventMap[K]> | BiConsumer<HTMLElementEventMap[K], bigint>, interrupt: Predicate<HTMLElementEventMap[K]> | BiPredicate<HTMLElementEventMap[K], bigint>): void => {
-                try {
-                    let index: bigint = 0n;
-                    for (let elementOrSelector of elementsOrSelectors) {
-                        if (isString(elementOrSelector)) {
-                            let element: MaybeInvalid<HTMLElementTagNameMap[S]> = window.document.querySelector(elementOrSelector as S);
-                            if (validate(element)) {
-                                let listener: (event: Event) => void = (event: Event): void => {
-                                    if (interrupt(event as HTMLElementEventMap[K], index)) {
-                                        element.removeEventListener(key, listener);
-                                    } else {
-                                        accept(event as HTMLElementEventMap[K], index);
-                                        index++;
-                                    }
-                                }
-                                element.addEventListener(key, listener);
-                            }
-                        } else if (isHTMLElemet(elementOrSelector)) {
-                            let element: HTMLElement = elementOrSelector as HTMLElement;
-                            let listener: (event: Event) => void = (event: Event): void => {
-                                if (interrupt(event as HTMLElementEventMap[K], index)) {
-                                    element.removeEventListener(key, listener);
-                                } else {
-                                    accept(event as HTMLElementEventMap[K], index);
-                                    index++;
-                                }
-                            }
-                            element.addEventListener(key, listener);
-                        }
-                    }
-                } catch (error) {
-                    console.error(error);
-                }
-            });
-        }
-        if (isIterable(argument2)) {
-            let keys: Iterable<unknown> = argument2;
-            return new Semantic<HTMLElementEventMap[K]>((accept: Consumer<HTMLElementEventMap[K]> | BiConsumer<HTMLElementEventMap[K], bigint>, interrupt: Predicate<HTMLElementEventMap[K]> | BiPredicate<HTMLElementEventMap[K], bigint>): void => {
-                try {
-                    let index: bigint = 0n;
-                    for (let elementOrSelector of elementsOrSelectors) {
-                        if (isString(elementOrSelector)) {
-                            let element: MaybeInvalid<HTMLElementTagNameMap[S]> = window.document.querySelector(elementOrSelector as S);
-                            if (validate(element)) {
-                                for (let key of keys) {
-                                    if (isString(key)) {
-                                        let listener: (event: Event) => void = (event: Event): void => {
-                                            if (interrupt(event as HTMLElementEventMap[K], index)) {
-                                                element.removeEventListener(key, listener);
-                                            } else {
-                                                accept(event as HTMLElementEventMap[K], index);
-                                                index++;
-                                            }
-                                        }
-                                        element.addEventListener(key, listener);
-                                    }
-                                }
-                            }
-                        } else if (isHTMLElemet(elementOrSelector)) {
-                            let element: HTMLElement = elementOrSelector as HTMLElement;
-                            for (let key of keys) {
-                                if (isString(key)) {
-                                    let listener: (event: Event) => void = (event: Event): void => {
-                                        if (interrupt(event as HTMLElementEventMap[K], index)) {
-                                            element.removeEventListener(key, listener);
-                                        } else {
-                                            accept(event as HTMLElementEventMap[K], index);
-                                            index++;
-                                        }
-                                    }
-                                    element.addEventListener(key, listener);
-                                }
-                            }
-                        }
-                    }
-                } catch (error) {
-                    console.error(error);
-                }
-            });
-        }
+    if (debounce < 0 || throttle < 0) {
+        throw new TypeError("throttle/debounce must be non-negative");
     }
     if (isHTMLElemet(argument1)) {
         let element: E = argument1 as E;
         if (isString(argument2)) {
-            let key: K = argument2 as K;
-            return new Semantic<HTMLElementEventMap[K]>((accept: Consumer<HTMLElementEventMap[K]> | BiConsumer<HTMLElementEventMap[K], bigint>, interrupt: Predicate<HTMLElementEventMap[K]> | BiPredicate<HTMLElementEventMap[K], bigint>): void => {
-                try {
-                    let index: bigint = 0n;
-                    let listener: (event: Event) => void = (event: Event): void => {
-                        if (interrupt(event as HTMLElementEventMap[K], index)) {
-                            element.removeEventListener(key, listener);
-                        } else {
-                            accept(event as HTMLElementEventMap[K], index);
-                            index++;
+            let key = argument2 as K;
+            return new AsynchronousSemantic<V>(async (accept: Consumer<V> | BiConsumer<V, bigint>, interrupt: Predicate<V> | BiPredicate<V, bigint>) => {
+                let timeOut: ReturnType<typeof setTimeout> | null = null;
+                let lastEmit = 0;
+                let index = 0n;
+
+                let until: Promise<void> = new Promise<void>((resolve: Runnable): void => {
+                    let listener: Consumer<V> = (event: V) => {
+                        if (debounce > 0) {
+                            if (timeOut) clearTimeout(timeOut);
+                            timeOut = setTimeout((): void => handle(event), debounce);
+                            return;
                         }
-                    }
-                    element.addEventListener(key, listener);
-                } catch (error) {
-                    console.error(error);
-                }
+                        if (throttle > 0) {
+                            let now = performance.now();
+                            if (now - lastEmit < throttle) return;
+                            lastEmit = now;
+                        }
+                        handle(event);
+                    };
+                    let handle: Consumer<V> = (event: V) => {
+                        if (interrupt(event, index)) {
+                            element.removeEventListener(key, listener as EventListener);
+                            if (timeOut) clearTimeout(timeOut);
+                            resolve();
+                            return;
+                        }
+                        accept(event, index);
+                        index++;
+                    };
+
+                    element.addEventListener(key, listener as EventListener);
+                });
+                await until;
             });
         }
         if (isIterable(argument2)) {
-            let keys: Iterable<unknown> = argument2;
-            return new Semantic<HTMLElementEventMap[K]>((accept: Consumer<HTMLElementEventMap[K]> | BiConsumer<HTMLElementEventMap[K], bigint>, interrupt: Predicate<HTMLElementEventMap[K]> | BiPredicate<HTMLElementEventMap[K], bigint>): void => {
-                try {
-                    let index: bigint = 0n;
+            let keys = [...new Set(argument2)] as K[];
+            return new AsynchronousSemantic<V>(async (accept: Consumer<V> | BiConsumer<V, bigint>, interrupt: Predicate<V> | BiPredicate<V, bigint>) => {
+                let active: number = keys.length;
+                let index: bigint = 0n;
+                let until: Promise<void> = new Promise<void>((resolve: Runnable): void => {
                     for (let key of keys) {
-                        if (isString(key)) {
-                            let listener: (event: Event) => void = (event: Event): void => {
-                                if (interrupt(event as HTMLElementEventMap[K], index)) {
-                                    element.removeEventListener(key, listener);
-                                } else {
-                                    accept(event as HTMLElementEventMap[K], index);
-                                    index++;
+                        let listener: Consumer<V> = (event: V) => {
+                            if (interrupt(event, index)) {
+                                element.removeEventListener(key, listener as EventListener);
+                                if (--active === 0) {
+                                    resolve();
                                 }
+                                return;
                             }
-                            element.addEventListener(key, listener);
+                            accept(event, index);
+                            index++;
+                        };
+                        element.addEventListener(key, listener as EventListener);
+                    }
+                });
+                await until;
+            });
+        }
+    }
+    if (isString(argument1)) {
+        let selector = argument1 as S;
+        let elements: Array<E> = [...(document.querySelectorAll(selector as string) as NodeListOf<E>)];
+        if (isString(argument2)) {
+            let key = argument2 as K;
+            return new AsynchronousSemantic<V>(async (accept: Consumer<V> | BiConsumer<V, bigint>, interrupt: Predicate<V> | BiPredicate<V, bigint>) => {
+                let active: number = elements.length;
+                let index: bigint = 0n;
+                let until: Promise<void> = new Promise<void>((resolve: Runnable): void => {
+                    for (let element of elements) {
+                        if (validate(element)) {
+                            let listener: Consumer<V> = (event: V) => {
+                                if (interrupt(event, index)) {
+                                    element.removeEventListener(key, listener as EventListener);
+                                    if (--active === 0) {
+                                        resolve();
+                                    }
+                                    return;
+                                }
+                                accept(event, index);
+                                index++;
+                            };
+                            element.addEventListener(key, listener as EventListener);
                         }
                     }
-                } catch (error) {
-                    console.error(error);
-                }
+                });
+                await until;
+            });
+        }
+        if (isIterable(argument2)) {
+            let keys: Set<K> = new Set(argument2);
+            return new AsynchronousSemantic<V>(async (accept: Consumer<V> | BiConsumer<V, bigint>, interrupt: Predicate<V> | BiPredicate<V, bigint>) => {
+                let active: number = elements.length * keys.size;
+                let index: bigint = 0n;
+                let until: Promise<void> = new Promise<void>((resolve: Runnable): void => {
+                    for (let element of elements) {
+                        for (let key of keys) {
+                            if (validate(element) && isString(key)) {
+                                let listener: Consumer<V> = (event: V) => {
+                                    if (interrupt(event, index)) {
+                                        element.removeEventListener(key, listener as EventListener);
+                                        if (--active === 0) {
+                                            resolve();
+                                        }
+                                        return;
+                                    }
+                                    accept(event, index);
+                                    index++;
+                                };
+                                element.addEventListener(key, listener as EventListener);
+                            }
+                        }
+                    }
+                });
+                await until;
+            });
+        }
+    }
+    if (isIterable(argument1)) {
+        let elementsOrSelectors: Set<E | S> = new Set<E | S>(argument1 as Iterable<E | S>);
+        if (isString(argument2)) {
+            let key = argument2 as K;
+            return new AsynchronousSemantic<V>(async (accept: Consumer<V> | BiConsumer<V, bigint>, interrupt: Predicate<V> | BiPredicate<V, bigint>) => {
+                let active = elementsOrSelectors.size;
+                let until: Promise<void> = new Promise<void>((resolve: Runnable): void => {
+                    for (let elementOrSelector of elementsOrSelectors) {
+                        if (validate(elementOrSelector)) {
+                            if (isHTMLElemet(elementOrSelector)) {
+                                let element: E = elementOrSelector as E;
+                                let listener: Consumer<V> = (event: V) => {
+                                    if (interrupt(event, 0n)) {
+                                        element.removeEventListener(key, listener as EventListener);
+                                        if (--active === 0) {
+                                            resolve();
+                                        }
+                                        return;
+                                    }
+                                    accept(event, 0n);
+                                };
+                                element.addEventListener(key, listener as EventListener);
+                            } else if (isString(elementOrSelector)) {
+                                let selector = elementOrSelector as S;
+                                let elements: Array<E> = [...(document.querySelectorAll(selector as string) as NodeListOf<E>)].filter((item: unknown) => isHTMLElemet(item));
+                                for (let element of elements) {
+                                    if (validate(element)) {
+                                        let listener: Consumer<V> = (event: V) => {
+                                            if (interrupt(event, 0n)) {
+                                                element.removeEventListener(key, listener as EventListener);
+                                                if (--active === 0) {
+                                                    resolve();
+                                                }
+                                                return;
+                                            }
+                                            accept(event, 0n);
+                                        };
+                                        element.addEventListener(key, listener as EventListener);
+                                    }
+                                }
+                            }
+                        }
+
+                    }
+                });
+                await until;
+            });
+        }
+        if (isIterable(argument2)) {
+            let keys = new Set(argument2);
+            return new AsynchronousSemantic<V>(async (accept: Consumer<V> | BiConsumer<V, bigint>, interrupt: Predicate<V> | BiPredicate<V, bigint>) => {
+                let active = elementsOrSelectors.size * keys.size;
+                let until: Promise<void> = new Promise<void>((resolve: Runnable): void => {
+                    for (let elementOrSelector of elementsOrSelectors) {
+                        if (isHTMLElemet(elementOrSelector)) {
+                            let element: E = elementOrSelector as E;
+                            for (let key of keys) {
+                                if (isString(key)) {
+                                    let listener: Consumer<V> = (event: V) => {
+                                        if (interrupt(event, 0n)) {
+                                            element.removeEventListener(key, listener as EventListener);
+                                            if (--active === 0) {
+                                                resolve();
+                                            }
+                                            return;
+                                        }
+                                        accept(event, 0n);
+                                    };
+                                    element.addEventListener(key, listener as EventListener);
+                                }
+                            }
+                        } else if (isString(elementOrSelector)) {
+                            let selector: S = elementOrSelector as S;
+                            let elements: Array<E> = [...(document.querySelectorAll(selector as string) as NodeListOf<E>)].filter((item: unknown) => isHTMLElemet(item));
+                            for (let element of elements) {
+                                for (let key of keys) {
+                                    let listener: Consumer<V> = (event: V) => {
+                                        if (interrupt(event, 0n)) {
+                                            element.removeEventListener(key, listener as EventListener);
+                                            if (--active === 0) {
+                                                resolve();
+                                            }
+                                            return;
+                                        }
+                                        accept(event, 0n);
+                                    };
+                                    element.addEventListener(key, listener as EventListener);
+                                }
+                            }
+                        }
+                    }
+                });
+                await until;
             });
         }
     }
     throw new TypeError("Invalid arguments.");
 };
 
-export let useEmpty: <E>() => Semantic<E> = <E>(): Semantic<E> => {
-    return new Semantic<E>(() => { });
+export let useEmpty: <E>() => SynchronousSemantic<E> = <E>(): SynchronousSemantic<E> => {
+    return new SynchronousSemantic<E>(() => { });
 };
 
 interface UseFill {
-    <E>(element: E, count: bigint): Semantic<E>;
-    <E>(supplier: Supplier<E>, count: bigint): Semantic<E>;
+    <E>(element: E, count: bigint): SynchronousSemantic<E>;
+    <E>(supplier: Supplier<E>, count: bigint): SynchronousSemantic<E>;
 };
-export let useFill: UseFill = <E>(element: E | Supplier<E>, count: bigint): Semantic<E> => {
+export let useFill: UseFill = <E>(element: E | Supplier<E>, count: bigint): SynchronousSemantic<E> => {
     if (validate(element) && count > 0n) {
-        return new Semantic<E>((accept: Consumer<E> | BiConsumer<E, bigint>, interrupt: Predicate<E> | BiPredicate<E, bigint>) => {
+        return new SynchronousSemantic<E>((accept: Consumer<E> | BiConsumer<E, bigint>, interrupt: Predicate<E> | BiPredicate<E, bigint>) => {
             try {
                 for (let i = 0n; i < count; i++) {
                     let item: E = isFunction(element) ? element() : element;
@@ -413,12 +551,12 @@ export let useFill: UseFill = <E>(element: E | Supplier<E>, count: bigint): Sema
 };
 
 export interface UseFrom {
-    <E>(iterable: Iterable<E>): Semantic<E>;
-    <E>(iterable: AsyncIterable<E>): Semantic<E>;
+    <E>(iterable: Iterable<E>): SynchronousSemantic<E>;
+    <E>(iterable: AsyncIterable<E>): SynchronousSemantic<E>;
 };
-export let useFrom: UseFrom = <E>(iterable: Iterable<E> | AsyncIterable<E>): Semantic<E> => {
+export let useFrom: UseFrom = <E>(iterable: Iterable<E> | AsyncIterable<E>): SynchronousSemantic<E> => {
     if (isIterable(iterable)) {
-        return new Semantic<E>((accept: Consumer<E> | BiConsumer<E, bigint>, interrupt: Predicate<E> | BiPredicate<E, bigint>) => {
+        return new SynchronousSemantic<E>((accept: Consumer<E> | BiConsumer<E, bigint>, interrupt: Predicate<E> | BiPredicate<E, bigint>) => {
             try {
                 let index: bigint = 0n;
                 for (let element of iterable) {
@@ -433,7 +571,7 @@ export let useFrom: UseFrom = <E>(iterable: Iterable<E> | AsyncIterable<E>): Sem
             }
         });
     } else if (isAsyncIterable(iterable)) {
-        return new Semantic<E>(async (accept: Consumer<E> | BiConsumer<E, bigint>, interrupt: Predicate<E> | BiPredicate<E, bigint>) => {
+        return new SynchronousSemantic<E>(async (accept: Consumer<E> | BiConsumer<E, bigint>, interrupt: Predicate<E> | BiPredicate<E, bigint>) => {
             try {
                 let index: bigint = 0n;
                 for await (let element of iterable) {
@@ -452,12 +590,12 @@ export let useFrom: UseFrom = <E>(iterable: Iterable<E> | AsyncIterable<E>): Sem
 };
 
 interface UseGenerate {
-    <E>(supplier: Supplier<E>, interrupt: Predicate<E>): Semantic<E>;
-    <E>(supplier: Supplier<E>, interrupt: BiPredicate<E, bigint>): Semantic<E>;
+    <E>(supplier: Supplier<E>, interrupt: Predicate<E>): SynchronousSemantic<E>;
+    <E>(supplier: Supplier<E>, interrupt: BiPredicate<E, bigint>): SynchronousSemantic<E>;
 };
-export let useGenerate: UseGenerate = <E>(supplier: Supplier<E>, interrupt: Predicate<E> | BiPredicate<E, bigint>): Semantic<E> => {
+export let useGenerate: UseGenerate = <E>(supplier: Supplier<E>, interrupt: Predicate<E> | BiPredicate<E, bigint>): SynchronousSemantic<E> => {
     if (isFunction(supplier) && isFunction(interrupt)) {
-        return new Semantic<E>((accept: Consumer<E> | BiConsumer<E, bigint>, interrupt: Predicate<E> | BiPredicate<E, bigint>): void => {
+        return new SynchronousSemantic<E>((accept: Consumer<E> | BiConsumer<E, bigint>, interrupt: Predicate<E> | BiPredicate<E, bigint>): void => {
             try {
                 let index: bigint = 0n;
                 while (true) {
@@ -477,12 +615,12 @@ export let useGenerate: UseGenerate = <E>(supplier: Supplier<E>, interrupt: Pred
 };
 
 interface UseInterval {
-    (period: number): Semantic<number>;
-    (period: number, delay: number): Semantic<number>;
+    (period: number): SynchronousSemantic<number>;
+    (period: number, delay: number): SynchronousSemantic<number>;
 };
-export let useInterval: UseInterval = (period: number, delay: number = 0): Semantic<number> => {
+export let useInterval: UseInterval = (period: number, delay: number = 0): SynchronousSemantic<number> => {
     if (period > 0 && delay >= 0) {
-        return new Semantic<number>((accept: Consumer<number> | BiConsumer<number, bigint>, interrupt: Predicate<number> | BiPredicate<number, bigint>): void => {
+        return new SynchronousSemantic<number>((accept: Consumer<number> | BiConsumer<number, bigint>, interrupt: Predicate<number> | BiPredicate<number, bigint>): void => {
             try {
                 if (delay > 0) {
                     setTimeout((): void => {
@@ -517,10 +655,10 @@ export let useInterval: UseInterval = (period: number, delay: number = 0): Seman
     throw new TypeError("Invalid arguments.");
 };
 
-export let useIterate: <E>(generator: Generator<E>) => Semantic<E> = <E>(generator: Generator<E>): Semantic<E> => {
+export let useIterate: <E>(generator: SynchronousGenerator<E>) => SynchronousSemantic<E> = <E>(generator: SynchronousGenerator<E>): SynchronousSemantic<E> => {
     if (isFunction(generator)) {
         try {
-            return new Semantic(generator);
+            return new SynchronousSemantic(generator);
         } catch (error) {
             console.error(error);
         }
@@ -528,9 +666,9 @@ export let useIterate: <E>(generator: Generator<E>) => Semantic<E> = <E>(generat
     throw new TypeError("Invalid arguments.");
 };
 
-export let usePromise: (<T>(promise: Promise<T>) => Semantic<T>) = <T>(promise: Promise<T>): Semantic<T> => {
+export let usePromise: (<T>(promise: Promise<T>) => SynchronousSemantic<T>) = <T>(promise: Promise<T>): SynchronousSemantic<T> => {
     if (isPromise(promise)) {
-        return new Semantic<T>((accept: Consumer<T> | BiConsumer<T, bigint>, interrupt: Predicate<T> | BiPredicate<T, bigint>) => {
+        return new SynchronousSemantic<T>((accept: Consumer<T> | BiConsumer<T, bigint>, interrupt: Predicate<T> | BiPredicate<T, bigint>) => {
             try {
                 promise.then((value: T) => {
                     if (interrupt(value, 0n)) {
@@ -550,13 +688,13 @@ export let usePromise: (<T>(promise: Promise<T>) => Semantic<T>) = <T>(promise: 
 };
 
 interface UseOf {
-    <E>(target: E): Semantic<E>;
-    <E>(target: Iterable<E>): Semantic<E>;
+    <E>(target: E): SynchronousSemantic<E>;
+    <E>(target: Iterable<E>): SynchronousSemantic<E>;
 };
 
-export let useOf: UseOf = <E>(...target: Array<E>): Semantic<E> => {
+export let useOf: UseOf = <E>(...target: Array<E>): SynchronousSemantic<E> => {
     if (Array.isArray(target)) {
-        return new Semantic<E>((accept: Consumer<E> | BiConsumer<E, bigint>, interrupt: Predicate<E> | BiPredicate<E, bigint>) => {
+        return new SynchronousSemantic<E>((accept: Consumer<E> | BiConsumer<E, bigint>, interrupt: Predicate<E> | BiPredicate<E, bigint>) => {
             try {
                 let index: bigint = 0n;
                 for (let element of target) {
@@ -575,16 +713,16 @@ export let useOf: UseOf = <E>(...target: Array<E>): Semantic<E> => {
 };
 
 interface UseRange {
-    <N extends number | bigint>(start: N, end: N): Semantic<N extends number ? number : (N extends bigint ? bigint : never)>;
-    <N extends number | bigint>(start: N, end: N, step: N): Semantic<N extends number ? number : (N extends bigint ? bigint : never)>;
+    <N extends number | bigint>(start: N, end: N): SynchronousSemantic<N extends number ? number : (N extends bigint ? bigint : never)>;
+    <N extends number | bigint>(start: N, end: N, step: N): SynchronousSemantic<N extends number ? number : (N extends bigint ? bigint : never)>;
 };
-export let useRange: UseRange = <N extends number | bigint>(start: N, end: N, step: N = (isNumber(start) && isNumber(end) ? 1 : 1n) as N): Semantic<N> => {
+export let useRange: UseRange = <N extends number | bigint>(start: N, end: N, step: N = (isNumber(start) && isNumber(end) ? 1 : 1n) as N): SynchronousSemantic<N> => {
     if ((!isNumber(step) && !isBigInt(step)) || (isNumber(step) && useCompare(step as number, 0) === 0) || (isBigInt(step) && useCompare(step as bigint, 0n) === 0)) {
         throw new TypeError("Step must be numeric and cannot be zero.");
     }
     if (isNumber(start) && isNumber(end)) {
         let trusted: number = useToNumber(step);
-        return new Semantic<number>((accept: Consumer<number> | BiConsumer<number, bigint>, interrupt: Predicate<number> | BiPredicate<number, bigint>): void => {
+        return new SynchronousSemantic<number>((accept: Consumer<number> | BiConsumer<number, bigint>, interrupt: Predicate<number> | BiPredicate<number, bigint>): void => {
             try {
                 let index: bigint = 0n;
                 for (let i: number = start; i < end; i += trusted) {
@@ -597,10 +735,10 @@ export let useRange: UseRange = <N extends number | bigint>(start: N, end: N, st
             } catch (error) {
                 console.error(error);
             }
-        }) as unknown as Semantic<N>;
+        }) as unknown as SynchronousSemantic<N>;
     } else if (isBigInt(start) && isBigInt(end)) {
         let trusted: bigint = useToBigInt(step);
-        return new Semantic<bigint>((accept: Consumer<bigint> | BiConsumer<bigint, bigint>, interrupt: Predicate<bigint> | BiPredicate<bigint, bigint>): void => {
+        return new SynchronousSemantic<bigint>((accept: Consumer<bigint> | BiConsumer<bigint, bigint>, interrupt: Predicate<bigint> | BiPredicate<bigint, bigint>): void => {
             try {
                 let index: bigint = 0n;
                 for (let i: bigint = start; i < end; i += trusted) {
@@ -613,123 +751,246 @@ export let useRange: UseRange = <N extends number | bigint>(start: N, end: N, st
             } catch (error) {
                 console.error(error);
             }
-        }) as unknown as Semantic<N>;
+        }) as unknown as SynchronousSemantic<N>;
     }
     throw new TypeError("Invalid arguments.");
 };
 
-interface UseWebSocket {
-    (websocket: WebSocket): Semantic<WebSocketEventMap[keyof WebSocketEventMap]>;
-    <K extends keyof WebSocketEventMap>(websocket: WebSocket, key: K): Semantic<WebSocketEventMap[K extends keyof WebSocketEventMap ? K : never]>;
-    <K extends keyof WebSocketEventMap>(websocket: WebSocket, keys: Iterable<K>): Semantic<WebSocketEventMap[K extends keyof WebSocketEventMap ? K : never]>;
+interface UseWebSocketOptions {
+    throttle?: number;
+    debounce?: number;
 };
-export let useWebSocket: UseWebSocket = <K extends keyof WebSocketEventMap>(argument1: WebSocket, argument2?: K | Iterable<K>): Semantic<WebSocketEventMap[keyof WebSocketEventMap]> | Semantic<WebSocketEventMap[K]> => {
-    if (isObject(argument1) && isFunction(Reflect.get(argument1, "addEventListener"))) {
+interface UseWebSocket {
+    (websocket: WebSocket): AsynchronousSemantic<WebSocketEventMap[keyof WebSocketEventMap]>;
+    (websocket: WebSocket, options: UseWebSocketOptions): AsynchronousSemantic<WebSocketEventMap[keyof WebSocketEventMap]>;
+    <K extends keyof WebSocketEventMap, V extends WebSocketEventMap[K]>(websocket: WebSocket, key: K): AsynchronousSemantic<V>;
+    <K extends keyof WebSocketEventMap, V extends WebSocketEventMap[K]>(websocket: WebSocket, key: K, options: UseWebSocketOptions): AsynchronousSemantic<V>;
+    <K extends keyof WebSocketEventMap, V extends WebSocketEventMap[K]>(websocket: WebSocket, keys: Iterable<K>): AsynchronousSemantic<V>;
+    <K extends keyof WebSocketEventMap, V extends WebSocketEventMap[K]>(websocket: WebSocket, keys: Iterable<K>, options: UseWebSocketOptions): AsynchronousSemantic<V>;
+};
+export let useWebSocket: UseWebSocket = <K extends keyof WebSocketEventMap, V extends WebSocketEventMap[K]>(argument1: WebSocket, argument2?: K | Iterable<K> | UseWebSocketOptions, argument3?: UseWebSocketOptions): AsynchronousSemantic<V> => {
+    let debounce: number = 0;
+    let throttle: number = 0;
+    if (isObject(argument2)) {
+        debounce = Reflect.has(argument2, "debounce") ? Reflect.get(argument2, "debounce") : 0;
+        throttle = Reflect.has(argument2, "throttle") ? Reflect.get(argument2, "throttle") : 0;
+    } else {
+        debounce = validate(argument3) && isNumber(argument3.debounce) ? argument3.debounce : 0;
+        throttle = validate(argument3) && isNumber(argument3.throttle) ? argument3.throttle : 0;
+    }
+    if (validate(argument1)) {
         let websocket: WebSocket = argument1;
         if (isString(argument2)) {
-            let key: K = argument2 as K;
-            return new Semantic<WebSocketEventMap[K]>((accept: Consumer<WebSocketEventMap[K]> | BiConsumer<WebSocketEventMap[K], bigint>, interrupt: Predicate<WebSocketEventMap[K]> | BiPredicate<WebSocketEventMap[K], bigint>): void => {
-                try {
-                    let listener: (event: WebSocketEventMap[K]) => void = (event: WebSocketEventMap[K]): void => {
-                        if (interrupt(event, 0n)) {
-                            websocket.removeEventListener(key, listener);
-                        } else {
-                            accept(event, 0n);
-                        }
-                    };
-                    websocket.addEventListener(key, listener);
-                } catch (error) {
-                    console.error(error);
-                }
-            });
-        } else if (isIterable(argument2)) {
-            let keys: Iterable<unknown> = argument2;
-            return new Semantic<WebSocketEventMap[K]>((accept: Consumer<WebSocketEventMap[K]> | BiConsumer<WebSocketEventMap[K], bigint>, interrupt: Predicate<WebSocketEventMap[K]> | BiPredicate<WebSocketEventMap[K], bigint>): void => {
-                try {
-                    for (let key of keys) {
-                        if (isString(key)) {
-                            let listener: (event: WebSocketEventMap[K]) => void = (event: WebSocketEventMap[K]): void => {
-                                if (interrupt(event, 0n)) {
-                                    websocket.removeEventListener(key as K, listener);
-                                } else {
-                                    accept(event, 0n);
+            let key: K = argument1 as unknown as K;
+            return new AsynchronousSemantic<V>(async (accept: Consumer<V> | BiConsumer<V, bigint>, interrupt: Predicate<V> | BiPredicate<V, bigint>): Promise<void> => {
+                let timeOut: ReturnType<typeof setTimeout> | null = null;
+                let lastEmitTime: number = 0;
+                let index: bigint = 0n;
+                let until: Promise<void> = new Promise<void>(resolve => {
+                    let listener: Consumer<V> = (event: V) => {
+                        if (debounce > 0) {
+                            if (timeOut) {
+                                clearTimeout(timeOut);
+                            }
+                            timeOut = setTimeout((): void => {
+                                if (interrupt(event, index)) {
+                                    websocket.removeEventListener(key, listener as EventListener);
+                                    resolve();
+                                    return;
                                 }
-                            };
-                            websocket.addEventListener(key as K, listener);
+                                accept(event, index);
+                                index++;
+                            }, debounce);
+                            return;
                         }
-                    }
-                } catch (error) {
-                    console.error(error);
-                }
+                        if (throttle > 0) {
+                            let now: number = performance.now();
+                            if (now - lastEmitTime < throttle) {
+                                return;
+                            }
+                            lastEmitTime = now;
+                            if (interrupt(event, index)) {
+                                websocket.removeEventListener(key, listener as EventListener);
+                                resolve();
+                                return;
+                            }
+                            accept(event, index);
+                            index++;
+                            return;
+                        }
+                        if (interrupt(event, index)) {
+                            websocket.removeEventListener(key, listener as EventListener);
+                            resolve();
+                            accept(event, -1n);
+                            return;
+                        }
+                        accept(event, index);
+                        index++;
+                    };
+                    websocket.addEventListener(key, listener as EventListener);
+                });
+                await until;
             });
         }
-        let keys: Array<keyof WebSocketEventMap> = ["open", "message", "close", "error"];
-        return new Semantic<WebSocketEventMap[keyof WebSocketEventMap]>((accept: Consumer<WebSocketEventMap[keyof WebSocketEventMap]> | BiConsumer<WebSocketEventMap[keyof WebSocketEventMap], bigint>, interrupt: Predicate<WebSocketEventMap[keyof WebSocketEventMap]> | BiPredicate<WebSocketEventMap[keyof WebSocketEventMap], bigint>): void => {
-            try {
-                for (let key of keys) {
-                    let listener: (event: WebSocketEventMap[keyof WebSocketEventMap]) => void = (event: WebSocketEventMap[keyof WebSocketEventMap]): void => {
-                        if (interrupt(event, 0n)) {
-                            websocket.removeEventListener(key, listener);
-                        } else {
-                            accept(event, 0n);
-                        }
-                    };
-                    websocket.addEventListener(key, listener);
-                }
-            } catch (error) {
-                console.error(error);
-            }
-        });
+        if (isIterable(argument2)) {
+            let keys: Set<K> = new Set(...(argument1 as unknown as Iterable<K>)) as Set<K>;
+            return new AsynchronousSemantic<V>(async (accept: Consumer<V> | BiConsumer<V, bigint>, interrupt: Predicate<V> | BiPredicate<V, bigint>): Promise<void> => {
+                let lastEmitTime: number = 0;
+                let timeOut: ReturnType<typeof setTimeout> | null = null;
+                let index: bigint = 0n;
+                let activeCount: number = keys.size;
+                let until: Promise<void> = new Promise<void>(resolve => {
+                    for (let key of keys) {
+                        if (!isString(key)) continue;
+                        let listener: Consumer<V> = (event: V) => {
+                            if (debounce > 0) {
+                                if (timeOut) {
+                                    clearTimeout(timeOut);
+                                }
+                                timeOut = setTimeout((): void => handleEvent(event, key), debounce);
+                                return;
+                            }
+                            if (throttle > 0) {
+                                let now = performance.now();
+                                if (now - lastEmitTime < throttle) return;
+                                lastEmitTime = now;
+                            }
+                            handleEvent(event, key);
+                        };
+                        let handleEvent: BiConsumer<V, K> = (event: V, currentKey: K) => {
+                            if (interrupt(event, index)) {
+                                websocket.removeEventListener(currentKey, listener as EventListener);
+                                if (--activeCount === 0) {
+                                    resolve();
+                                }
+                                return;
+                            }
+                            accept(event, index);
+                            index++;
+                        };
+                        websocket.addEventListener(key, listener as EventListener);
+                    }
+                });
+                await until;
+            });
+        }
     }
+
     throw new TypeError("Invalid arguments.");
 };
 
-interface UseWindow {
-    <K extends keyof WindowEventMap>(key: K): Semantic<WindowEventMap[K extends keyof WindowEventMap ? K : never]>;
-    <K extends keyof WindowEventMap>(key: Iterable<K>): Semantic<WindowEventMap[K extends keyof WindowEventMap ? K : never]>;
-};
+interface UseWindowOptions {
+    throttle?: number;
+    debounce?: number;
+}
 
-export let useWindow: UseWindow = <K extends keyof WindowEventMap>(argument1: K | Iterable<K>): Semantic<WindowEventMap[K]> => {
+interface UseWindow {
+    <K extends keyof WindowEventMap, V extends WindowEventMap[K]>(key: K): AsynchronousSemantic<V>;
+    <K extends keyof WindowEventMap, V extends WindowEventMap[K]>(key: K, options: UseWindowOptions): AsynchronousSemantic<V>;
+    <K extends keyof WindowEventMap, V extends WindowEventMap[K]>(keys: Iterable<K>): AsynchronousSemantic<V>;
+    <K extends keyof WindowEventMap, V extends WindowEventMap[K]>(keys: Iterable<K>, options: UseWindowOptions): AsynchronousSemantic<V>;
+}
+
+export let useWindow: UseWindow = <K extends keyof WindowEventMap, V extends WindowEventMap[K]>(argument1: K | Iterable<K>, argument2: UseWindowOptions = {}): AsynchronousSemantic<V> => {
+    let options: UseWindowOptions = argument2;
+    let debounce: number = isObject(options) && isNumber(options.debounce) ? options.debounce : 0;
+    let throttle: number = isObject(options) && isNumber(options.throttle) ? options.throttle : 0;
     if (isString(argument1)) {
         let key: K = argument1 as K;
-        return new Semantic<WindowEventMap[K]>((accept: Consumer<WindowEventMap[K]> | BiConsumer<WindowEventMap[K], bigint>, interrupt: Predicate<WindowEventMap[K]> | BiPredicate<WindowEventMap[K], bigint>): void => {
-            try {
-                let listener: (event: WindowEventMap[K]) => void = (event: WindowEventMap[K]): void => {
-                    if (interrupt(event, 0n)) {
-                        window.removeEventListener(key, listener);
-                    } else {
-                        console.log(event.type, event);
-                        accept(event, 0n);
-                    }
-                };
-                window.addEventListener(key, listener);
-            } catch (error) {
-                console.error(error);
-            }
-        });
-    } else if (isIterable(argument1)) {
-        let keys: Set<unknown> = new Set(argument1);
-        return new Semantic<WindowEventMap[K]>((accept: Consumer<WindowEventMap[K]> | BiConsumer<WindowEventMap[K], bigint>, interrupt: Predicate<WindowEventMap[K]> | BiPredicate<WindowEventMap[K], bigint>): void => {
-            try {
-                let index: bigint = 0n;
-                for (let key of keys) {
-                    if (isString(key)) {
-                        let listener: (event: WindowEventMap[K]) => void = (event: WindowEventMap[K]): void => {
-                            if (interrupt(event, index)) {
-                           window.removeEventListener(key as K, listener);
-                            } else {
-                                accept(event, index);
+        return new AsynchronousSemantic<V>(async (accept: Consumer<V> | BiConsumer<V, bigint>, interrupt: Predicate<V> | BiPredicate<V, bigint>): Promise<void> => {
+            let timeOut: ReturnType<typeof setTimeout> | null = null;
+            let lastEmitTime: number = 0;
+            let index: bigint = 0n;
+            let until: Promise<void> = new Promise<void>(resolve => {
+                let listener: Consumer<V> = (event: V) => {
+                    if (debounce > 0) {
+                        if (timeOut) {
+                            clearTimeout(timeOut);
+                        }
+                        timeOut = setTimeout((): void => {
+                            if (interrupt(event, index)) {
+                                window.removeEventListener(key, listener as EventListener);
+                                resolve();
+                                return;
                             }
-                        };
-                        index++;
-                        window.addEventListener(key as K, listener);
+                            accept(event, index);
+                            index++;
+                        }, debounce);
+                        return;
                     }
-                }
-            } catch (error) {
-                console.error(error);
-            }
+                    if (throttle > 0) {
+                        let now: number = performance.now();
+                        if (now - lastEmitTime < throttle) {
+                            return;
+                        }
+                        lastEmitTime = now;
+                        if (interrupt(event, index)) {
+                            window.removeEventListener(key, listener as EventListener);
+                            resolve();
+                            return;
+                        }
+                        accept(event, index);
+                        index++;
+                        return;
+                    }
+                    if (interrupt(event, index)) {
+                        window.removeEventListener(key, listener as EventListener);
+                        resolve();
+                        accept(event, -1n);
+                        return;
+                    }
+                    accept(event, index);
+                    index++;
+                };
+                window.addEventListener(key, listener as EventListener);
+            });
+            await until;
         });
     }
+    if (isIterable(argument1)) {
+        let keys: Set<K> = new Set(...argument1) as Set<K>;
+        return new AsynchronousSemantic<V>(async (accept: Consumer<V> | BiConsumer<V, bigint>, interrupt: Predicate<V> | BiPredicate<V, bigint>): Promise<void> => {
+            let lastEmitTime: number = 0;
+            let timeOut: ReturnType<typeof setTimeout> | null = null;
+            let index: bigint = 0n;
+            let activeCount: number = keys.size;
+            let until: Promise<void> = new Promise<void>(resolve => {
+                for (let key of keys) {
+                    if (!isString(key)) continue;
+                    let listener = (event: V) => {
+                        if (debounce > 0) {
+                            if (timeOut) {
+                                clearTimeout(timeOut);
+                            }
+                            timeOut = setTimeout((): void => handleEvent(event, key), debounce);
+                            return;
+                        }
+                        if (throttle > 0) {
+                            let now = performance.now();
+                            if (now - lastEmitTime < throttle) return;
+                            lastEmitTime = now;
+                        }
+                        handleEvent(event, key);
+                    };
+                    let handleEvent: BiConsumer<V, K> = (event: V, currentKey: K) => {
+                        if (interrupt(event, index)) {
+                            window.removeEventListener(currentKey, listener as EventListener);
+                            if (--activeCount === 0) {
+                                resolve();
+                            }
+                            return;
+                        }
+                        accept(event, index);
+                        index++;
+                    };
+
+                    window.addEventListener(key, listener as EventListener);
+                }
+            });
+            await until;
+        });
+    }
+
     throw new TypeError("Invalid arguments.");
 };
 
