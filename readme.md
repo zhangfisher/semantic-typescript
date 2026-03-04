@@ -37,7 +37,7 @@ yarn add semantic-typescript
 
 ### Quick Start
 
-```ts
+```typescript
 import { useOf, useRange, useWindow } from "semantic-typescript";
 
 // Simple in-memory stream
@@ -77,14 +77,14 @@ useWindow("resize")
 
 **Important usage rules**
 
-1. **Event streams** (`useWindow`, `useDocument`, `useHTMLElement`, `useWebSocket`, …) return an `AsynchronousSemantic`.  
+1. **Event streams** (`useWindow`, `useDocument`, `useHTMLElement`, `useWebSocket`, …) return an `AsynchronousSemantic`. 
    → You **must** call `.limit(n)`, `.sub(start, end)`, or `.takeWhile()` to stop listening, otherwise the listener remains active.
 
 2. **Terminal operations** (`.toArray()`, `.count()`, `.average()`, `.reduce()`, `.findFirst()` etc.) are **only available after** converting to a collectable:
    ```ts
    .toUnordered()   // O(n) time & space, no sorting
    // or
-   .toOrdered()     // sorted, ~2× O(n) time
+   .toOrdered()     // sorted, ~O(n²) time
    ```
 
 ---
@@ -94,7 +94,7 @@ useWindow("resize")
 | Collector               | Extra time | Extra space | Sorting? | Best for |
 |-------------------------|------------|-------------|----------|----------|
 | `toUnordered()`         | O(n)       | O(n)        | No       | Speed |
-| `toOrdered()` / Statistics / Window | ~2× O(n)   | O(n)        | Yes      | Order & analytics |
+| `toOrdered()` / Statistics / Window | O(n²)   | O(n)        | Yes      | Order & analytics |
 
 Choose `toUnordered()` whenever raw speed matters; switch to `toOrdered()` only when you need stable ordering or statistical methods that rely on sorted data.
 
