@@ -100,6 +100,31 @@ Choose `toUnordered()` whenever raw speed matters; switch to `toOrdered()` only 
 
 ---
 
+**Comparison of Semantic-TypeScript with Other Front-End Stream Processors**
+
+| Feature                              | Semantic-TypeScript                                                                 | RxJS                                                                 | Native Async Iterators / Generators                  | Most.js                                                              |
+|--------------------------------------|-------------------------------------------------------------------------------------|----------------------------------------------------------------------|-----------------------------------------------------|----------------------------------------------------------------------|
+| **TypeScript Integration**           | First-class, deeply typed with native index awareness and symbol-based runtime guards | Excellent, but complex generics                                      | Good, requires manual typing                        | Strong, functional-first style                                       |
+| **Built-in Statistical Analysis**    | Comprehensive native support (mean, median, mode, variance, standard deviation, skewness, kurtosis, frequency) for both `number` and `bigint` | Not available natively (requires custom operators or `reduce`)       | None                                                | None                                                                 |
+| **Indexing & Position Awareness**    | Native, powerful bigint indexing on every element (MySQL-style)                     | Requires custom operators (`scan`, `withLatestFrom`)                 | Manual counter required                             | Basic, no built-in index                                             |
+| **Event Stream Management**          | Dedicated, type-safe factories (`useWindow`, `useDocument`, `useHTMLElement`, `useWebSocket`) with explicit early-stop control | Powerful `fromEvent` / `fromEventPattern`, but manual subscription management | Manual event listener + cancellation                | Good `fromEvent`, lightweight                                        |
+| **Performance & Memory Efficiency**  | Exceptional – optimised `toUnordered()` (O(n) time/space, no sorting) and `toOrdered()` collectors | Very good, but operator chains add overhead                          | Excellent (zero overhead)                           | Excellent                                                            |
+| **Bundle Size**                      | Very lightweight                                                                    | Large (even with tree-shaking)                                       | Zero (native)                                       | Small                                                                |
+| **API Design Philosophy**            | Functional collector pattern with explicit indexing and short-circuiting            | Reactive Observable pattern                                          | Iterator / Generator pattern                        | Functional, point-free                                               |
+| **Early Termination & Control**      | Elegant and explicit (`interrupt`, `.limit()`, `.takeWhile()`, `.sub()`)            | Good (`take`, `takeUntil`, `first`)                                  | Manual (`break` in `for await…of`)                  | Good (`take`, `until`)                                               |
+| **Synchronous & Asynchronous Support** | Unified API – first-class synchronous and asynchronous streams                     | Primarily asynchronous (limited synchronous support)                 | Both, but manual                                    | Primarily asynchronous                                               |
+| **Learning Curve**                   | Gentle for developers who enjoy functional and indexed pipelines                    | Steeper (many operators, hot/cold observables, schedulers)           | Low                                                 | Moderate                                                             |
+
+**Key Advantages of Semantic-TypeScript**
+
+- Unique built-in statistical and indexing capabilities that eliminate the need for manual `reduce` or external libraries.
+- Explicit control over event streams prevents memory leaks common in RxJS.
+- Dual synchronous/asynchronous design gives you the best of both worlds in a single, consistent API.
+
+This comparison highlights why Semantic-TypeScript is particularly well-suited for modern TypeScript front-end applications that demand performance, type safety, and rich analytics without the ceremony of traditional reactive libraries.
+
+---
+
 ### Ready to Explore?
 
 Semantic-TypeScript turns complex data flows into readable, composable, and lightning-fast pipelines. Whether you are handling real-time UI events, processing large datasets, or building analytics dashboards, the library gives you the power of database-grade indexing with the elegance of functional programming.
