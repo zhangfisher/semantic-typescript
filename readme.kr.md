@@ -1,478 +1,222 @@
-# 시맨틱 타입스크립트 스트림 처리 라이브러리
+# Semantic-TypeScript
+Flow, Indexed. 당신의 데이터, 정밀한 제어 아래에.
 
-## 소개
+---
 
-시맨틱 타입스크립트는 자바스크립트의 제너레이터 함수, 자바 스트림, 그리고 MySQL 인덱스에서 영감을 받은 현대적인 스트림 처리 라이브러리입니다. 그 핵심 설계 철학은 데이터 인덱싱을 사용하여 효율적인 데이터 처리 파이프라인을 구축하는 것에 기반을 두고 있으며, 프론트엔드 개발을 위한 타입 안전하고 함수형 스타일의 스트리밍 작업 경험을 제공합니다.
+### 개요
 
-전통적인 동기 처리와 달리, 시맨틱은 비동기 처리 모델을 사용합니다. 데이터 스트림을 생성할 때, 터미널이 데이터를 수신하는 시간은 업스트림이 `accept`와 `interrupt` 콜백 함수를 호출하는 시점에 전적으로 의존합니다. 이러한 디자인은 라이브러리가 실시간 데이터 스트림, 대규모 데이터 세트 및 비동기 데이터 소스를 우아하게 처리할 수 있게 해줍니다.
+Semantic-TypeScript는 스트림 처리 기술의 중요한 도약을 의미하며, JavaScript `GeneratorFunction`, Java Streams, 그리고 MySQL 스타일 인덱싱에서 가장 효과적인 개념들을 종합합니다. 그 핵심 철학은 단순하면서도 강력합니다: 무차별 반복이 아닌, 지능적인 인덱싱을 통해 매우 효율적인 데이터 처리 파이프라인을 구축하는 것입니다.
 
-## 설치
+기존 라이브러리들이 동기 루프나 다루기 힘든 프로미스 체인을 부과하는 곳에서, Semantic-TypeScript는 완전히 비동기적이고, 순수 함수형이며, 엄격한 타입 안전성을 제공하는 경험을 제공합니다. 이것은 현대 프론트엔드 개발의 요구에 맞게 설계되었습니다.
+
+우아한 이 모델에서, 데이터는 업스트림 파이프라인이 명시적으로 `accept` (그리고 선택적으로 `interrupt`) 콜백을 호출할 때만 소비자에게 전달됩니다. 당신은 데이터가 필요한 정확한 순간, 즉 타이밍을 완벽히 제어할 수 있습니다.
+
+---
+
+### 개발자들이 선호하는 이유
+
+• **보일러플레이트 없는 인덱싱** — 모든 요소가 고유 또는 맞춤형 인덱스를 가지고 있습니다.
+
+• **순수 함수형 스타일** — 완전한 타입스크립트 타입 추론과 함께.
+
+• **메모리 누수 방지 이벤트 스트림** — `useWindow`, `useDocument`, `useHTMLElement`, `useWebSocket`은 안전을 염두에 두고 구축되었습니다. `limit(n)`, `sub(start, end)`, `takeWhile(predicate)`를 사용해 경계를 정의하면, 라이브러리가 정리를 관리합니다. 잔여 리스너나 메모리 누수 없음.
+
+• **내장 통계 분석** — 평균, 중앙값, 최빈값, 분산, 왜도, 첨도를 포함한 포괄적인 number 및 bigint 분석.
+
+• **예측 가능한 성능** — 요구사항에 따라 정렬된 또는 비정렬 수집기(collector) 중 선택 가능.
+
+• **메모리 효율적** — 스트림은 지연 평가(Lazy Evaluation) 방식으로 처리되며, 메모리 문제를 완화합니다.
+
+• **정의되지 않은 동작 없음** — 타입스크립트가 타입 안전성과 null 가능성을 보장합니다. 콜백 함수 내에서 명시적으로 변경하지 않는 한, 입력 데이터는 수정되지 않습니다.
+
+---
+
+### 설치
 
 ```bash
 npm install semantic-typescript
 ```
-
-## 기본 타입
-
-| 타입 | 설명 |
-|------|-------------|
-| `Invalid<T>` | `null` 또는 `undefined`에서 확장된 타입 |
-| `Valid<T>` | `null`과 `undefined`를 제외한 타입 |
-| `MaybeInvalid<T>` | `null` 또는 `undefined`일 수 있는 타입 |
-| `Primitive` | 기본 타입의 집합 |
-| `MaybePrimitive<T>` | 기본 타입일 수 있는 타입 |
-| `OptionalSymbol` | `Optional` 클래스의 심볼 식별자 |
-| `SemanticSymbol` | `Semantic` 클래스의 심볼 식별자 |
-| `CollectorsSymbol` | `Collector` 클래스의 심볼 식별자 |
-| `CollectableSymbol` | `Collectable` 클래스의 심볼 식별자 |
-| `OrderedCollectableSymbol` | `OrderedCollectable` 클래스의 심볼 식별자 |
-| `WindowCollectableSymbol` | `WindowCollectable` 클래스의 심볼 식별자 |
-| `StatisticsSymbol` | `Statistics` 클래스의 심볼 식별자 |
-| `NumericStatisticsSymbol` | `NumericStatistics` 클래스의 심볼 식별자 |
-| `BigIntStatisticsSymbol` | `BigIntStatistics` 클래스의 심볼 식별자 |
-| `UnorderedCollectableSymbol` | `UnorderedCollectable` 클래스의 심볼 식별자 |
-
-## 함수 지향 인터페이스
-
-| 인터페이스 | 설명 |
-|-----------|-------------|
-| `Runnable` | 매개변수가 없고 반환값도 없는 함수 |  
-| `Supplier<R>` | 매개변수가 없고 `R`을 반환하는 함수 |  
-| `Functional<T, R>` | 단일 매개변수 변환 함수 |
-| `BiFunctional<T, U, R>` | 두 개의 매개변수 변환 함수 |
-| `TriFunctional<T, U, V, R>` | 세 개의 매개변수 변환 함수 |
-| `Predicate<T>` | 단일 매개변수 조건 함수 |
-| `BiPredicate<T, U>` | 두 개의 매개변수 조건 함수 |
-| `TriPredicate<T, U, V>` | 세 개의 매개변수 조건 함수 |
-| `Consumer<T>` | 단일 매개변수 소비자 함수 |
-| `BiConsumer<T, U>` | 두 개의 매개변수 소비자 함수 |
-| `TriConsumer<T, U, V>` | 세 개의 매개변수 소비자 함수 |
-| `Comparator<T>` | 두 개의 매개변수 비교 함수 |
-| `Generator<T>` | 생성자 함수(핵심 및 기반) |
-
-```typescript
-// 타입 사용 예
-let predicate: Predicate<number> = (n: number): boolean => n > 0;
-let mapper: Functional<string, number> = (text: string): number => text.length;
-let comparator: Comparator<number> = (a: number, b: number): number => a - b;
+또는
+```bash
+yarn add semantic-typescript
 ```
 
-## 타입 가드
+---
 
-| 함수 | 설명 | 시간 복잡도 | 공간 복잡도 |
-|------|------|------------|------------|
-| `validate<T>(t: MaybeInvalid<T>): t is T` | 값이 null이나 undefined가 아닌지 검증 | O(1) | O(1) |
-| `invalidate<T>(t: MaybeInvalid<T>): t is null \| undefined` | 값이 null이나 undefined인지 검증 | O(1) | O(1) |
-| `isBoolean(t: unknown): t is boolean` | boolean인지 확인 | O(1) | O(1) |
-| `isString(t: unknown): t is string` | 문자열인지 확인 | O(1) | O(1) |
-| `isNumber(t: unknown): t is number` | 숫자인지 확인 | O(1) | O(1) |
-| `isFunction(t: unknown): t is Function` | 함수인지 확인 | O(1) | O(1) |
-| `isObject(t: unknown): t is object` | 객체인지 확인 | O(1) | O(1) |
-| `isSymbol(t: unknown): t is symbol` | 심볼인지 확인 | O(1) | O(1) |
-| `isBigint(t: unknown): t is bigint` | BigInt인지 확인 | O(1) | O(1) |
-| `isPrimitive(t: unknown): t is Primitive` | 기본 타입인지 확인 | O(1) | O(1) |
-| `isIterable(t: unknown): t is Iterable<unknown>` | 반복 가능한 객체인지 확인 | O(1) | O(1) |
-| `isOptional(t: unknown): t is Optional<unknown>` | Optional 인스턴스인지 확인 | O(1) | O(1) |
-| `isSemantic(t: unknown): t is Semantic<unknown>` | Semantic 인스턴스인지 확인 | O(1) | O(1) |
-| `isCollector(t: unknown): t is Collector<unknown, unknown, unknown>` | Collector 인스턴스인지 확인 | O(1) | O(1) |
-| `isCollectable(t: unknown): t is Collectable<unknown>` | Collectable 인스턴스인지 확인 | O(1) | O(1) |
-| `isOrderedCollectable(t: unknown): t is OrderedCollectable<unknown>` | OrderedCollectable 인스턴스인지 확인 | O(1) | O(1) |
-| `isWindowCollectable(t: unknown): t is WindowCollectable<unknown>` | WindowCollectable 인스턴스인지 확인 | O(1) | O(1) |
-| `isUnorderedCollectable(t: unknown): t is UnorderedCollectable<unknown>` | UnorderedCollectable 인스턴스인지 확인 | O(1) | O(1) |
-| `isStatistics(t: unknown): t is Statistics<unknown, number \| bigint>` | Statistics 인스턴스인지 확인 | O(1) | O(1) |
-| `isNumericStatistics(t: unknown): t is NumericStatistics<unknown>` | NumericStatistics 인스턴스인지 확인 | O(1) | O(1) |
-| `isBigIntStatistics(t: unknown): t is BigIntStatistics<unknown>` | BigIntStatistics 인스턴스인지 확인 | O(1) | O(1) |
-| `isPromise(t: unknown): t is Promise<unknown>` | Promise 객체인지 확인 | O(1) | O(1) |
-| `isAsync(t: unknown): t is AsyncFunction` | AsyncFunction인지 확인 | O(1) | O(1) |
+### 빠른 시작
 
 ```typescript
-// 타입 가드 사용 예
-let value: unknown = "hello";
+import { useOf, useFrom, useRange, useWindow, useHTMLElement, useWebSocket, useText, useStringify } from "semantic-typescript";
 
-if (isString(value)) {
-    console.log(value.length); // 타입 안전, value는 문자열로 추론됩니다.
-}
+// 숫자 통계
+let summate: number = useOf(10, 20, 30, 40)
+  .map((n: number): number => n * 2)
+  .toNumericStatistics()  // 최종 연산 전 필수 호출
+  .summate();             // 200
 
-if (isOptional(someValue)) {
-    someValue.ifPresent((value): void => console.log(val));
-}
+// Bigint 통계
+let summate: bigint = useOf(10n, 20n, 30n, 40n)
+  .map((n: bigint): bigint => n * 2)
+  .toBigIntStatistics()   // 최종 연산 전 필수 호출
+  .summate();             // 200n
 
-if(isIterable(value)){
-    // 타입 안전, 이제 반복 가능한 객체입니다.
-    for(let item of value){
-        console.log(item);
-    }
-}
+// 인덱스로 스트림 뒤집기
+useFrom([1, 2, 3, 4, 5])
+  .redirect((element: E, index: bigint): bigint => -index) // 뒤집기를 위한 음수 인덱스
+  .toOrdered() // 인덱스 순서를 유지하려면 toOrdered() 호출
+  .toArray(); // [5, 4, 3, 2, 1]
+
+// 스트림 섞기(Shuffle)
+useFrom([1, 2, 3, 4, 5])
+  .shuffle()
+  .toOrdered()
+  .toArray(); // 예: [2, 5, 1, 4, 3]
+
+// 스트림 내 요소 이동(Translate)
+useFrom([1, 2, 3, 4, 5])
+  .translate(2)  // 요소를 오른쪽으로 2칸 이동
+  .toOrdered()
+  .toArray(); // [4, 5, 1, 2, 3]
+
+useFrom([1, 2, 3, 4, 5])
+  .translate(-2) // 요소를 왼쪽으로 2칸 이동
+  .toOrdered()
+  .toArray(); // [3, 4, 5, 1, 2]
+
+// 조기 종료와 함께하는 무한 범위
+useRange(0n, 1_000_000n)
+  .filter(n => n % 17n === 0n)
+  .limit(10n)          // 10개 요소 후 중지
+  .toUnordered()
+  .toArray();
+
+// 실시간 윈도우 크기 조정 이벤트 (5번 이벤트 후 자동 중지)
+useWindow("resize")
+  .limit(5n)          // 이벤트 스트림에 필수적
+  .toUnordered()
+  .forEach((ev, idx) => console.log(`Resize #${idx}`));
+
+// HTML 요소 청취
+// <input id="input" type="text"/>
+useHTMLElement("#input", "change")
+  .limit(1)
+  .toUnordered()
+  .forEach((event: Event) => submit(event));
+
+// 여러 요소 및 이벤트 청취
+useHTMLElement("input", ["change", "keyup"])
+  .takeWhile((event: Event): boolean => validate(event))
+  .toUnordered()
+  .forEach((event: Event) => submit(event));
+
+// WebSocket 청취
+let webSocket = new WebSocket("ws://localhost:8080");
+webSocket.addEventListener("close", (): void => {
+  webSocket.close();  // WebSocket 생명주기를 수동으로 관리
+});
+useWebSocket(webSocket, "message")
+  .limit(1)
+  .toUnordered()
+  .forEach((message: MessageEvent) => console.log(message.data));
+
+// 문자열을 코드 포트(code point) 단위로 순회
+useText("My emotion now is: 😊, and semantic is 👍")
+  .toUnordered()
+  .log(); // 문자열을 출력
+
+// 순환 참조가 있는 객체를 안전하게 문자열로 변환(Stringify)
+let o = {
+  a: 1,
+  b: "text",
+  c: [o.a, o.b, o.c] // 순환 참조
+};
+// let text: string = JSON.stringify(o); // 오류 발생
+let text: string = useStringify(o); // 안전하게 `{a: 1, b: "text", c: []}` 반환
 ```
 
-## 유틸리티 함수
-
-| 함수 | 설명 | 시간 복잡도 | 공간 복잡도 |
-|------|------|------------|------------|
-| `useCompare<T>(t1: T, t2: T): number` | 일반 비교 함수 | O(1) | O(1) |
-| `useRandom<T = number \| bigint>(index: T): T` | 의사 난수 생성기 | O(log n) | O(1) |
-
-```typescript
-// 유틸리티 함수 사용 예
-let numbers: Array<number> = [3, 1, 4, 1, 5];
-numbers.sort(useCompare); // [1, 1, 3, 4, 5]
-
-let randomNum = useRandom(42); // 시드 기반 난수
-```
-
-## 팩토리 메소드
-
-### 옵셔널 팩토리 메소드
-
-| 메소드 | 설명 | 시간 복잡도 | 공간 복잡도 |
-|------|------|------------|------------|
-| `Optional.empty<T>()` | 빈 옵셔널을 생성 | O(1) | O(1) |
-| `Optional.of<T>(value)` | 값을 포함하는 옵셔널을 생성 | O(1) | O(1) |
-| `Optional.ofNullable<T>(value)` | 비어있을 수 있는 옵셔널을 생성 | O(1) | O(1) |
-| `Optional.ofNonNull<T>(value)` | 비어있지 않은 옵셔널을 생성 | O(1) | O(1) |
-
-```typescript
-// 옵셔널 사용 예
-let empty: Optional<number> = Optional.empty();
-let present: Optional<number> = Optional.of(42);
-let nullable: Optional<string> = Optional.ofNullable<string>(null);
-let nonNull: Optional<string> = Optional.ofNonNull("hello");
-
-present.ifPresent((val: number): void => console.log(val)); // 42 출력
-console.log(emptyOpt.get(100)); // 100 출력
-```
-
-### 컬렉터 팩토리 메소드
-
-| 메소드 | 설명 | 시간 복잡도 | 공간 복잡도 |
-|------|------|------------|------------|
-| `Collector.full(identity, accumulator, finisher)` | 완전한 컬렉터를 생성 | O(1) | O(1) |
-| `Collector.shortable(identity, interruptor, accumulator, finisher)` | 중단 가능한 컬렉터를 생성 | O(1) | O(1) |
-
-```typescript
-// 컬렉터 변환 예
-let numbers = from([3, 1, 4, 1, 5, 9, 2, 6, 5]);
-
-// 성능 우선: 순서가 보장되지 않는 컬렉터 사용
-let unordered = numbers
-    .filter((n: number): boolean => n > 3)
-    .toUnordered(); // 최고의 성능
-
-// 정렬 필요: 순서가 보장되는 컬렉터 사용
-let ordered = numbers.sorted();
-
-// 요소 수 계산
-let count = Collector.full(
-    (): number => 0, // 초기값
-    (accumulator: number, element: number): number => accumulator + element, // 누적
-    (accumulator: number): number => accumulator // 완료
-);
-count.collect(from([1,2,3,4,5])); // 스트림에서 카운트
-count.collect([1,2,3,4,5]); // 반복 가능한 객체에서 카운트
-
-let find = Collector.shortable(
-    (): Optional<number> => Optional.empty(), // 초기값
-    (element: number, index: bigint, accumulator: Optional<number>): Optional<number> => accumulator.isPresent(), // 중단
-    (accumulator: Optional<number>, element: number, index: bigint): Optional<number> => Optional.of(element), // 누적
-    (accumulator: Optional<number>): Optional<number> => accumulator // 완료
-);
-find.collect(from([1,2,3,4,5])); // 첫 번째 요소 찾기
-find.collect([1,2,3,4,5]); // 첫 번째 요소 찾기
-```
-
-### 시맨틱 팩토리 메소드
-
-| 메소드 | 설명 | 시간 복잡도 | 공간 복잡도 |
-|------|------|------------|------------|
-| `animationFrame(period: number, delay: number = 0)` | 시간 기반 애니메이션 프레임 스트림을 생성 | O(1)* | O(1) |
-| `blob(blob, chunkSize)` | Blob에서 스트림을 생성 | O(n) | O(chunkSize) |
-| `empty<E>()` | 빈 스트림을 생성 | O(1) | O(1) |
-| `fill<E>(element, count)` | 채워진 스트림을 생성 | O(n) | O(1) |
-| `from<E>(iterable)` | 반복 가능한 객체에서 스트림을 생성 | O(1) | O(1) |
-| `interval(period, delay?)` | 시간 기반 인터벌 스트림을 생성 | O(1)* | O(1) |
-| `iterate<E>(generator)` | 생성자에서 스트림을 생성 | O(1) | O(1) |
-| `range(start, end, step)` | 숫자 범위 스트림을 생성 | O(n) | O(1) |
-| `websocket(websocket)` | WebSocket에서 스트림을 생성 | O(1) | O(1) |
-
-```typescript
-// 시맨틱 팩토리 메소드 사용 예
-
-// Blob에서 스트림을 생성(청크 읽기)
-blob(someBlob, 1024n)
-    .toUnordered()
-    .write(WritableStream)
-    .then(callback) // 스트림 쓰기 성공
-    .catch(callback); // 스트림 쓰기 실패
-
-// 빈 스트림을 생성, 다른 스트림과 연결될 때까지 실행되지 않음
-empty<string>()
-    .toUnordered()
-    .join(); // []
-
-// 채워진 스트림을 생성
-const filledStream = fill("hello", 3); // "hello", "hello", "hello"
-
-// 초기 지연 2초, 실행 주기 5초의 시간 기반 스트림을 생성, 타이머 메커니즘에 기반하여 구현됩니다. 시스템 스케줄링의 정확도 제한으로 인해 시간 드리프트가 발생할 수 있습니다.
-const intervalStream = interval(5000, 2000);
-
-// 반복 가능한 객체에서 스트림을 생성
-const numberStream = from([1, 2, 3, 4, 5]);
-const stringStream = from(new Set(["Alex", "Bob"]));
-
-// 숫자 범위 스트림을 생성
-const rangeStream = range(1, 10, 2); // 1, 3, 5, 7, 9
-
-// WebSocket 이벤트 스트림
-const ws = new WebSocket("ws://localhost:8080");
-websocket(ws)
-  .filter((event): boolean => event.type === "message") // 메시지 이벤트만 듣기
-  .toUnordered() // 이벤트는 일반적으로 순서가 없음
-  .forEach((event): void => receive(event)); // 메시지 받기
-```
-
-## 시맨틱 클래스 메소드
-
-| 메소드 | 설명 | 시간 복잡도 | 공간 복잡도 |
-|------|------|------------|------------|
-| `concat(other)` | 두 개의 스트림을 연결 | O(n) | O(1) |
-| `distinct()` | 중복을 제거 | O(n) | O(n) |
-| `distinct(comparator)` | 비교자를 사용하여 중복을 제거 | O(n²) | O(n) |
-| `dropWhile(predicate)` | 조건을 만족하는 요소를 버림 | O(n) | O(1) |
-| `filter(predicate)` | 요소를 필터링 | O(n) | O(1) |
-| `flat(mapper)` | 평탄화 맵 | O(n × m) | O(1) |
-| `flatMap(mapper)` | 새로운 타입으로 평탄화 맵 | O(n × m) | O(1) |
-| `limit(n)` | 요소 수 제한 | O(n) | O(1) |
-| `map(mapper)` | 맵 변환 | O(n) | O(1) |
-| `peek(consumer)` | 요소를 엿보기 | O(n) | O(1) |
-| `redirect(redirector)` | 인덱스 리디렉션 | O(n) | O(1) |
-| `reverse()` | 스트림 반전 | O(n) | O(1) |
-| `shuffle()` | 무작위로 섞기 | O(n) | O(1) |
-| `shuffle(mapper)` | 매퍼를 사용하여 섞기 | O(n) | O(1) |
-| `skip(n)` | 처음 n개 요소 건너뛰기 | O(n) | O(1) |
-| `sorted()` | 정렬 | O(n log n) | O(n) |
-| `sorted(comparator)` | 비교자를 사용하여 정렬 | O(n log n) | O(n) |
-| `sub(start, end)` | 서브스트림 가져오기 | O(n) | O(1) |
-| `takeWhile(predicate)` | 조건을 만족하는 요소 가져오기 | O(n) | O(1) |
-| `translate(offset)` | 인덱스 변환 | O(n) | O(1) |
-| `translate(translator)` | 변환자를 사용하여 인덱스 변환 | O(n) | O(1) |
-
-```typescript
-// 시맨틱 작업 예
-const result = from([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
-    .filter((n: number): boolean => n % 2 === 0) // 짝수 필터링
-    .map((n: number): number => n * 2) // 2배
-    .skip(1) // 첫 번째 건너뛰기
-    .limit(3) // 3개 요소 제한
-    .toUnordered() // 순서가 보장되지 않는 컬렉터로 변환
-    .toArray(); // 배열로 변환
-// 결과: [8, 12, 20]
-
-// 복잡한 작업 예
-const complexResult = range(1, 100, 1)
-    .flatMap((n: number): Semantics<number> => from([n, n * 2])) // 각 요소를 두 개로 매핑
-    .distinct() // 중복 제거
-    .shuffle() // 순서 섞기
-    .takeWhile((n: number): boolean => n < 50) // 50 미만 요소 가져오기
-    .toOrdered() // 순서가 보장되는 컬렉터로 변환
-    .toArray(); // 배열로 변환
-```
-
-## 시맨틱 변환 메소드
-
-| 메소드 | 설명 | 시간 복잡도 | 공간 복잡도 |
-|------------|------------|------------|------------|
-| `sorted()` | 순서가 보장되는 컬렉터로 변환 | O(n log n) | O(n) |
-| `toUnordered()` | 순서가 보장되지 않는 컬렉터로 변환 | O(1) | O(1) |
-| `toOrdered()` | 순서가 보장되는 컬렉터로 변환 | O(1) | O(1) |
-| `toNumericStatistics()` | 숫자 통계로 변환 | O(n) | O(1) |
-| `toBigintStatistics()` | BigInt 통계로 변환 | O(n) | O(1) |
-| `toWindow()` | 윈도우 컬렉터로 변환 | O(1) | O(1) |
-| `toCollectable()` | `UnorderdCollectable`로 변환 | O(n) | O(1) |
-| `toCollectable(mapper)` | 커스텀 컬렉터로 변환 | O(n) | O(1) |
-
-```typescript
-// 오름차순으로 정렬된 배열로 변환
-from([6,4,3,5,2]) // 스트림 생성
-    .sorted() // 스트림을 오름차순으로 정렬
-    .toArray(); // [2, 3, 4, 5, 6]
-
-// 내림차순으로 정렬된 배열로 변환
-from([6,4,3,5,2]) // 스트림 생성
-    .soted((a: number, b: number): number => b - a) // 스트림을 내림차순으로 정렬
-    .toArray(); // [6, 5, 4, 3, 2]
-
-// 역순의 배열로 리다이렉트
-from([6,4,3,5,2])
-    .redirect((element, index): bigint => -index) // 역순으로 리다이렉트
-    .toOrderd() // 리다이렉트된 순서 유지
-    .toArray(); // [2, 5, 3, 4, 6]
-
-// 리다이렉션을 무시하고 역순의 배열을 얻음
-from([6,4,3,5,2])
-    .redirect((element: number, index: bigint) => -index) // 역순으로 리다이렉트
-    .toUnorderd() // 리다이렉션된 순서 무시. 이 작업은 `redirect`, `reverse`, `shuffle` 및 `translate` 작업을 무시합니다
-    .toArray(); // [2, 5, 3, 4, 6]
-
-// 스트림을 역순으로 배열로 변환
-from([6, 4, 3, 5, 2])
-    .reverse() // 스트림을 역순으로 함
-    .toOrdered() // 역순을 보장함
-    .toArray(); // [2, 5, 3, 4, 6]
-
-// 섞인 스트림을 배열로 덮어쓰기
-from([6, 4, 3, 5, 2])
-    .shuffle() // 스트림을 섞음
-    .sorted() // 섞인 순서를 덮어씀. 이 작업은 `redirect`, `reverse`, `shuffle` 및 `translate` 작업을 덮어씀
-    .toArray(); // [2, 5, 3, 4, 6]
-
-// 윈도우 컬렉터로 변환
-from([6, 4, 3, 5, 2]).toWindow();
-
-// 숫자 통계로 변환
-from([6, 4, 3, 5, 2]).toNumericStatistics();
-
-// BigInt 통계로 변환
-from([6n, 4n, 3n, 5n, 2n]).toBigintStatistics();
-
-// 데이터 수집을 위한 커스텀 컬렉터 정의
-let customizedCollector = from([1, 2, 3, 4, 5])
-    .toCollectable((generator: Generator<E>) => new CustomizedCollector(generator));
-```
-
-## Collectable의 수집 메소드
-
-| 메소드 | 설명 | 시간 복잡도 | 공간 복잡도 |
-|------|------|------------|------------|
-| `anyMatch(predicate)` | 임의의 요소가 일치하는지 여부 | O(n) | O(1) |
-| `allMatch(predicate)` | 모든 요소가 일치하는지 여부 | O(n) | O(1) |
-| `count()` | 요소 수 | O(n) | O(1) |
-| `isEmpty()` | 비어 있는지 여부 | O(1) | O(1) |
-| `findAny()` | 임의의 요소 찾기 | O(n) | O(1) |
-| `findFirst()` | 첫 번째 요소 찾기 | O(n) | O(1) |
-| `findLast()` | 마지막 요소 찾기 | O(n) | O(1) |
-| `forEach(action)` | 모든 요소 반복 | O(n) | O(1) |
-| `group(classifier)` | 분류자로 그룹화 | O(n) | O(n) |
-| `groupBy(keyExtractor, valueExtractor)` | 키-값 추출자로 그룹화 | O(n) | O(n) |
-| `join()` | 문자열로 결합 | O(n) | O(n) |
-| `join(delimiter)` | 구분자를 사용하여 결합 | O(n) | O(n) |
-| `nonMatch(predicate)` | 일치하지 않는 요소가 있는지 여부 | O(n) | O(1) |
-| `partition(count)` | 수로 분할 | O(n) | O(n) |
-| `partitionBy(classifier)` | 분류자로 분할 | O(n) | O(n) |
-| `reduce(accumulator)` | 축소 작업 | O(n) | O(1) |
-| `reduce(identity, accumulator)` | 초기값을 가진 축소 | O(n) | O(1) |
-| `toArray()` | 배열로 변환 | O(n) | O(n) |
-| `toMap(keyExtractor, valueExtractor)` | 맵으로 변환 | O(n) | O(n) |
-| `toSet()` | 세트로 변환 | O(n) | O(n) |
-| `write(stream)` | 스트림에 쓰기 | O(n) | O(1) |
-
-```typescript
-// Collectable 작업 예
-const data = from([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
-    .filter((n: number): boolean => n % 2 === 0)
-    .toOrdered();
-
-// 일치 여부 확인
-console.log(data.anyMatch((n: number): boolean => n > 5)); // true
-console.log(data.allMatch((n: number): boolean => n < 20)); // true
-
-// 찾기 작업
-data.findFirst().ifPresent((n: number): void => console.log(n)); // 2
-data.findAny().ifPresent((n: number): void => console.log(n)); // 임의의 요소
-
-// 그룹화 작업
-const grouped = data.groupBy(
-    (n: number): string => (n > 5 ? "큰" : "작은"),
-    (n: number): number => n * 2
-); // {작은: [4, 8], 큰: [12, 16, 20]}
-
-// 축소 작업
-const sum = data.reduce(0, (acc, n) => acc + n); // 30
-
-// 출력 작업
-data.join(", "); // "[2, 4, 6, 8, 10]"
-```
-
-## 통계 분석 메소드
-
-### NumericStatistics 메소드
-
-| 메소드 | 설명 | 시간 복잡도 | 공간 복잡도 |
-|------|------|------------|------------|
-| `range()` | 범위 | O(n) | O(1) |
-| `variance()` | 분산 | O(n) | O(1) |
-| `standardDeviation()` | 표준 편차 | O(n) | O(1) |
-| `mean()` | 평균 | O(n) | O(1) |
-| `median()` | 중앙값 | O(n log n) | O(n) |
-| `mode()` | 최빈값 | O(n) | O(n) |
-| `frequency()` | 빈도 분포 | O(n) | O(n) |
-| `summate()` | 합계 | O(n) | O(1) |
-| `quantile(quantile)` | 사분위수 | O(n log n) | O(n) |
-| `interquartileRange()` | 사분위수 범위 | O(n log n) | O(n) |
-| `skewness()` | 왜도 | O(n) | O(1) |
-| `kurtosis()` | 첨도 | O(n) | O(1) |
-
-```typescript
-// 통계 분석 예
-let numbers = from([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
-    .toNumericStatistics();
-
-console.log("평균:", numbers.mean()); // 5.5
-console.log("중앙값:", numbers.median()); // 5.5
-console.log("표준 편차:", numbers.standardDeviation()); // ~2.87
-console.log("합계:", numbers.summate()); // 55
-
-// 매퍼를 사용한 통계 분석
-const objects = from([
-    { value: 10 },
-    { value: 20 },
-    { value: 30 }
-]).toNumericStatistics();
-console.log("매핑된 평균:", objects.mean(obj => obj.value)); // 20
-```
-
-## 성능 선택 가이드
-
-### 순서 보장이 필요 없는 Collector 선택(성능 우선)
-```typescript
-// 순서 보장이 필요 없는 경우, 최고의 성능을 위해 순서가 보장되지 않는 Collector 사용
-let highPerformance = data
-    .filter(predicate)
-    .map(mapper)
-    .toUnoredered(); // 최고의 성능
-```
-
-### 순서가 필요한 Collector 선택(순서 필요)
-```typescript
-// 요소의 순서를 유지해야 하는 경우, 순서가 보장되는 Collector 사용
-let ordered = data.sorted(comparator);
-```
-
-### 윈도우 작업이 필요한 Collector 선택(윈도우 작업)
-```typescript
-// 윈도우 작업이 필요한 경우
-let windowed: WindowCollectable<number> = data
-    .toWindow()
-    .slide(5n, 2n); // 슬라이딩 윈도우
-```
-
-### 수치 계산이 필요한 통계 분석 선택(수치 계산)
-```typescript
-// 통계 분석이 필요한 경우
-let statistics: NumericStatistics<number> = data
-    .toNumericStatistics(); // 수치 통계
-
-let bigIntStatistics: BigintStatistics<bigint> = data
-    .toBigintStatistics(); // 큰 정수 통계
-```
-
-[GitHub](https://github.com/eloyhere/semantic-typescript)
-[NPMJS](https://www.npmjs.com/package/semantic-typescript)
-
-## 중요한 참고 사항
-
-1. **정렬 작업의 영향**: 순서가 보장되는 컬렉터에서 `sorted()` 작업은 `redirect`, `translate`, `shuffle`, `reverse`의 효과를 무시합니다.
-2. **성능 고려 사항**: 순서 보장이 필요하지 않은 경우, `toUnordered()`를 사용하여 성능을 향상시키는 것이 좋습니다.
-3. **메모리 사용량**: 정렬 작업에는 추가적인 O(n)의 메모리가 필요합니다.
-4. **실시간 데이터**: 시맨틱 스트림은 실시간 데이터 처리에 적합하며 비동기 데이터 소스를 지원합니다.
-
-이 라이브러리는 타입스크립트 개발자에게 강력하고 유연한 스트리밍 기능을 제공하며, 함수형 프로그래밍의 이점과 타입 안전성 보장을 결합합니다.
+---
+
+### 핵심 개념
+
+| 개념 | 목적 | 언제 사용하는가 |
+| :--- | :--- | :--- |
+| `AsynchronousSemantic` | 비동기 스트림, 이벤트, 지연 평가 파이프라인을 위한 핵심 빌더. | 실시간 이벤트, WebSocket, DOM 리스너, 장기 실행 또는 무한 스트림. |
+| `SynchronousSemantic` | 동기식, 메모리 내 또는 루프 기반 스트림을 위한 빌더. | 정적 데이터, 범위, 즉시 반복. |
+| `toUnordered()` | 가장 빠른 최종 수집기 (맵 기반 인덱싱). | 성능이 중요한 경로 (O(n) 시간 및 공간 복잡도, 정렬 없음). |
+| `toOrdered()` | 정렬된, 인덱스 안정적인 수집기. | 안정적인 순서 또는 인덱싱된 접근이 필요할 때. |
+| `toNumericStatistics()` | 풍부한 숫자 통계 분석 (평균, 중앙값, 분산, 왜도, 첨도 등). | 데이터 분석 및 통계 계산. |
+| `toBigIntStatistics()` | 풍부한 bigint 통계 분석. | 큰 정수에 대한 데이터 분석 및 통계 계산. |
+| `toWindow()` | 슬라이딩 및 텀블링 윈도우 지원. | 시계열 처리, 배치 처리, 윈도우 기반 연산. |
+
+---
+
+중요 사용 규칙
+
+1.  이벤트 스트림 (`useWindow`, `useDocument`, `useHTMLElement`, `useWebSocket`, …)은 `AsynchronousSemantic`을 반환합니다.
+    → 청취를 중지하려면 `.limit(n)`, `.sub(start, end)`, 또는 `.takeWhile()`을 **반드시 호출해야 합니다.** 그렇지 않으면 리스너가 계속 활성 상태로 유지됩니다.
+
+2.  최종 연산 (`.toArray()`, `.count()`, `.average()`, `.reduce()`, `.findFirst()` 등)은 수집기로 변환한 후에만 사용 가능합니다:
+    ```typescript
+    .toUnordered()   // O(n) 시간 및 공간 복잡도, 정렬 없음
+    // 또는
+    .toOrdered()     // 정렬됨, 순서 유지
+    ```
+
+---
+
+### 성능 특성
+
+| 수집기 | 시간 복잡도 | 공간 복잡도 | 정렬 여부 | 최적 용도 |
+| :--- | :--- | :--- | :--- | :--- |
+| `toUnordered()` | O(n) | O(n) | 아니요 | 원시 속도, 순서가 필요하지 않은 경우. |
+| `toOrdered()` | O(2n) | O(n) | 예 | 안정적인 순서, 인덱싱된 접근, 분석. |
+| `toNumericStatistics()` | O(2n) | O(n) | 예 | 정렬된 데이터가 필요한 통계 연산. |
+| `toBigIntStatistics()` | O(2n) | O(n) | 예 | bigint에 대한 통계 연산. |
+| `toWindow()` | O(2n) | O(n) | 예 | 시간 기반 윈도우 연산. |
+
+속도가 가장 중요할 때는 `toUnordered()`를 선택하세요. 안정적인 순서나 정렬된 데이터에 의존하는 통계 메서드가 필요할 때만 `toOrdered()`를 사용하세요.
+
+---
+
+다른 프론트엔드 스트림 프로세서와의 비교
+
+| 기능 | Semantic-TypeScript | RxJS | 네이티브 Async Iterators / Generators | Most.js |
+| :--- | :--- | :--- | :--- | :--- |
+| 타입스크립트 통합 | 일급, 네이티브 인덱스 인식과 함께 깊은 타입 지원. | 뛰어나나, 복잡한 제네릭이 포함됨. | 좋음, 수동 타이핑 필요. | 강함, 함수형 우선 스타일. |
+| 내장 통계 분석 | `number` 및 `bigint`에 대한 포괄적인 네이티브 지원. | 네이티브로 사용 불가 (사용자 정의 연산자 필요). | 없음. | 없음. |
+| 인덱싱 & 위치 인식 | 네이티브, 모든 요소에 강력한 bigint 인덱싱. | 사용자 정의 연산자 필요 (`scan`, `withLatestFrom`). | 수동 카운터 필요. | 기본적, 내장 인덱스 없음. |
+| 이벤트 스트림 관리 | 명시적인 조기 중단 제어와 함께 전용, 타입 안전 팩토리. | 강력하지만 수동 구독 관리 필요. | 수동 이벤트 리스너 + 취소. | 좋은 `fromEvent`, 경량. |
+| 성능 & 메모리 효율성 | 뛰어남 – 최적화된 `toUnordered()` 및 `toOrdered()` 수집기. | 매우 좋음, 하지만 연산자 체인이 오버헤드 추가. | 탁월함 (오버헤드 없음). | 탁월함. |
+| 번들 크기 | 매우 가벼움. | 큼 (트리 쉐이킹 사용 시에도). | 제로 (네이티브). | 작음. |
+| API 설계 철학 | 명시적 인덱싱을 가진 함수형 수집기 패턴. | 반응형 Observable 패턴. | Iterator / Generator 패턴. | 함수형, 포인트 프리(Point-free). |
+| 조기 종료 및 제어 | 명시적 (`interrupt`, `.limit()`, `.takeWhile()`, `.sub()`). | 좋음 (`take`, `takeUntil`, `first`). | 수동 (`for await…of` 안의 `break`). | 좋음 (`take`, `until`). |
+| 동기 및 비동기 지원 | 통합 API – 양쪽 모두에 대한 일급 지원. | 주로 비동기. | 둘 다, 그러나 수동. | 주로 비동기. |
+| 학습 곡선 | 함수형 및 인덱싱된 파이프라인에 익숙한 개발자에게 완만함. | 가파름 (많은 연산자, 핫/콜드 Observable). | 낮음. | 중간. |
+
+Semantic-TypeScript의 주요 장점
+
+•   고유한 내장 통계 및 인덱싱 기능으로, 수동 `reduce` 또는 외부 라이브러리의 필요성을 없앱니다.
+
+•   이벤트 스트림에 대한 명시적 제어로 RxJS에서 흔히 발생하는 메모리 누수를 방지합니다.
+
+•   통합된 동기/비동기 설계로 다양한 사용 사례에 대해 단일하고 일관된 API를 제공합니다.
+
+이 비교는 Semantic-TypeScript가 기존의 반응형 라이브러리의 번잡함 없이도 성능, 타입 안전성, 풍부한 분석 기능을 요구하는 현대 타입스크립트 프론트엔드 애플리케이션에 특히 적합한 이유를 보여줍니다.
+
+---
+
+### 탐구할 준비가 되셨나요?
+
+Semantic-TypeScript는 복잡한 데이터 흐름을 가독성 있고 구성 가능하며 고성능 파이프라인으로 변환합니다. 실시간 UI 이벤트를 처리하든, 대규모 데이터 세트를 처리하든, 분석 대시보드를 구축하든, 데이터베이스 수준의 인덱싱의 힘과 함수형 프로그래밍의 우아함을 동시에 제공합니다.
+
+다음 단계:
+
+•   IDE에서 완전한 타이핑된 API를 탐색하세요 (모든 내보내기는 메인 패키지에서 제공됩니다).
+
+•   복잡한 비동기 이터레이터를 깨끗한 Semantic 파이프라인으로 대체한 개발자 커뮤니티에 합류하세요.
+
+Semantic-TypeScript — 스트림이 구조를 만나는 곳.
+
+오늘부터 구축을 시작하고 사려 깊은 인덱싱이 제공하는 차이를 경험해 보세요.
+
+명확하게 구축하고, 자신 있게 나아가며, 의도를 가지고 데이터를 변형하세요.
