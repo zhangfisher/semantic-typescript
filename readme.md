@@ -211,3 +211,5 @@ Semantic-TypeScript transforms complex data flows into readable, composable, and
 Begin building today and experience the difference that thoughtful indexing delivers.
 
 **Build with clarity, proceed with confidence, and transform data with intent.**
+
+MIT © Eloy Kim
