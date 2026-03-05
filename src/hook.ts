@@ -1,7 +1,7 @@
 import { useSynchronousToArray, type SynchronousCollector } from "./synchronous/collector";
 import { isBigInt, isFunction, isIterable, isNumber, isObject, isPrimitive } from "./guard";
 import { invalidate, validate, type BiPredicate, type DeepPropertyKey, type DeepPropertyValue, type MaybePrimitive } from "./utility";
-import type { BiConsumer, Comparator, Consumer, Indexed, Predicate, Supplier, SynchronousGenerator } from "./utility";
+import type { BiConsumer, BiFunctional, Comparator, Consumer, Indexed, MaybeInvalid, Predicate, Supplier, SynchronousGenerator } from "./utility";
 
 export let useCompare: <T>(t1: T, t2: T) => number = <T>(t1: T, t2: T): number => {
     if (t1 === t2 || Object.is(t1, t2)) {
@@ -265,7 +265,7 @@ export let useToNumber: <T = unknown>(target: T) => number = <T>(target: T): num
                 return 0;
             }
             if (Reflect.has(target, Symbol.toPrimitive)) {
-                let resolved: number = Reflect.apply(Reflect.get(target as object, Symbol.toPrimitive), target, ["default"]);
+                let resolved: number = Reflect.apply(Reflect.get(target as object, Symbol.toPrimitive), target, ["number"]);
                 return isNumber(resolved) ? resolved : 0;
             }
             return 0;
@@ -277,7 +277,7 @@ export let useToNumber: <T = unknown>(target: T) => number = <T>(target: T): num
 export let useToBigInt: <T = unknown>(target: T) => bigint = <T>(target: T): bigint => {
     switch (typeof target) {
         case "number":
-            return isNumber(target) ? BigInt(target) : 0n;
+            return isNumber(target) ? BigInt(Math.floor(target)) : 0n;
         case "boolean":
             return target ? 1n : 0n;
         case "string":
@@ -290,11 +290,32 @@ export let useToBigInt: <T = unknown>(target: T) => bigint = <T>(target: T): big
                 return 0n;
             }
             if (Reflect.has(target, Symbol.toPrimitive)) {
-                let resolved: bigint = Reflect.apply(Reflect.get(target as object, Symbol.toPrimitive), target, ["default"]);
+                let resolved: bigint = Reflect.apply(Reflect.get(target as object, Symbol.toPrimitive), target, ["bigint"]);
                 return isBigInt(resolved) ? resolved : 0n;
             }
             return 0n;
         default:
             return 0n;
     }
+};
+
+interface UseStringify {
+    <T extends object>(target: T): string;
+    <T extends object, K extends DeepPropertyKey<T>, V extends DeepPropertyValue<T>>(target: T, callback: BiFunctional<K, V, string>): string;
+};
+export let useStringify: UseStringify = <T extends object, K extends DeepPropertyKey<T> & string, V extends DeepPropertyValue<T>>(target: T, callback?: BiFunctional<K, V, string>): string => {
+    let seen: WeakSet<object> = new WeakSet<object>();
+    let resolve: BiFunctional<K, V, string> = isFunction(callback) ? callback : (_key: K, value: V): string => {
+        return JSON.stringify(value);
+    };
+    return JSON.stringify(target, (key: string, value: V): MaybeInvalid<string> => {
+        if (isObject(value)) {
+            if (seen.has(value)) {
+                return (void 0);
+            }
+            seen.add(value);
+            return resolve(key as K, value as V);
+        }
+        return resolve(key as K, value as V);
+    });
 };

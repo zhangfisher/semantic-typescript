@@ -18,7 +18,7 @@ export let useAnimationFrame: UseAnimationFrame = (period: number, delay: number
         try {
             let start = performance.now();
             let index: bigint = 0n;
-            let animate: Consumer<number> = (): void => {
+            let animate: Runnable = (): void => {
                 if (performance.now() - start >= delay) {
                     requestAnimationFrame(animate);
                 } else if (performance.now() - start < period) {
@@ -31,7 +31,7 @@ export let useAnimationFrame: UseAnimationFrame = (period: number, delay: number
                 }
             };
         } catch (error) {
-            console.error(error);
+            throw error;
         }
     });
 };
@@ -58,7 +58,7 @@ export let useAttribute: <T extends object>(target: T) => SynchronousSemantic<At
                     return true;
                 });
             } catch (error) {
-                console.error(error);
+                throw error;
             }
         });
     }
@@ -123,7 +123,7 @@ export let useBlob: UseBlob = (blob: Blob, chunk: bigint = 64n * 1024n): Synchro
                         }
                     }
                 } catch (error) {
-                    console.error(error);
+                    throw error;
                 } finally {
                     if (stoppable) {
                         await reader.cancel();
@@ -132,7 +132,7 @@ export let useBlob: UseBlob = (blob: Blob, chunk: bigint = 64n * 1024n): Synchro
                 }
             })();
         } catch (error) {
-            console.error(error);
+            throw error;
         }
     });
 };
@@ -158,7 +158,7 @@ export let useDocument: UseDocument = <K extends keyof DocumentEventMap, V exten
             let lastEmitTime: number = 0;
             let index: bigint = 0n;
             let until: Promise<void> = new Promise<void>(resolve => {
-                let listener: Consumer<V> = (event: V) => {
+                let listener: Consumer<V> = (event: V): void => {
                     if (debounce > 0) {
                         if (timeOut) {
                             clearTimeout(timeOut);
@@ -210,10 +210,11 @@ export let useDocument: UseDocument = <K extends keyof DocumentEventMap, V exten
             let timeOut: ReturnType<typeof setTimeout> | null = null;
             let index: bigint = 0n;
             let activeCount: number = keys.size;
+            let listeners: Map<K, EventListener> = new Map<K, EventListener>();
             let until: Promise<void> = new Promise<void>(resolve => {
                 for (let key of keys) {
                     if (!isString(key)) continue;
-                    let listener = (event: V) => {
+                    let listener: Consumer<V> = (event: V): void => {
                         if (debounce > 0) {
                             if (timeOut) {
                                 clearTimeout(timeOut);
@@ -226,12 +227,15 @@ export let useDocument: UseDocument = <K extends keyof DocumentEventMap, V exten
                             if (now - lastEmitTime < throttle) return;
                             lastEmitTime = now;
                         }
-
                         handleEvent(event, key);
                     };
-                    let handleEvent: BiConsumer<V, K> = (event: V, currentKey: K) => {
+                    let handleEvent: BiConsumer<V, K> = (event: V, currentKey: K): void => {
                         if (interrupt(event, index)) {
                             window.document.removeEventListener(currentKey, listener as EventListener);
+                            for (let [k, l] of listeners) {
+                                window.document.removeEventListener(k, l as EventListener);
+                            }
+                            listeners.clear();
                             if (--activeCount === 0) {
                                 resolve();
                             }
@@ -241,6 +245,7 @@ export let useDocument: UseDocument = <K extends keyof DocumentEventMap, V exten
                         index++;
                     };
                     window.document.addEventListener(key, listener as EventListener);
+                    listeners.set(key, listener as EventListener);
                 }
             });
             await until;
@@ -312,9 +317,11 @@ export let useHTMLElement: UseHTMLElement = <S extends keyof HTMLElementTagNameM
                 let index = 0n;
 
                 let until: Promise<void> = new Promise<void>((resolve: Runnable): void => {
-                    let listener: Consumer<V> = (event: V) => {
+                    let listener: Consumer<V> = (event: V): void => {
                         if (debounce > 0) {
-                            if (timeOut) clearTimeout(timeOut);
+                            if (timeOut) {
+                                clearTimeout(timeOut);
+                            }
                             timeOut = setTimeout((): void => handle(event), debounce);
                             return;
                         }
@@ -325,10 +332,12 @@ export let useHTMLElement: UseHTMLElement = <S extends keyof HTMLElementTagNameM
                         }
                         handle(event);
                     };
-                    let handle: Consumer<V> = (event: V) => {
+                    let handle: Consumer<V> = (event: V): void => {
                         if (interrupt(event, index)) {
                             element.removeEventListener(key, listener as EventListener);
-                            if (timeOut) clearTimeout(timeOut);
+                            if (timeOut) {
+                                clearTimeout(timeOut);
+                            }
                             resolve();
                             return;
                         }
@@ -344,22 +353,25 @@ export let useHTMLElement: UseHTMLElement = <S extends keyof HTMLElementTagNameM
         if (isIterable(argument2)) {
             let keys = [...new Set(argument2)] as K[];
             return new AsynchronousSemantic<V>(async (accept: Consumer<V> | BiConsumer<V, bigint>, interrupt: Predicate<V> | BiPredicate<V, bigint>) => {
-                let active: number = keys.length;
                 let index: bigint = 0n;
+                let listeners: Map<K, EventListener> = new Map<K, EventListener>();
                 let until: Promise<void> = new Promise<void>((resolve: Runnable): void => {
                     for (let key of keys) {
-                        let listener: Consumer<V> = (event: V) => {
+                        let listener: Consumer<V> = (event: V): void => {
                             if (interrupt(event, index)) {
                                 element.removeEventListener(key, listener as EventListener);
-                                if (--active === 0) {
-                                    resolve();
+                                for (let [k, l] of listeners) {
+                                    element.removeEventListener(k, l as EventListener);
                                 }
+                                listeners.clear();
+                                resolve();
                                 return;
                             }
                             accept(event, index);
                             index++;
                         };
                         element.addEventListener(key, listener as EventListener);
+                        listeners.set(key, listener as EventListener);
                     }
                 });
                 await until;
@@ -372,23 +384,31 @@ export let useHTMLElement: UseHTMLElement = <S extends keyof HTMLElementTagNameM
         if (isString(argument2)) {
             let key = argument2 as K;
             return new AsynchronousSemantic<V>(async (accept: Consumer<V> | BiConsumer<V, bigint>, interrupt: Predicate<V> | BiPredicate<V, bigint>) => {
-                let active: number = elements.length;
                 let index: bigint = 0n;
+                let listeners: WeakMap<HTMLElement, Map<K, EventListener>> = new WeakMap<HTMLElement, Map<K, EventListener>>();
                 let until: Promise<void> = new Promise<void>((resolve: Runnable): void => {
                     for (let element of elements) {
                         if (validate(element)) {
-                            let listener: Consumer<V> = (event: V) => {
+                            let listener: Consumer<V> = (event: V): void => {
                                 if (interrupt(event, index)) {
                                     element.removeEventListener(key, listener as EventListener);
-                                    if (--active === 0) {
-                                        resolve();
+                                    let map: MaybeInvalid<Map<K, EventListener>> = listeners.get(element);
+                                    if (validate(map)) {
+                                        for (let [k, l] of map) {
+                                            element.removeEventListener(k, l as EventListener);
+                                        }
+                                        map.clear();
                                     }
+                                    resolve();
                                     return;
                                 }
                                 accept(event, index);
                                 index++;
                             };
                             element.addEventListener(key, listener as EventListener);
+                            let map: Map<K, EventListener> = new Map<K, EventListener>() || new Map<K, EventListener>();
+                            map.set(key, listener as EventListener);
+                            listeners.set(element, map);
                         }
                     }
                 });
@@ -398,24 +418,27 @@ export let useHTMLElement: UseHTMLElement = <S extends keyof HTMLElementTagNameM
         if (isIterable(argument2)) {
             let keys: Set<K> = new Set(argument2);
             return new AsynchronousSemantic<V>(async (accept: Consumer<V> | BiConsumer<V, bigint>, interrupt: Predicate<V> | BiPredicate<V, bigint>) => {
-                let active: number = elements.length * keys.size;
                 let index: bigint = 0n;
+                let listeners: Map<K, EventListener> = new Map<K, EventListener>();
                 let until: Promise<void> = new Promise<void>((resolve: Runnable): void => {
                     for (let element of elements) {
                         for (let key of keys) {
                             if (validate(element) && isString(key)) {
-                                let listener: Consumer<V> = (event: V) => {
+                                let listener: Consumer<V> = (event: V): void => {
                                     if (interrupt(event, index)) {
                                         element.removeEventListener(key, listener as EventListener);
-                                        if (--active === 0) {
-                                            resolve();
+                                        for (let [k, l] of listeners) {
+                                            element.removeEventListener(k, l as EventListener);
                                         }
+                                        listeners.clear();
+                                        resolve();
                                         return;
                                     }
                                     accept(event, index);
                                     index++;
                                 };
                                 element.addEventListener(key, listener as EventListener);
+                                listeners.set(key, listener as EventListener);
                             }
                         }
                     }
@@ -429,39 +452,45 @@ export let useHTMLElement: UseHTMLElement = <S extends keyof HTMLElementTagNameM
         if (isString(argument2)) {
             let key = argument2 as K;
             return new AsynchronousSemantic<V>(async (accept: Consumer<V> | BiConsumer<V, bigint>, interrupt: Predicate<V> | BiPredicate<V, bigint>) => {
-                let active = elementsOrSelectors.size;
+                let listeners: Map<K, EventListener> = new Map<K, EventListener>();
                 let until: Promise<void> = new Promise<void>((resolve: Runnable): void => {
                     for (let elementOrSelector of elementsOrSelectors) {
                         if (validate(elementOrSelector)) {
                             if (isHTMLElemet(elementOrSelector)) {
                                 let element: E = elementOrSelector as E;
-                                let listener: Consumer<V> = (event: V) => {
+                                let listener: Consumer<V> = (event: V): void => {
                                     if (interrupt(event, 0n)) {
                                         element.removeEventListener(key, listener as EventListener);
-                                        if (--active === 0) {
-                                            resolve();
+                                        for (let [k, l] of listeners) {
+                                            element.removeEventListener(k, l as EventListener);
                                         }
+                                        listeners.clear();
+                                        resolve();
                                         return;
                                     }
                                     accept(event, 0n);
                                 };
                                 element.addEventListener(key, listener as EventListener);
+                                listeners.set(key, listener as EventListener);
                             } else if (isString(elementOrSelector)) {
                                 let selector = elementOrSelector as S;
                                 let elements: Array<E> = [...(document.querySelectorAll(selector as string) as NodeListOf<E>)].filter((item: unknown) => isHTMLElemet(item));
                                 for (let element of elements) {
                                     if (validate(element)) {
-                                        let listener: Consumer<V> = (event: V) => {
+                                        let listener: Consumer<V> = (event: V): void => {
                                             if (interrupt(event, 0n)) {
                                                 element.removeEventListener(key, listener as EventListener);
-                                                if (--active === 0) {
-                                                    resolve();
+                                                for (let [k, l] of listeners) {
+                                                    element.removeEventListener(k, l as EventListener);
                                                 }
+                                                listeners.clear();
+                                                resolve();
                                                 return;
                                             }
                                             accept(event, 0n);
                                         };
                                         element.addEventListener(key, listener as EventListener);
+                                        listeners.set(key, listener as EventListener);
                                     }
                                 }
                             }
@@ -475,24 +504,27 @@ export let useHTMLElement: UseHTMLElement = <S extends keyof HTMLElementTagNameM
         if (isIterable(argument2)) {
             let keys = new Set(argument2);
             return new AsynchronousSemantic<V>(async (accept: Consumer<V> | BiConsumer<V, bigint>, interrupt: Predicate<V> | BiPredicate<V, bigint>) => {
-                let active = elementsOrSelectors.size * keys.size;
+                let listeners: Map<K, EventListener> = new Map<K, EventListener>();
                 let until: Promise<void> = new Promise<void>((resolve: Runnable): void => {
                     for (let elementOrSelector of elementsOrSelectors) {
                         if (isHTMLElemet(elementOrSelector)) {
                             let element: E = elementOrSelector as E;
                             for (let key of keys) {
                                 if (isString(key)) {
-                                    let listener: Consumer<V> = (event: V) => {
+                                    let listener: Consumer<V> = (event: V): void => {
                                         if (interrupt(event, 0n)) {
                                             element.removeEventListener(key, listener as EventListener);
-                                            if (--active === 0) {
-                                                resolve();
+                                            for (let [k, l] of listeners) {
+                                                element.removeEventListener(k, l as EventListener);
                                             }
+                                            listeners.clear();
+                                            resolve();
                                             return;
                                         }
                                         accept(event, 0n);
                                     };
                                     element.addEventListener(key, listener as EventListener);
+                                    listeners.set(key, listener as EventListener);
                                 }
                             }
                         } else if (isString(elementOrSelector)) {
@@ -500,17 +532,20 @@ export let useHTMLElement: UseHTMLElement = <S extends keyof HTMLElementTagNameM
                             let elements: Array<E> = [...(document.querySelectorAll(selector as string) as NodeListOf<E>)].filter((item: unknown) => isHTMLElemet(item));
                             for (let element of elements) {
                                 for (let key of keys) {
-                                    let listener: Consumer<V> = (event: V) => {
+                                    let listener: Consumer<V> = (event: V): void => {
                                         if (interrupt(event, 0n)) {
                                             element.removeEventListener(key, listener as EventListener);
-                                            if (--active === 0) {
-                                                resolve();
+                                            for (let [k, l] of listeners) {
+                                                element.removeEventListener(k, l as EventListener);
                                             }
+                                            listeners.clear();
+                                            resolve();
                                             return;
                                         }
                                         accept(event, 0n);
                                     };
                                     element.addEventListener(key, listener as EventListener);
+                                    listeners.set(key, listener as EventListener);
                                 }
                             }
                         }
@@ -543,7 +578,7 @@ export let useFill: UseFill = <E>(element: E | Supplier<E>, count: bigint): Sync
                     accept(item, i);
                 }
             } catch (error) {
-                console.error(error);
+                throw error;
             }
         });
     }
@@ -567,7 +602,7 @@ export let useFrom: UseFrom = <E>(iterable: Iterable<E> | AsyncIterable<E>): Syn
                     index++;
                 }
             } catch (error) {
-                console.error(error);
+                throw error;
             }
         });
     } else if (isAsyncIterable(iterable)) {
@@ -582,7 +617,7 @@ export let useFrom: UseFrom = <E>(iterable: Iterable<E> | AsyncIterable<E>): Syn
                     index++;
                 }
             } catch (error) {
-                console.error(error);
+                throw error;
             }
         });
     }
@@ -607,7 +642,7 @@ export let useGenerate: UseGenerate = <E>(supplier: Supplier<E>, interrupt: Pred
                     index++;
                 }
             } catch (error) {
-                console.error(error);
+                throw error;
             }
         });
     }
@@ -648,7 +683,7 @@ export let useInterval: UseInterval = (period: number, delay: number = 0): Synch
                     }, period);
                 }
             } catch (error) {
-                console.error(error);
+                throw error;
             }
         });
     }
@@ -660,7 +695,7 @@ export let useIterate: <E>(generator: SynchronousGenerator<E>) => SynchronousSem
         try {
             return new SynchronousSemantic(generator);
         } catch (error) {
-            console.error(error);
+            throw error;
         }
     }
     throw new TypeError("Invalid arguments.");
@@ -676,10 +711,10 @@ export let usePromise: (<T>(promise: Promise<T>) => SynchronousSemantic<T>) = <T
                     }
                     accept(value, 0n);
                 }).catch((error: any) => {
-                    console.error(error);
+                    throw error;
                 });
             } catch (error) {
-                console.error(error);
+                throw error;
             }
         });
     } else {
@@ -705,7 +740,7 @@ export let useOf: UseOf = <E>(...target: Array<E>): SynchronousSemantic<E> => {
                     index++;
                 }
             } catch (error) {
-                console.error(error);
+                throw error;
             }
         });
     }
@@ -733,7 +768,7 @@ export let useRange: UseRange = <N extends number | bigint>(start: N, end: N, st
                     index++;
                 }
             } catch (error) {
-                console.error(error);
+                throw error;
             }
         }) as unknown as SynchronousSemantic<N>;
     } else if (isBigInt(start) && isBigInt(end)) {
@@ -749,9 +784,52 @@ export let useRange: UseRange = <N extends number | bigint>(start: N, end: N, st
                     index++;
                 }
             } catch (error) {
-                console.error(error);
+                throw error;
             }
         }) as unknown as SynchronousSemantic<N>;
+    }
+    throw new TypeError("Invalid arguments.");
+};
+
+interface UseText {
+    (text: string): SynchronousSemantic<string>;
+    (text: string, start: number): SynchronousSemantic<string>;
+    (text: string, start: number, end: number): SynchronousSemantic<string>;
+    (text: string, start: bigint): SynchronousSemantic<string>;
+    (text: string, start: bigint, end: bigint): SynchronousSemantic<string>;
+};
+
+export let useText: UseText = (argument1: string | bigint, argument2?: number | bigint, argument3?: number | bigint): SynchronousSemantic<string> => {
+    if (isString(argument1)) {
+        if (isNumber(argument2) || isBigInt(argument2)) {
+            let start: number = useToNumber(argument2);
+            if (isNumber(argument3) || isBigInt(argument3)) {
+                let end: number = useToNumber(argument3);
+                let characters: Array<string> = [...(argument1.substring(start, end))];
+                return new SynchronousSemantic<string>((accept: Consumer<string> | BiConsumer<string, bigint>, interrupt: Predicate<string> | BiPredicate<string, bigint>) => {
+                    let index: bigint = 0n;
+                    for (let character of characters) {
+                        if (interrupt(character, index)) {
+                            break;
+                        }
+                        accept(character, index);
+                        index++;
+                    }
+                });
+            } else {
+                let characters: Array<string> = [...(argument1.substring(start))];
+                return new SynchronousSemantic<string>((accept: Consumer<string> | BiConsumer<string, bigint>, interrupt: Predicate<string> | BiPredicate<string, bigint>) => {
+                    let index: bigint = 0n;
+                    for (let character of characters) {
+                        if (interrupt(character, index)) {
+                            break;
+                        }
+                        accept(character, index);
+                        index++;
+                    }
+                });
+            }
+        }
     }
     throw new TypeError("Invalid arguments.");
 };
@@ -787,7 +865,7 @@ export let useWebSocket: UseWebSocket = <K extends keyof WebSocketEventMap, V ex
                 let lastEmitTime: number = 0;
                 let index: bigint = 0n;
                 let until: Promise<void> = new Promise<void>(resolve => {
-                    let listener: Consumer<V> = (event: V) => {
+                    let listener: Consumer<V> = (event: V): void => {
                         if (debounce > 0) {
                             if (timeOut) {
                                 clearTimeout(timeOut);
@@ -842,7 +920,7 @@ export let useWebSocket: UseWebSocket = <K extends keyof WebSocketEventMap, V ex
                 let until: Promise<void> = new Promise<void>(resolve => {
                     for (let key of keys) {
                         if (!isString(key)) continue;
-                        let listener: Consumer<V> = (event: V) => {
+                        let listener: Consumer<V> = (event: V): void => {
                             if (debounce > 0) {
                                 if (timeOut) {
                                     clearTimeout(timeOut);
@@ -902,7 +980,7 @@ export let useWindow: UseWindow = <K extends keyof WindowEventMap, V extends Win
             let lastEmitTime: number = 0;
             let index: bigint = 0n;
             let until: Promise<void> = new Promise<void>(resolve => {
-                let listener: Consumer<V> = (event: V) => {
+                let listener: Consumer<V> = (event: V): void => {
                     if (debounce > 0) {
                         if (timeOut) {
                             clearTimeout(timeOut);
@@ -954,10 +1032,11 @@ export let useWindow: UseWindow = <K extends keyof WindowEventMap, V extends Win
             let timeOut: ReturnType<typeof setTimeout> | null = null;
             let index: bigint = 0n;
             let activeCount: number = keys.size;
+            let listeners: Map<K, EventListener> = new Map<K, EventListener>();
             let until: Promise<void> = new Promise<void>(resolve => {
                 for (let key of keys) {
                     if (!isString(key)) continue;
-                    let listener = (event: V) => {
+                    let listener: Consumer<V> = (event: V): void => {
                         if (debounce > 0) {
                             if (timeOut) {
                                 clearTimeout(timeOut);
@@ -972,9 +1051,13 @@ export let useWindow: UseWindow = <K extends keyof WindowEventMap, V extends Win
                         }
                         handleEvent(event, key);
                     };
-                    let handleEvent: BiConsumer<V, K> = (event: V, currentKey: K) => {
+                    let handleEvent: BiConsumer<V, K> = (event: V, currentKey: K): void => {
                         if (interrupt(event, index)) {
                             window.removeEventListener(currentKey, listener as EventListener);
+                            for (let [k, l] of listeners) {
+                                window.removeEventListener(k, l as EventListener);
+                            }
+                            listeners.clear();
                             if (--activeCount === 0) {
                                 resolve();
                             }
@@ -983,8 +1066,8 @@ export let useWindow: UseWindow = <K extends keyof WindowEventMap, V extends Win
                         accept(event, index);
                         index++;
                     };
-
                     window.addEventListener(key, listener as EventListener);
+                    listeners.set(key, listener as EventListener);
                 }
             });
             await until;
