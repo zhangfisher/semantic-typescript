@@ -1,8 +1,9 @@
 import {
-    useAsynchronousAnyMatch, useAsynchronousAllMatch, useAsynchronousCollect, useAsynchronousCount, useAsynchronousError, useAsynchronousFindAny, useAsynchronousFindAt, useAsynchronousFindFirst,
-    useAsynchronousFindLast, useAsynchronousFindMaximum, useAsynchronousFindMinimum, useAsynchronousForEach, useAsynchronousGroup, useAsynchronousGroupBy, useAsynchronousJoin, useAsynchronousLog,
-    useAsynchronousNoneMatch, useAsynchronousPartition, useAsynchronousPartitionBy, useAsynchronousReduce, useAsynchronousToArray, useAsynchronousToMap, useAsynchronousToSet, useAsynchronousWrite,
-    useAsynchronousFrequency, useAsynchronousBigIntAverage, useAsynchronousBigIntMedian, useAsynchronousBigIntMode, useAsynchronousBigIntSummate, useAsynchronousBigIntVariance, useAsynchronousNumericAverage,
+    useAsynchronousAnyMatch, useAsynchronousAllMatch, useAsynchronousCollect, useAsynchronousCount, useAsynchronousError, useAsynchronousFindAny, useAsynchronousFindAt,
+    useAsynchronousFindFirst, useAsynchronousFindLast, useAsynchronousFindMaximum, useAsynchronousFindMinimum, useAsynchronousForEach, useAsynchronousGroup,
+    useAsynchronousGroupBy, useAsynchronousJoin, useAsynchronousLog, useAsynchronousNoneMatch, useAsynchronousPartition, useAsynchronousPartitionBy, useAsynchronousReduce,
+    useAsynchronousToArray, useAsynchronousToMap, useAsynchronousToSet, useAsynchronousWrite, useAsynchronousFrequency, useAsynchronousBigIntAverage,
+    useAsynchronousBigIntMedian, useAsynchronousBigIntMode, useAsynchronousBigIntSummate, useAsynchronousBigIntVariance, useAsynchronousNumericAverage,
     useAsynchronousNumericMedian, useAsynchronousNumericMode, useAsynchronousNumericStandardDeviation, useAsynchronousNumericSummate, useAsynchronousNumericVariance
 } from "./collector";
 import { isFunction, isAsynchronousSemantic, isIterable, isNumber, isBigInt, isObject, isString, isAsynchronousCollectable, isAsyncIterable, isAsynchronousCollector } from "../guard";
@@ -476,9 +477,9 @@ export class AsynchronousSemantic<E> {
         });
     }
 
-    public toAsynchronousCollectable(): AsynchronousCollectable<E>;
-    public toAsynchronousCollectable<C extends AsynchronousCollectable<E>>(mapper: Functional<AsynchronousGenerator<E>, C>): C;
-    public toAsynchronousCollectable<C extends AsynchronousCollectable<E>>(mapper?: Functional<AsynchronousGenerator<E>, C>): AsynchronousCollectable<E> | C {
+    public toCollectable(): AsynchronousCollectable<E>;
+    public toCollectable<C extends AsynchronousCollectable<E>>(mapper: Functional<AsynchronousGenerator<E>, C>): C;
+    public toCollectable<C extends AsynchronousCollectable<E>>(mapper?: Functional<AsynchronousGenerator<E>, C>): AsynchronousCollectable<E> | C {
         if (isFunction(mapper)) {
             try {
                 let AsynchronousCollectable: C = mapper(this.generator);
@@ -522,7 +523,7 @@ export class AsynchronousSemantic<E> {
 
     public toUnordered(): AsynchronousUnorderedCollectable<E> {
         try {
-            return new AsynchronousUnorderedCollectable(this.generator);
+            return new AsynchronousUnorderedCollectable(this.source());
         } catch (error) {
             throw new Error(String(error));
         }
@@ -1040,10 +1041,10 @@ export class AsynchronousOrderedCollectable<E> extends AsynchronousCollectable<E
                 } else {
                     let collector: AsynchronousCollector<E, Array<E>, Array<E>> = useAsynchronousToArray();
                     collector.collect(argument1).then((elements: Array<E>) => {
-                        this.buffer = elements.sort(useCompare).map((element: E, index: number): Indexed<E> => {
+                        this.buffer = elements.sort(useCompare).map((element: E, index: number, array: Array<E>): Indexed<E> => {
                             return {
                                 element: element,
-                                index: BigInt(index)
+                                index: BigInt(((index % array.length) + array.length) % array.length)
                             };
                         });
                         for (let listener of this.listeners) {
@@ -1413,8 +1414,9 @@ export class AsynchronousUnorderedCollectable<E> extends AsynchronousCollectable
                                 }
                                 accept(element, index);
                             }
+                            resolve();
                         });
-                        resolve();
+
                     }
                 } catch (error) {
                     reject(error);
@@ -1424,7 +1426,16 @@ export class AsynchronousUnorderedCollectable<E> extends AsynchronousCollectable
     }
 
     public async *[Symbol.asyncIterator](): globalThis.AsyncGenerator<E, void, undefined> {
-        for await (let element of await this.toArray()) {
+        let buffer: Map<bigint, E> = await new Promise<Map<bigint, E>>((resolve: Consumer<Map<bigint, E>>, reject: Consumer<any>): void => {
+            if (this.complete === true) {
+                resolve(this.buffer);
+            } else {
+                this.listeners.push((buffer: Map<bigint, E>): void => {
+                    resolve(buffer);
+                }, reject);
+            }
+        });
+        for await (let [_index, element] of buffer) {
             yield element;
         }
     }

@@ -1,8 +1,10 @@
-
 import { isFunction, isNumber, isBigInt, isBoolean, isString, isObject, isAsyncIterable, isAsyncFunction } from "../guard";
 import { useCompare, useToBigInt, useToNumber } from "../hook";
 import { AsynchronousCollectorSymbol } from "../symbol";
-import type { BiFunctional, BiPredicate, Functional, Predicate, Supplier, TriFunctional, TriPredicate, Consumer, BiConsumer, Comparator, AsynchronousGenerator } from "../utility";
+import type {
+    BiFunctional, BiPredicate, Functional, Predicate, Supplier, TriFunctional, TriPredicate, Consumer, BiConsumer,
+    Comparator, AsynchronousGenerator
+} from "../utility";
 import { invalidate, validate } from "../utility";
 
 export class AsynchronousCollector<E, A, R> {
@@ -71,7 +73,6 @@ export class AsynchronousCollector<E, A, R> {
     public async collect(start: bigint, end: bigint): Promise<R>;
     public async collect(argument1: AsynchronousGenerator<E> | AsyncIterable<E> | number | bigint, argument2?: number | bigint): Promise<R> {
         if (isAsyncFunction(argument1) || isFunction(argument1)) {
-            console.log("Function");
             return await new Promise<R>(async (resolve: Consumer<R>, reject: Consumer<any>): Promise<void> => {
                 try {
                     let generator: AsynchronousGenerator<E> = argument1 as AsynchronousGenerator<E>;
@@ -79,10 +80,12 @@ export class AsynchronousCollector<E, A, R> {
                     let count: bigint = 0n;
                     await generator((element: E, index: bigint): void => {
                         accumulator = this.accumulator(accumulator, element, index);
-                        console.log(accumulator);
                         count++;
-                    }, (element: E, index: bigint): boolean => this.interrupt(element, index, accumulator));
-                    resolve(this.finisher(accumulator));
+                    }, (element: E, index: bigint): boolean => this.interrupt(element, index, accumulator))
+                        .then((): void => {
+                            resolve(this.finisher(accumulator));
+                        }, reject);
+
                 } catch (error) {
                     reject(error);
                 }
@@ -148,6 +151,22 @@ export class AsynchronousCollector<E, A, R> {
         throw new Error("Invalid arguments.");
     }
 
+    public getIdentity(): Supplier<A> {
+        return this.identity;
+    }
+
+    public getInterrupt(): Predicate<E> | BiPredicate<E, bigint> | TriPredicate<E, bigint, A> {
+        return this.interrupt;
+    }
+
+    public getAccumulator(): BiFunctional<A, E, A> | TriFunctional<A, E, bigint, A> {
+        return this.accumulator;
+    }
+
+    public getFinisher(): Functional<A, R> {
+        return this.finisher;
+    }
+
     public static full<E, A, R>(identity: Supplier<A>, accumulator: BiFunctional<A, E, A>, finisher: Functional<A, R>): AsynchronousCollector<E, A, R>;
     public static full<E, A, R>(identity: Supplier<A>, accumulator: TriFunctional<A, E, bigint, A>, finisher: Functional<A, R>): AsynchronousCollector<E, A, R>;
     public static full<E, A, R>(identity: Supplier<A>, accumulator: BiFunctional<A, E, A> | TriFunctional<A, E, bigint, A>, finisher: Functional<A, R>): AsynchronousCollector<E, A, R> {
@@ -165,11 +184,11 @@ export class AsynchronousCollector<E, A, R> {
     }
 };
 
-interface UseSynchronousAnyMatch {
+interface UseAsynchronousAnyMatch {
     <E>(predicate: Predicate<E>): AsynchronousCollector<E, boolean, boolean>;
     <E>(predicate: BiPredicate<E, bigint>): AsynchronousCollector<E, boolean, boolean>;
 };
-export let useAsynchronousAnyMatch: UseSynchronousAnyMatch = <E>(predicate: Predicate<E> | BiPredicate<E, bigint>): AsynchronousCollector<E, boolean, boolean> => {
+export let useAsynchronousAnyMatch: UseAsynchronousAnyMatch = <E>(predicate: Predicate<E> | BiPredicate<E, bigint>): AsynchronousCollector<E, boolean, boolean> => {
     if (isFunction(predicate)) {
         return AsynchronousCollector.shortable(
             (): boolean => false,
@@ -181,11 +200,11 @@ export let useAsynchronousAnyMatch: UseSynchronousAnyMatch = <E>(predicate: Pred
     throw new TypeError("Predicate must be a function.");
 };
 
-interface UseSynchronousAllMatch {
+interface UseAsynchronousAllMatch {
     <E>(predicate: Predicate<E>): AsynchronousCollector<E, boolean, boolean>;
     <E>(predicate: BiPredicate<E, bigint>): AsynchronousCollector<E, boolean, boolean>;
 };
-export let useAsynchronousAllMatch: UseSynchronousAllMatch = <E>(predicate: Predicate<E> | BiPredicate<E, bigint>): AsynchronousCollector<E, boolean, boolean> => {
+export let useAsynchronousAllMatch: UseAsynchronousAllMatch = <E>(predicate: Predicate<E> | BiPredicate<E, bigint>): AsynchronousCollector<E, boolean, boolean> => {
     if (isFunction(predicate)) {
         return AsynchronousCollector.shortable(
             (): boolean => true,
@@ -197,7 +216,7 @@ export let useAsynchronousAllMatch: UseSynchronousAllMatch = <E>(predicate: Pred
     throw new TypeError("Predicate must be a function.");
 };
 
-interface UseSynchronousCollect {
+interface UseAsynchronousCollect {
     <E, A, R>(identity: Supplier<A>, accumulator: BiFunctional<A, E, A>, finisher: Functional<A, R>): AsynchronousCollector<E, A, R>;
     <E, A, R>(identity: Supplier<A>, accumulator: TriFunctional<A, E, bigint, A>, finisher: Functional<A, R>): AsynchronousCollector<E, A, R>;
     <E, A, R>(identity: Supplier<A>, accumulator: BiFunctional<A, E, A> | TriFunctional<A, E, bigint, A>, finisher: Functional<A, R>): AsynchronousCollector<E, A, R>;
@@ -208,7 +227,7 @@ interface UseSynchronousCollect {
     <E, A, R>(identity: Supplier<A>, interrupt: TriPredicate<E, bigint, A>, accumulator: BiFunctional<A, E, A>, finisher: Functional<A, R>): AsynchronousCollector<E, A, R>;
     <E, A, R>(identity: Supplier<A>, interrupt: TriPredicate<E, bigint, A>, accumulator: TriFunctional<A, E, bigint, A>, finisher: Functional<A, R>): AsynchronousCollector<E, A, R>;
 };
-export let useAsynchronousCollect: UseSynchronousCollect = <E, A, R>(argument1: Supplier<A> | AsynchronousCollector<E, A, R>, argument2?: BiFunctional<A, E, A> | TriFunctional<A, E, bigint, A> | Predicate<E> | BiPredicate<E, bigint> | TriPredicate<E, bigint, A>, argument3?: BiFunctional<A, E, A> | TriFunctional<A, E, bigint, A> | Functional<A, R>, argument4?: Functional<A, R>): AsynchronousCollector<E, A, R> => {
+export let useAsynchronousCollect: UseAsynchronousCollect = <E, A, R>(argument1: Supplier<A> | AsynchronousCollector<E, A, R>, argument2?: BiFunctional<A, E, A> | TriFunctional<A, E, bigint, A> | Predicate<E> | BiPredicate<E, bigint> | TriPredicate<E, bigint, A>, argument3?: BiFunctional<A, E, A> | TriFunctional<A, E, bigint, A> | Functional<A, R>, argument4?: Functional<A, R>): AsynchronousCollector<E, A, R> => {
     if (isFunction(argument1) && isFunction(argument2) && isFunction(argument3) && isFunction(argument4)) {
         let identity: Supplier<A> = argument1 as Supplier<A>;
         let interrupt: Predicate<E> & BiPredicate<E, bigint> & TriPredicate<E, bigint, A> = argument2 as Predicate<E> & BiPredicate<E, bigint> & TriPredicate<E, bigint, A>;
@@ -233,14 +252,14 @@ export let useAsynchronousCount: <E = unknown>() => AsynchronousCollector<E, big
     );
 };
 
-interface UseSynchronousError {
+interface UseAsynchronousError {
     <E = unknown>(): AsynchronousCollector<E, string, string>;
     <E = unknown>(accumulator: BiFunctional<string, E, string>): AsynchronousCollector<E, string, string>;
     <E = unknown>(accumulator: TriFunctional<string, E, bigint, string>): AsynchronousCollector<E, string, string>;
     <E = unknown>(prefix: string, accumulator: BiFunctional<string, E, string>, suffix: string): AsynchronousCollector<E, string, string>;
     <E = unknown>(prefix: string, accumulator: TriFunctional<string, E, bigint, string>, suffix: string): AsynchronousCollector<E, string, string>;
 };
-export let useAsynchronousError: UseSynchronousError = <E = unknown>(argument1?: string | BiFunctional<string, E, string> | TriFunctional<string, E, bigint, string>, argument2?: BiFunctional<string, E, string> | TriFunctional<string, E, bigint, string>, argument3?: string): AsynchronousCollector<E, string, string> => {
+export let useAsynchronousError: UseAsynchronousError = <E = unknown>(argument1?: string | BiFunctional<string, E, string> | TriFunctional<string, E, bigint, string>, argument2?: BiFunctional<string, E, string> | TriFunctional<string, E, bigint, string>, argument3?: string): AsynchronousCollector<E, string, string> => {
     if (isString(argument1) && isFunction(argument2) && isString(argument3)) {
         let prefix: string = argument1;
         let accumulator: BiFunctional<string, E, string> & TriFunctional<string, E, bigint, string> = argument2 as BiFunctional<string, E, string> & TriFunctional<string, E, bigint, string>;
@@ -285,11 +304,11 @@ export let useAsynchronousError: UseSynchronousError = <E = unknown>(argument1?:
     }
 };
 
-interface UseSynchronousFindAt {
+interface UseAsynchronousFindAt {
     <E>(index: number): AsynchronousCollector<E, Array<E>, Promise<E>>;
     <E>(index: bigint): AsynchronousCollector<E, Array<E>, Promise<E>>;
 };
-export let useAsynchronousFindAt: UseSynchronousFindAt = <E>(index: number | bigint): AsynchronousCollector<E, Array<E>, Promise<E>> => {
+export let useAsynchronousFindAt: UseAsynchronousFindAt = <E>(index: number | bigint): AsynchronousCollector<E, Array<E>, Promise<E>> => {
     let target: bigint = useToBigInt(index);
     if (target < 0n) {
         return AsynchronousCollector.full(
@@ -368,11 +387,11 @@ export let useAsynchronousFindLast: <E>() => AsynchronousCollector<E, Array<E>, 
         (accumulator: Array<E>): Promise<E> => Promise.resolve(accumulator[accumulator.length - 1]));
 };
 
-interface UseSynchronousFindMaximum {
+interface UseAsynchronousFindMaximum {
     <E>(): AsynchronousCollector<E, Promise<E>, Promise<E>>;
     <E>(comparator: Comparator<E>): AsynchronousCollector<E, Promise<E>, Promise<E>>;
 }
-export let useAsynchronousFindMaximum: UseSynchronousFindMaximum = <E>(comparator: Comparator<E> = useCompare<E>): AsynchronousCollector<E, Promise<E>, Promise<E>> => {
+export let useAsynchronousFindMaximum: UseAsynchronousFindMaximum = <E>(comparator: Comparator<E> = useCompare<E>): AsynchronousCollector<E, Promise<E>, Promise<E>> => {
     if (isFunction(comparator)) {
         return AsynchronousCollector.full(
             (): Promise<E> => Promise.reject(new Error("No element found.")),
@@ -393,11 +412,11 @@ export let useAsynchronousFindMaximum: UseSynchronousFindMaximum = <E>(comparato
     throw new TypeError("Invalid argument.");
 };
 
-interface UseSynchronousFindMinimum {
+interface UseAsynchronousFindMinimum {
     <E>(): AsynchronousCollector<E, Promise<E>, Promise<E>>;
     <E>(comparator: Comparator<E>): AsynchronousCollector<E, Promise<E>, Promise<E>>;
 }
-export let useAsynchronousFindMinimum: UseSynchronousFindMinimum = <E>(comparator: Comparator<E> = useCompare<E>): AsynchronousCollector<E, Promise<E>, Promise<E>> => {
+export let useAsynchronousFindMinimum: UseAsynchronousFindMinimum = <E>(comparator: Comparator<E> = useCompare<E>): AsynchronousCollector<E, Promise<E>, Promise<E>> => {
     if (isFunction(comparator)) {
         return AsynchronousCollector.full(
             (): Promise<E> => Promise.reject(new Error("No element found.")),
@@ -418,11 +437,11 @@ export let useAsynchronousFindMinimum: UseSynchronousFindMinimum = <E>(comparato
     throw new TypeError("Invalid argument.");
 };
 
-interface UseSynchronousForEach {
+interface UseAsynchronousForEach {
     <E>(action: Consumer<E>): AsynchronousCollector<E, bigint, bigint>;
     <E>(action: BiConsumer<E, bigint>): AsynchronousCollector<E, bigint, bigint>;
 };
-export let useAsynchronousForEach: UseSynchronousForEach = <E>(action: Consumer<E> | BiConsumer<E, bigint>): AsynchronousCollector<E, bigint, bigint> => {
+export let useAsynchronousForEach: UseAsynchronousForEach = <E>(action: Consumer<E> | BiConsumer<E, bigint>): AsynchronousCollector<E, bigint, bigint> => {
     if (isFunction(action)) {
         return AsynchronousCollector.full(
             (): bigint => 0n,
@@ -436,11 +455,11 @@ export let useAsynchronousForEach: UseSynchronousForEach = <E>(action: Consumer<
     throw new TypeError("Action must be a function.");
 };
 
-interface UseSynchronousNonMatch {
+interface UseAsynchronousNonMatch {
     <E>(predicate: Predicate<E>): AsynchronousCollector<E, boolean, boolean>;
     <E>(predicate: BiPredicate<E, bigint>): AsynchronousCollector<E, boolean, boolean>;
 };
-export let useAsynchronousNoneMatch: UseSynchronousNonMatch = <E>(predicate: Predicate<E> | BiPredicate<E, bigint>): AsynchronousCollector<E, boolean, boolean> => {
+export let useAsynchronousNoneMatch: UseAsynchronousNonMatch = <E>(predicate: Predicate<E> | BiPredicate<E, bigint>): AsynchronousCollector<E, boolean, boolean> => {
     if (isFunction(predicate)) {
         return AsynchronousCollector.shortable(
             (): boolean => true,
@@ -452,11 +471,11 @@ export let useAsynchronousNoneMatch: UseSynchronousNonMatch = <E>(predicate: Pre
     throw new TypeError("Predicate must be a function.");
 };
 
-interface UseSynchronousGroup {
+interface UseAsynchronousGroup {
     <E, K>(classifier: Functional<E, K>): AsynchronousCollector<E, Map<K, E[]>, Map<K, E[]>>;
     <E, K>(classifier: BiFunctional<E, bigint, K>): AsynchronousCollector<E, Map<K, E[]>, Map<K, E[]>>;
 };
-export let useAsynchronousGroup: UseSynchronousGroup = <E, K>(classifier: Functional<E, K> | BiFunctional<E, bigint, K>): AsynchronousCollector<E, Map<K, E[]>, Map<K, E[]>> => {
+export let useAsynchronousGroup: UseAsynchronousGroup = <E, K>(classifier: Functional<E, K> | BiFunctional<E, bigint, K>): AsynchronousCollector<E, Map<K, E[]>, Map<K, E[]>> => {
     if (isFunction(classifier)) {
         return AsynchronousCollector.full(
             (): Map<K, E[]> => new Map<K, E[]>(),
@@ -473,12 +492,12 @@ export let useAsynchronousGroup: UseSynchronousGroup = <E, K>(classifier: Functi
     throw new TypeError("Classifier must be a function.");
 };
 
-interface UseSynchronousGroupBy {
+interface UseAsynchronousGroupBy {
     <E, K>(keyExtractor: Functional<E, K>): AsynchronousCollector<E, Map<K, E[]>, Map<K, E[]>>;
     <E, K, V>(keyExtractor: Functional<E, K>, valueExtractor: Functional<E, V>): AsynchronousCollector<E, Map<K, V[]>, Map<K, V[]>>;
     <E, K, V>(keyExtractor: BiFunctional<E, bigint, K>, valueExtractor: BiFunctional<E, bigint, V>): AsynchronousCollector<E, Map<K, V[]>, Map<K, V[]>>;
 }
-export let useAsynchronousGroupBy: UseSynchronousGroupBy = <E, K, V = E>(keyExtractor: Functional<E, K> | BiFunctional<E, bigint, K>, valueExtractor: Functional<E, V> | BiFunctional<E, bigint, V> = (element: E) => element as unknown as V): AsynchronousCollector<E, Map<K, V[]>, Map<K, V[]>> => {
+export let useAsynchronousGroupBy: UseAsynchronousGroupBy = <E, K, V = E>(keyExtractor: Functional<E, K> | BiFunctional<E, bigint, K>, valueExtractor: Functional<E, V> | BiFunctional<E, bigint, V> = (element: E) => element as unknown as V): AsynchronousCollector<E, Map<K, V[]>, Map<K, V[]>> => {
     if (isFunction(keyExtractor) && isFunction(valueExtractor)) {
         return AsynchronousCollector.full(
             (): Map<K, V[]> => new Map<K, V[]>(),
@@ -495,14 +514,14 @@ export let useAsynchronousGroupBy: UseSynchronousGroupBy = <E, K, V = E>(keyExtr
     throw new TypeError("Key extractor and value extractor must be functions.");
 };
 
-interface UseSynchronousJoin {
+interface UseAsynchronousJoin {
     <E = unknown>(): AsynchronousCollector<E, string, string>;
     <E = unknown>(delimiter: string): AsynchronousCollector<E, string, string>;
     <E = unknown>(prefix: string, delimiter: string, suffix: string): AsynchronousCollector<E, string, string>;
     <E = unknown>(prefiex: string, accumulator: BiFunctional<string, E, string>, suffix: string): AsynchronousCollector<E, string, string>;
     <E = unknown>(prefiex: string, accumulator: TriFunctional<string, E, bigint, string>, suffix: string): AsynchronousCollector<E, string, string>
 };
-export let useAsynchronousJoin: UseSynchronousJoin = <E = unknown>(argument1?: string, argument2?: string | BiFunctional<string, E, string> | TriFunctional<string, E, bigint, string>, argument3?: string): AsynchronousCollector<E, string, string> => {
+export let useAsynchronousJoin: UseAsynchronousJoin = <E = unknown>(argument1?: string, argument2?: string | BiFunctional<string, E, string> | TriFunctional<string, E, bigint, string>, argument3?: string): AsynchronousCollector<E, string, string> => {
     if (invalidate(argument1) && invalidate(argument2) && invalidate(argument3)) {
         return AsynchronousCollector.full<E, string, string>(
             (): string => "[",
@@ -541,7 +560,7 @@ export let useAsynchronousJoin: UseSynchronousJoin = <E = unknown>(argument1?: s
     throw new TypeError("Invalid arguments.");
 };
 
-interface UseSynchronousLog {
+interface UseAsynchronousLog {
     <E = unknown>(): AsynchronousCollector<E, string, string>;
     <E = unknown>(accumulator: BiFunctional<string, E, string>): AsynchronousCollector<E, string, string>;
     <E = unknown>(accumulator: TriFunctional<string, E, bigint, string>): AsynchronousCollector<E, string, string>;
@@ -549,7 +568,7 @@ interface UseSynchronousLog {
     <E = unknown>(prefix: string, accumulator: TriFunctional<string, E, bigint, string>, suffix: string): AsynchronousCollector<E, string, string>;
 };
 
-export let useAsynchronousLog: UseSynchronousLog = <E = unknown>(argument1?: string | BiFunctional<string, E, string> | TriFunctional<string, E, bigint, string>, argument2?: BiFunctional<string, E, string> | TriFunctional<string, E, bigint, string>, argument3?: string): AsynchronousCollector<E, string, string> => {
+export let useAsynchronousLog: UseAsynchronousLog = <E = unknown>(argument1?: string | BiFunctional<string, E, string> | TriFunctional<string, E, bigint, string>, argument2?: BiFunctional<string, E, string> | TriFunctional<string, E, bigint, string>, argument3?: string): AsynchronousCollector<E, string, string> => {
     if (isString(argument1) && isFunction(argument2) && isString(argument3)) {
         let prefix: string = argument1;
         let accumulator: BiFunctional<string, E, string> & TriFunctional<string, E, bigint, string> = argument2 as BiFunctional<string, E, string> & TriFunctional<string, E, bigint, string>;
@@ -580,7 +599,6 @@ export let useAsynchronousLog: UseSynchronousLog = <E = unknown>(argument1?: str
         return AsynchronousCollector.full<E, string, string>(
             (): string => "[",
             (accumulator: string, element: E): string => {
-                console.log(element)
                 if (isString(accumulator) && isString(element)) {
                     return accumulator + element + ",";
                 }
@@ -615,11 +633,11 @@ export let useAsynchronousPartition: <E>(count: bigint) => AsynchronousCollector
     throw new TypeError("Count must be a BigInt.");
 };
 
-interface UseSynchronousPartitionBy {
+interface UseAsynchronousPartitionBy {
     <E>(classifier: Functional<E, bigint>): AsynchronousCollector<E, Array<E[]>, Array<E[]>>;
     <E>(classifier: BiFunctional<E, bigint, bigint>): AsynchronousCollector<E, Array<E[]>, Array<E[]>>;
 };
-export let useAsynchronousPartitionBy: UseSynchronousPartitionBy = <E>(classifier: Functional<E, bigint> | BiFunctional<E, bigint, bigint>): AsynchronousCollector<E, Array<E[]>, Array<E[]>> => {
+export let useAsynchronousPartitionBy: UseAsynchronousPartitionBy = <E>(classifier: Functional<E, bigint> | BiFunctional<E, bigint, bigint>): AsynchronousCollector<E, Array<E[]>, Array<E[]>> => {
     if (isFunction(classifier)) {
         return AsynchronousCollector.full(
             (): Array<Array<E>> => {
@@ -638,7 +656,7 @@ export let useAsynchronousPartitionBy: UseSynchronousPartitionBy = <E>(classifie
     throw new TypeError("Classifier must be a function.");
 };
 
-interface UseSynchronousReduce {
+interface UseAsynchronousReduce {
     <E>(accumulator: BiFunctional<E, E, E>): AsynchronousCollector<E, Promise<E>, Promise<E>>;
     <E>(accumulator: TriFunctional<E, E, bigint, E>): AsynchronousCollector<E, Promise<E>, Promise<E>>;
     <E>(identity: E, accumulator: BiFunctional<E, E, E>): AsynchronousCollector<E, E, E>;
@@ -647,7 +665,7 @@ interface UseSynchronousReduce {
     <E, R>(identity: R, accumulator: TriFunctional<R, E, bigint, R>, finisher: Functional<R, R>): AsynchronousCollector<E, R, R>;
 };
 
-export let useAsynchronousReduce: UseSynchronousReduce = <E, R>(argument1?: R | E | BiFunctional<E, E, E> | TriFunctional<E, E, bigint, E>, argument2?: BiFunctional<E, E, E> | TriFunctional<E, E, bigint, E> | BiFunctional<R, E, R> | TriFunctional<R, E, bigint, R>, argument3?: Functional<R, R>): AsynchronousCollector<E, Promise<E>, Promise<E>> | AsynchronousCollector<E, E, E> | AsynchronousCollector<E, R, R> => {
+export let useAsynchronousReduce: UseAsynchronousReduce = <E, R>(argument1?: R | E | BiFunctional<E, E, E> | TriFunctional<E, E, bigint, E>, argument2?: BiFunctional<E, E, E> | TriFunctional<E, E, bigint, E> | BiFunctional<R, E, R> | TriFunctional<R, E, bigint, R>, argument3?: Functional<R, R>): AsynchronousCollector<E, Promise<E>, Promise<E>> | AsynchronousCollector<E, E, E> | AsynchronousCollector<E, R, R> => {
     if (isFunction(argument1) && invalidate(argument2) && invalidate(argument3)) {
         let accumulator: BiFunctional<E, E, E> & TriFunctional<E, E, bigint, E> = argument1 as BiFunctional<E, E, E> & TriFunctional<E, E, bigint, E>;
         return AsynchronousCollector.full<E, Promise<E>, Promise<E>>(
@@ -687,12 +705,12 @@ export let useAsynchronousToArray: <E>() => AsynchronousCollector<E, E[], E[]> =
     );
 };
 
-interface UseSynchronousToMap {
+interface UseAsynchronousToMap {
     <E, K>(keyExtractor: Functional<E, K>): AsynchronousCollector<E, Map<K, E>, Map<K, E>>;
     <E, K, V>(keyExtractor: Functional<E, K>, valueExtractor: Functional<E, V>): AsynchronousCollector<E, Map<K, V>, Map<K, V>>;
     <E, K, V>(keyExtractor: BiFunctional<E, bigint, K>, valueExtractor: BiFunctional<E, bigint, V>): AsynchronousCollector<E, Map<K, V>, Map<K, V>>;
 };
-export let useAsynchronousToMap: UseSynchronousToMap = <E, K, V>(keyExtractor: Functional<E, K> | BiFunctional<E, bigint, K>, valueExtractor: Functional<E, V> | BiFunctional<E, bigint, V> = (element: E): V => element as unknown as V): AsynchronousCollector<E, Map<K, V>, Map<K, V>> => {
+export let useAsynchronousToMap: UseAsynchronousToMap = <E, K, V>(keyExtractor: Functional<E, K> | BiFunctional<E, bigint, K>, valueExtractor: Functional<E, V> | BiFunctional<E, bigint, V> = (element: E): V => element as unknown as V): AsynchronousCollector<E, Map<K, V>, Map<K, V>> => {
     if (isFunction(keyExtractor) && isFunction(valueExtractor)) {
         return AsynchronousCollector.full<E, Map<K, V>, Map<K, V>>(
             (): Map<K, V> => new Map<K, V>(),
@@ -719,13 +737,13 @@ export let useAsynchronousToSet: <E>() => AsynchronousCollector<E, Set<E>, Set<E
     );
 };
 
-interface UseSynchronousWrite {
+interface UseAsynchronousWrite {
     <E, S = string>(stream: WritableStream<S>): AsynchronousCollector<E, Promise<WritableStream<S>>, Promise<WritableStream<S>>>;
     <E, S = string>(stream: WritableStream<S>, accumulator: BiFunctional<WritableStream<S>, E, WritableStream<S>>): AsynchronousCollector<E, Promise<WritableStream<S>>, Promise<WritableStream<S>>>;
     <E, S = string>(stream: WritableStream<S>, accumulator: TriFunctional<WritableStream<S>, E, bigint, WritableStream<S>>): AsynchronousCollector<E, Promise<WritableStream<S>>, Promise<WritableStream<S>>>;
 };
 
-export let useAsynchronousWrite: UseSynchronousWrite = <E, S = string>(argument1: WritableStream<S>, argument2?: BiFunctional<WritableStream<S>, E, WritableStream<S>> | TriFunctional<WritableStream<S>, E, bigint, WritableStream<S>>): AsynchronousCollector<E, Promise<WritableStream<S>>, Promise<WritableStream<S>>> => {
+export let useAsynchronousWrite: UseAsynchronousWrite = <E, S = string>(argument1: WritableStream<S>, argument2?: BiFunctional<WritableStream<S>, E, WritableStream<S>> | TriFunctional<WritableStream<S>, E, bigint, WritableStream<S>>): AsynchronousCollector<E, Promise<WritableStream<S>>, Promise<WritableStream<S>>> => {
     if (isObject(argument1)) {
         if (isFunction(argument2)) {
             let stream: WritableStream<S> = argument1 as WritableStream<S>;
@@ -767,11 +785,11 @@ export let useAsynchronousWrite: UseSynchronousWrite = <E, S = string>(argument1
     throw new TypeError("Invalid arguments.");
 };
 
-interface UseSynchronousNumericSummate {
+interface UseAsynchronousNumericSummate {
     <E>(): AsynchronousCollector<E, number, number>;
     <E>(mapper: Functional<E, number>): AsynchronousCollector<number, number, number>;
 };
-export let useAsynchronousNumericSummate: UseSynchronousNumericSummate = <E>(mapper: Functional<E, number> = useToNumber): AsynchronousCollector<number, number, number> | AsynchronousCollector<E, number, number> => {
+export let useAsynchronousNumericSummate: UseAsynchronousNumericSummate = <E>(mapper: Functional<E, number> = useToNumber): AsynchronousCollector<number, number, number> | AsynchronousCollector<E, number, number> => {
     return AsynchronousCollector.full(
         (): number => 0,
         (accumulator: number, element: number | E): number => {
@@ -782,11 +800,11 @@ export let useAsynchronousNumericSummate: UseSynchronousNumericSummate = <E>(map
     ) as AsynchronousCollector<number, number, number> | AsynchronousCollector<E, number, number>;
 };
 
-interface UseSynchronousBigIntSummate {
+interface UseAsynchronousBigIntSummate {
     <E>(): AsynchronousCollector<E, bigint, bigint>;
-    <E>(mapper: Functional<E, bigint>): AsynchronousCollector<bigint , bigint, bigint>;
+    <E>(mapper: Functional<E, bigint>): AsynchronousCollector<bigint, bigint, bigint>;
 };
-export let useAsynchronousBigIntSummate: UseSynchronousBigIntSummate = <E>(mapper: Functional<E, bigint> = useToBigInt): AsynchronousCollector<bigint, bigint, bigint> | AsynchronousCollector<E, bigint, bigint> => {
+export let useAsynchronousBigIntSummate: UseAsynchronousBigIntSummate = <E>(mapper: Functional<E, bigint> = useToBigInt): AsynchronousCollector<bigint, bigint, bigint> | AsynchronousCollector<E, bigint, bigint> => {
     return AsynchronousCollector.full(
         (): bigint => 0n,
         (accumulator: bigint, element: bigint | E): bigint => {
@@ -797,7 +815,7 @@ export let useAsynchronousBigIntSummate: UseSynchronousBigIntSummate = <E>(mappe
     ) as AsynchronousCollector<bigint, bigint, bigint> | AsynchronousCollector<E, bigint, bigint>;
 };
 
-interface UseSynchronousNumericAverage {
+interface UseAsynchronousNumericAverage {
     <E>(): AsynchronousCollector<E, NumericAverageAccumulator, number>;
     <E>(mapper: Functional<E, number>): AsynchronousCollector<number, NumericAverageAccumulator, number>;
 };
@@ -805,7 +823,7 @@ interface NumericAverageAccumulator {
     summate: number;
     count: number;
 };
-export let useAsynchronousNumericAverage: UseSynchronousNumericAverage = <E>(mapper: Functional<E, number> = useToNumber): AsynchronousCollector<number, NumericAverageAccumulator, number> | AsynchronousCollector<E, NumericAverageAccumulator, number> => {
+export let useAsynchronousNumericAverage: UseAsynchronousNumericAverage = <E>(mapper: Functional<E, number> = useToNumber): AsynchronousCollector<number, NumericAverageAccumulator, number> | AsynchronousCollector<E, NumericAverageAccumulator, number> => {
     return AsynchronousCollector.full(
         (): NumericAverageAccumulator => {
             return {
@@ -829,7 +847,7 @@ export let useAsynchronousNumericAverage: UseSynchronousNumericAverage = <E>(map
     ) as AsynchronousCollector<number, NumericAverageAccumulator, number> | AsynchronousCollector<E, NumericAverageAccumulator, number>;
 };
 
-interface UseSynchronousBigIntAverage {
+interface UseAsynchronousBigIntAverage {
     <E>(): AsynchronousCollector<E, BigIntAverageAccumulator, bigint>;
     <E>(mapper: Functional<E, bigint>): AsynchronousCollector<E, BigIntAverageAccumulator, bigint>;
 };
@@ -837,7 +855,7 @@ interface BigIntAverageAccumulator {
     summate: bigint;
     count: bigint;
 };
-export let useAsynchronousBigIntAverage: UseSynchronousBigIntAverage = <E>(mapper: Functional<E, bigint> = useToBigInt): AsynchronousCollector<bigint, BigIntAverageAccumulator, bigint> | AsynchronousCollector<E, BigIntAverageAccumulator, bigint> => {
+export let useAsynchronousBigIntAverage: UseAsynchronousBigIntAverage = <E>(mapper: Functional<E, bigint> = useToBigInt): AsynchronousCollector<bigint, BigIntAverageAccumulator, bigint> | AsynchronousCollector<E, BigIntAverageAccumulator, bigint> => {
     return AsynchronousCollector.full(
         (): BigIntAverageAccumulator => {
             return {
@@ -873,11 +891,11 @@ export let useAsynchronousFrequency: <E>() => AsynchronousCollector<E, Map<E, bi
     );
 };
 
-interface UseSynchronousNumericMode {
+interface UseAsynchronousNumericMode {
     <E>(): AsynchronousCollector<E, Map<number, bigint>, number>;
     <E>(mapper: Functional<E, number>): AsynchronousCollector<E, Map<number, bigint>, number>;
 };
-export let useAsynchronousNumericMode: UseSynchronousNumericMode = <E>(mapper: Functional<E, number> = useToNumber): AsynchronousCollector<number, Map<number, bigint>, number> | AsynchronousCollector<E, Map<number, bigint>, number> => {
+export let useAsynchronousNumericMode: UseAsynchronousNumericMode = <E>(mapper: Functional<E, number> = useToNumber): AsynchronousCollector<number, Map<number, bigint>, number> | AsynchronousCollector<E, Map<number, bigint>, number> => {
     return AsynchronousCollector.full(
         (): Map<number, bigint> => new Map<number, bigint>(),
         (map: Map<number, bigint>, element: number | E): Map<number, bigint> => {
@@ -900,11 +918,11 @@ export let useAsynchronousNumericMode: UseSynchronousNumericMode = <E>(mapper: F
     ) as AsynchronousCollector<number, Map<number, bigint>, number> | AsynchronousCollector<E, Map<number, bigint>, number>;
 };
 
-interface UseSynchronousBigIntMode {
+interface UseAsynchronousBigIntMode {
     <E>(): AsynchronousCollector<E, Map<bigint, bigint>, bigint>;
     <E>(mapper: Functional<E, bigint>): AsynchronousCollector<E, Map<bigint, bigint>, bigint>;
 };
-export let useAsynchronousBigIntMode: UseSynchronousBigIntMode = <E>(mapper: Functional<E, bigint> = useToBigInt): AsynchronousCollector<bigint, Map<bigint, bigint>, bigint> | AsynchronousCollector<E, Map<bigint, bigint>, bigint> => {
+export let useAsynchronousBigIntMode: UseAsynchronousBigIntMode = <E>(mapper: Functional<E, bigint> = useToBigInt): AsynchronousCollector<bigint, Map<bigint, bigint>, bigint> | AsynchronousCollector<E, Map<bigint, bigint>, bigint> => {
     return AsynchronousCollector.full(
         (): Map<bigint, bigint> => new Map<bigint, bigint>(),
         (map: Map<bigint, bigint>, element: bigint | E): Map<bigint, bigint> => {
@@ -927,7 +945,7 @@ export let useAsynchronousBigIntMode: UseSynchronousBigIntMode = <E>(mapper: Fun
     ) as AsynchronousCollector<bigint, Map<bigint, bigint>, bigint> | AsynchronousCollector<E, Map<bigint, bigint>, bigint>;
 };
 
-interface UseSynchronousNumericVariance {
+interface UseAsynchronousNumericVariance {
     <E>(): AsynchronousCollector<E, VarianceAccumulator, number>;
     <E>(mapper: Functional<E, number>): AsynchronousCollector<E, VarianceAccumulator, number>;
 };
@@ -936,7 +954,7 @@ interface VarianceAccumulator {
     summateOfSquares: number;
     count: number;
 };
-export let useAsynchronousNumericVariance: UseSynchronousNumericVariance = <E>(mapper: Functional<E, number> = useToNumber): AsynchronousCollector<number, VarianceAccumulator, number> | AsynchronousCollector<E, VarianceAccumulator, number> => {
+export let useAsynchronousNumericVariance: UseAsynchronousNumericVariance = <E>(mapper: Functional<E, number> = useToNumber): AsynchronousCollector<number, VarianceAccumulator, number> | AsynchronousCollector<E, VarianceAccumulator, number> => {
     return AsynchronousCollector.full(
         (): VarianceAccumulator => {
             return {
@@ -964,7 +982,7 @@ export let useAsynchronousNumericVariance: UseSynchronousNumericVariance = <E>(m
     ) as AsynchronousCollector<number, VarianceAccumulator, number> | AsynchronousCollector<E, VarianceAccumulator, number>;
 };
 
-interface UseSynchronousBigIntVariance {
+interface UseAsynchronousBigIntVariance {
     <E>(): AsynchronousCollector<E, BigIntVarianceAccumulator, bigint>;
     <E>(mapper: Functional<E, bigint>): AsynchronousCollector<E, BigIntVarianceAccumulator, bigint>;
 };
@@ -973,7 +991,7 @@ interface BigIntVarianceAccumulator {
     summateOfSquares: bigint;
     count: bigint;
 };
-export let useAsynchronousBigIntVariance: UseSynchronousBigIntVariance = <E>(mapper: Functional<E, bigint> = useToBigInt): AsynchronousCollector<bigint, BigIntVarianceAccumulator, bigint> | AsynchronousCollector<E, BigIntVarianceAccumulator, bigint> => {
+export let useAsynchronousBigIntVariance: UseAsynchronousBigIntVariance = <E>(mapper: Functional<E, bigint> = useToBigInt): AsynchronousCollector<bigint, BigIntVarianceAccumulator, bigint> | AsynchronousCollector<E, BigIntVarianceAccumulator, bigint> => {
     return AsynchronousCollector.full(
         (): BigIntVarianceAccumulator => {
             return {
@@ -1001,7 +1019,7 @@ export let useAsynchronousBigIntVariance: UseSynchronousBigIntVariance = <E>(map
     ) as AsynchronousCollector<bigint, BigIntVarianceAccumulator, bigint> | AsynchronousCollector<E, BigIntVarianceAccumulator, bigint>;
 };
 
-interface UseSynchronousNumericStandardDeviation {
+interface UseAsynchronousNumericStandardDeviation {
     <E>(): AsynchronousCollector<E, StandardDeviationAccumulator, number>;
     <E>(mapper: Functional<E, number>): AsynchronousCollector<E, StandardDeviationAccumulator, number>;
 };
@@ -1010,7 +1028,7 @@ interface StandardDeviationAccumulator {
     summateOfSquares: number;
     count: number;
 };
-export let useAsynchronousNumericStandardDeviation: UseSynchronousNumericStandardDeviation = <E>(mapper: Functional<E, number> = useToNumber): AsynchronousCollector<number, StandardDeviationAccumulator, number> | AsynchronousCollector<E, StandardDeviationAccumulator, number> => {
+export let useAsynchronousNumericStandardDeviation: UseAsynchronousNumericStandardDeviation = <E>(mapper: Functional<E, number> = useToNumber): AsynchronousCollector<number, StandardDeviationAccumulator, number> | AsynchronousCollector<E, StandardDeviationAccumulator, number> => {
     return AsynchronousCollector.full(
         (): StandardDeviationAccumulator => {
             return {
@@ -1039,7 +1057,7 @@ export let useAsynchronousNumericStandardDeviation: UseSynchronousNumericStandar
     ) as AsynchronousCollector<number, StandardDeviationAccumulator, number> | AsynchronousCollector<E, StandardDeviationAccumulator, number>;
 };
 
-interface UseSynchronousBigIntStandardDeviation {
+interface UseAsynchronousBigIntStandardDeviation {
     <E>(): AsynchronousCollector<E, BigIntStandardDeviationAccumulator, bigint>;
     <E>(mapper: Functional<E, bigint>): AsynchronousCollector<E, BigIntStandardDeviationAccumulator, bigint>;
 };
@@ -1048,7 +1066,7 @@ interface BigIntStandardDeviationAccumulator {
     summateOfSquares: bigint;
     count: bigint;
 };
-export let useAsynchronousBigIntStandardDeviation: UseSynchronousBigIntStandardDeviation = <E>(mapper: Functional<E, bigint> = useToBigInt): AsynchronousCollector<bigint, BigIntStandardDeviationAccumulator, bigint> | AsynchronousCollector<E, BigIntStandardDeviationAccumulator, bigint> => {
+export let useAsynchronousBigIntStandardDeviation: UseAsynchronousBigIntStandardDeviation = <E>(mapper: Functional<E, bigint> = useToBigInt): AsynchronousCollector<bigint, BigIntStandardDeviationAccumulator, bigint> | AsynchronousCollector<E, BigIntStandardDeviationAccumulator, bigint> => {
     return AsynchronousCollector.full(
         (): BigIntStandardDeviationAccumulator => {
             return {
@@ -1077,11 +1095,11 @@ export let useAsynchronousBigIntStandardDeviation: UseSynchronousBigIntStandardD
     ) as AsynchronousCollector<bigint, BigIntStandardDeviationAccumulator, bigint> | AsynchronousCollector<E, BigIntStandardDeviationAccumulator, bigint>;
 };
 
-interface UseSynchronousNumericMedian {
+interface UseAsynchronousNumericMedian {
     <E>(): AsynchronousCollector<E, number[], number>;
     <E>(mapper: Functional<E, number>): AsynchronousCollector<E, number[], number>;
 };
-export let useAsynchronousNumericMedian: UseSynchronousNumericMedian = <E>(mapper: Functional<E, number> = useToNumber): AsynchronousCollector<number, number[], number> | AsynchronousCollector<E, number[], number> => {
+export let useAsynchronousNumericMedian: UseAsynchronousNumericMedian = <E>(mapper: Functional<E, number> = useToNumber): AsynchronousCollector<number, number[], number> | AsynchronousCollector<E, number[], number> => {
     return AsynchronousCollector.full(
         (): number[] => [],
         (array: number[], element: number | E): number[] => {
@@ -1103,11 +1121,11 @@ export let useAsynchronousNumericMedian: UseSynchronousNumericMedian = <E>(mappe
     ) as AsynchronousCollector<number, number[], number> | AsynchronousCollector<E, number[], number>;
 };
 
-interface UseSynchronousBigIntMedian {
+interface UseAsynchronousBigIntMedian {
     <E>(): AsynchronousCollector<E, bigint[], bigint>;
     <E>(mapper: Functional<E, bigint>): AsynchronousCollector<E, bigint[], bigint>;
 };
-export let useAsynchronousBigIntMedian: UseSynchronousBigIntMedian = <E>(mapper: Functional<E, bigint> = useToBigInt): AsynchronousCollector<bigint, bigint[], bigint> | AsynchronousCollector<E, bigint[], bigint> => {
+export let useAsynchronousBigIntMedian: UseAsynchronousBigIntMedian = <E>(mapper: Functional<E, bigint> = useToBigInt): AsynchronousCollector<bigint, bigint[], bigint> | AsynchronousCollector<E, bigint[], bigint> => {
     return AsynchronousCollector.full(
         (): bigint[] => [],
         (array: bigint[], element: bigint | E): bigint[] => {
