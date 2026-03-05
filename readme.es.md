@@ -211,3 +211,5 @@ Semantic-TypeScript transforma flujos de datos complejos en pipelines legibles, 
 Comience a construir hoy y experimente la diferencia que proporciona una indexación bien pensada.
 
 **Construya con claridad, proceda con confianza y transforme los datos con intención.**
+
+MIT © Eloy Kim

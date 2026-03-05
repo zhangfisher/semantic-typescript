@@ -211,3 +211,5 @@ Semantic-TypeScript verwandelt komplexe Datenflüsse in lesbare, komponierbare u
 Beginnen Sie noch heute mit der Entwicklung und erleben Sie den Unterschied, den durchdachte Indexierung bewirkt.
 
 **Erstellen Sie mit Klarheit, agieren Sie mit Zuversicht und transformieren Sie Daten mit Absicht.**
+
+MIT © Eloy Kim

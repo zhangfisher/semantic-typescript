@@ -211,3 +211,5 @@ Semantic-TypeScript transforme les flux de données complexes en pipelines lisib
 Commencez à construire dès aujourd'hui et expérimentez la différence qu'apporte une indexation bien pensée.
 
 **Construisez avec clarté, agissez avec confiance, et transformez les données avec intention.**
+
+MIT © Eloy Kim
